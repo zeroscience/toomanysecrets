@@ -8,3 +8,7 @@ python-docx>=1.1.0
 
 # Packaging to a single Windows .exe (dev-time only)
 # pyinstaller>=6.0
+
+# Live 3D graph GUI (future phase — see docs/LIVE_GRAPH.md). Not needed for CLI/report.
+# websockets>=12.0        # bus -> browser bridge
+# (front-end uses 3d-force-graph, vendored as a static asset; no pip dep)

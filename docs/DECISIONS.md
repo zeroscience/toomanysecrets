@@ -18,3 +18,14 @@ access, no output re-parsing). Ship a single Windows `.exe` later via PyInstalle
 ## 2026-08-09 — docx report, no template
 Plain, table-driven, classic pentest report: exec summary (severity counts),
 findings most-severe-first with impact/remediation/evidence, enumeration appendix.
+
+## 2026-08-10 — Certipy engine parses JSON, not text
+`certipy find -json` emits a per-object "[!] Vulnerabilities" map. We parse that
+(robust) rather than scrape the text report. ESC1–ESC16 mapped to severity+remediation;
+unknown ESCs default HIGH. Parsing pure + testable (tests/test_certipy_parse.py).
+
+## 2026-08-10 — EventBus seam for a future live 3D graph
+Added redness/events.py (EventBus + Event kinds: status/finding/node/edge/probe/done)
+and Engine.emit_* helpers. Engines can stream as they enumerate so the SAME normalized
+stream feeds both the docx report and a later 3D GUI, decoupled from any renderer.
+Bus swallows subscriber errors (a broken UI can't break a scan). See docs/LIVE_GRAPH.md.
