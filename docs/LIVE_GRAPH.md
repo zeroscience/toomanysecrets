@@ -56,6 +56,18 @@ Node `type` → color/shape; `finding.severity` → node emissive color
 - Live view is a convenience layer; the authoritative output stays the `.docx` report.
 
 ## Status today
-Seam shipped: `events.py` + `Engine.emit_*` helpers, and `CertipyEngine` already emits
-status/probe/node/edge/finding/done (see `test_eventbus_streams_findings`). The GUI
-itself is intentionally **not** built yet — this note is the contract for when it is.
+Seam shipped: `events.py` + `Engine.emit_*` helpers, and `CertipyEngine` emits
+status/probe/node/edge/finding/done.
+
+**Working prototype shipped** (`redness/live/`):
+- `bridge.py` — stdlib SSE server + capped replay buffer, binds 127.0.0.1.
+- `web/index.html` — 3d-force-graph page: nodes by type, recolor by finding severity,
+  probe pulses, live log, auto-fit camera.
+- `demo.py` — simulated enumeration that streams a realistic AD sweep.
+- CLI: `python -m redness.cli live` (`--loop`, `--no-open`, `--port`).
+- Verified end-to-end in a browser (SSE connected, WebGL live, 10 nodes/9 edges/5 findings).
+
+**Still TODO before it ships in the exe / field use:**
+1. **Vendor `3d-force-graph` locally** (currently CDN) — offline requirement.
+2. Add `redness/live/web/` to the PyInstaller spec `datas`.
+3. Wire the *real* engines (not just `demo`) to a bus + `live` run.
