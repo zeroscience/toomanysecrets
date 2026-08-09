@@ -1,0 +1,6 @@
+# REDNESS scope file — one target per line: IP, hostname, or CIDR.
+# '#' starts a comment (whole-line or inline). Blank lines are ignored.
+
+10.10.0.15        # DC01
+dc01.acme.local
+10.10.0.0/24      # whole subnet (nxc accepts CIDR)
