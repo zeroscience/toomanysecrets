@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Reports / engagement data — NEVER commit client output
+*.docx
+findings*.json
+loot/
+output/
+*.ntds
+*.kirbi
+*.ccache
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
