@@ -3,6 +3,8 @@
   python -m redness.cli demo --out report.docx     # end-to-end with sample data
   python -m redness.cli report findings.json --out report.docx
   python -m redness.cli live                        # live 3D graph (simulated enum)
+  python -m redness.cli scan --target 10.0.0.10 -u user -p pass --out report.docx
+  python -m redness.cli scan --targets scope.txt --live
 """
 from __future__ import annotations
 
@@ -11,6 +13,18 @@ import sys
 
 from .findings import Category, Evidence, Finding, Report, Severity
 from .report import docx_report
+
+
+def _print_summary(report: Report) -> None:
+    counts = {s: len(v) for s, v in report.by_severity().items()}
+    total = len(report.findings)
+    print(f"\n[=] {total} finding(s) across {report.target or 'targets'}")
+    for s in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]:
+        if counts[s]:
+            print(f"    {s.value.upper():>8}: {counts[s]}")
+    for f in report.sorted_findings():
+        if f.category != Category.ENUM:
+            print(f"    [{f.severity.value.upper()}] {f.title} -> {', '.join(f.affected) or '-'}")
 
 
 def _sample_report() -> Report:
@@ -137,6 +151,62 @@ def cmd_live(args) -> int:
     return 0
 
 
+def cmd_scan(args) -> int:
+    import time
+    import webbrowser
+
+    from .events import default_bus
+    from .scan import run_scan
+    from .scope import merge_targets
+
+    try:
+        targets = merge_targets(args.target, args.targets)
+    except OSError as e:
+        print(f"[!] could not read scope file: {e}")
+        return 2
+    if not targets:
+        print("[!] no targets — pass --target HOST and/or --targets scope.txt")
+        return 2
+    print(f"[*] {len(targets)} target(s): {', '.join(targets)}")
+
+    bus = default_bus if args.live else None
+    server = None
+    if args.live:
+        from .live import LiveServer
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.2)                       # let the browser connect before streaming
+
+    report = run_scan(
+        targets,
+        username=args.username, password=args.password, nthash=args.hash,
+        domain=args.domain, kerberos=args.kerberos, bus=bus,
+        engagement=args.engagement,
+    )
+    _print_summary(report)
+
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[*] Stopping.")
+            server.stop()
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -156,6 +226,23 @@ def main(argv=None) -> int:
     lv.add_argument("--no-open", action="store_true", help="don't auto-open a browser")
     lv.add_argument("--loop", action="store_true", help="replay the demo continuously")
     lv.set_defaults(func=cmd_live)
+
+    sc = sub.add_parser("scan", help="run engines against targets -> report (+ optional live graph)")
+    sc.add_argument("--target", help="single target: IP, hostname, or CIDR")
+    sc.add_argument("--targets", help="scope file: one IP/hostname/CIDR per line (# comments ok)")
+    sc.add_argument("-u", "--username")
+    sc.add_argument("-p", "--password")
+    sc.add_argument("-H", "--hash", help="NT hash for pass-the-hash (LM:NT or :NT)")
+    sc.add_argument("-d", "--domain")
+    sc.add_argument("-k", "--kerberos", action="store_true", help="use Kerberos auth")
+    sc.add_argument("--engagement", default="REDNESS assessment")
+    sc.add_argument("--out", help="write a .docx report to this path")
+    sc.add_argument("--json", help="write findings JSON to this path")
+    sc.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    sc.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    sc.add_argument("--port", type=int, default=8765, help="live graph port")
+    sc.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    sc.set_defaults(func=cmd_scan)
 
     args = p.parse_args(argv)
     return args.func(args)

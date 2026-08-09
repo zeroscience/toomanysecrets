@@ -54,6 +54,23 @@ pip install -r requirements.txt
 python -m redness.cli demo --out report.docx    # end-to-end with sample findings, no DC needed
 ```
 
+## Usage
+
+```bash
+# Scan one target, write a report (needs nxc / certipy on PATH for real findings)
+python -m redness.cli scan --target 10.10.0.15 -u user -p pass -d acme.local --out report.docx
+
+# Scan a scope file (one IP/hostname/CIDR per line, # comments), stream to the live 3D graph
+python -m redness.cli scan --targets examples/scope.txt --live
+
+# Just watch the live 3D graph with simulated data (no targets/tools needed)
+python -m redness.cli live
+```
+
+Auth options: `-u/--username`, `-p/--password`, `-H/--hash` (pass-the-hash),
+`-d/--domain`, `-k/--kerberos`. Output: `--out report.docx`, `--json findings.json`.
+Engines whose tool isn't installed are skipped and noted, so a scan never hard-fails.
+
 ## Legal
 
 For **authorized** security assessments only. Use requires written permission
