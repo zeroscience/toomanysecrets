@@ -67,7 +67,20 @@ status/probe/node/edge/finding/done.
 - CLI: `python -m redness.cli live` (`--loop`, `--no-open`, `--port`).
 - Verified end-to-end in a browser (SSE connected, WebGL live, 10 nodes/9 edges/5 findings).
 
-**Still TODO before it ships in the exe / field use:**
-1. **Vendor `3d-force-graph` locally** (currently CDN) — offline requirement.
-2. Add `redness/live/web/` to the PyInstaller spec `datas`.
-3. Wire the *real* engines (not just `demo`) to a bus + `live` run.
+**Done:**
+1. ~~Vendor `3d-force-graph` locally~~ — `redness/live/web/vendor/3d-force-graph.min.js`
+   (v1.80.0, bundles three.js). Page loads it from `/vendor/...`; fully offline.
+2. ~~Add `redness/live/web/` to the PyInstaller spec `datas`~~ — bundled; `bridge._web_dir()`
+   is frozen-aware (`sys._MEIPASS`). Verified: `dist/redness.exe live` serves index +
+   vendored JS + SSE from inside the exe, renders in-browser (10 nodes/9 edges/5 findings).
+
+**Still TODO:**
+3. Wire the *real* engines (not just `demo`) to a bus + a `live` real scan.
+
+## GUI phase — captured requirements (from the field)
+- **Branding:** ZeroScience lab logo in the HUD header (drop an SVG/PNG into
+  `redness/live/web/` and reference it; it'll bundle via the same `datas` walk).
+- **Scope input:** load a `.txt` with **one IP / CIDR / host per line** as the target
+  set to enumerate (ignore blank lines and `#` comments). This feeds the real-scan
+  path (TODO #3) — a `--targets scope.txt` flag on a future `scan`/`live` real run, and
+  a file picker in the GUI. Keep parsing in one small helper so CLI + GUI share it.

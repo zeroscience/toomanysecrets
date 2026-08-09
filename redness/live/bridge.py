@@ -17,13 +17,33 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from queue import Empty, Queue
 
 from ..events import Event, EventBus
 
-_WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
+
+def _web_dir() -> str:
+    """Locate the web/ asset dir in both source and frozen (PyInstaller) runs."""
+    if getattr(sys, "frozen", False):
+        return os.path.join(getattr(sys, "_MEIPASS", ""), "redness", "live", "web")
+    return os.path.join(os.path.dirname(__file__), "web")
+
+
+_WEB_DIR = _web_dir()
+
+_CTYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".ico": "image/x-icon",
+    ".json": "application/json",
+    ".txt": "text/plain; charset=utf-8",
+}
 
 
 class LiveServer:
@@ -98,11 +118,14 @@ def _make_handler(live: LiveServer):
         def log_message(self, *args):        # silence default stderr logging
             pass
 
-        def _serve_static(self, rel: str, ctype: str):
-            path = os.path.join(_WEB_DIR, rel)
-            if not os.path.isfile(path):
+        def _serve_static(self, rel: str):
+            # Resolve safely under _WEB_DIR (block path traversal).
+            base = os.path.realpath(_WEB_DIR)
+            path = os.path.realpath(os.path.join(base, rel))
+            if not (path == base or path.startswith(base + os.sep)) or not os.path.isfile(path):
                 self.send_error(404)
                 return
+            ctype = _CTYPES.get(os.path.splitext(path)[1].lower(), "application/octet-stream")
             with open(path, "rb") as fh:
                 body = fh.read()
             self.send_response(200)
@@ -112,12 +135,13 @@ def _make_handler(live: LiveServer):
             self.wfile.write(body)
 
         def do_GET(self):
-            if self.path in ("/", "/index.html"):
-                self._serve_static("index.html", "text/html; charset=utf-8")
-            elif self.path == "/events":
+            path = self.path.split("?", 1)[0]
+            if path in ("/", "/index.html"):
+                self._serve_static("index.html")
+            elif path == "/events":
                 self._serve_events()
             else:
-                self.send_error(404)
+                self._serve_static(path.lstrip("/"))   # vendor/, css, logo, etc.
 
         def _serve_events(self):
             self.send_response(200)
