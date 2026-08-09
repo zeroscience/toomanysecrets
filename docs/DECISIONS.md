@@ -15,6 +15,16 @@ access, no output re-parsing). Ship a single Windows `.exe` later via PyInstalle
 `Finding` / `Report` schema is the interface between engines (Person A) and reporting
 (Person B). Split ownership by directory so both halves progress in parallel.
 
+## 2026-08-09 — NetExec SMB engine: parse stdout, keep parsing pure
+Parse nxc's line-oriented stdout with regex (version-tolerant) rather than depend on
+JSON output. Parsers are pure functions separated from subprocess execution so they
+unit-test against captured output with no nxc/DC (see tests/test_netexec_parse.py).
+
+## 2026-08-09 — PyInstaller one-file build
+`packaging/redness.spec` uses `collect_all("docx")` so the bundled default.docx template
+is present in the frozen exe. Requires Python >= 3.10.1 (3.10.0's `dis` bug crashes
+PyInstaller analysis).
+
 ## 2026-08-09 — docx report, no template
 Plain, table-driven, classic pentest report: exec summary (severity counts),
 findings most-severe-first with impact/remediation/evidence, enumeration appendix.
