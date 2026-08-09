@@ -2,6 +2,7 @@
 
   python -m redness.cli demo --out report.docx     # end-to-end with sample data
   python -m redness.cli report findings.json --out report.docx
+  python -m redness.cli live                        # live 3D graph (simulated enum)
 """
 from __future__ import annotations
 
@@ -101,6 +102,41 @@ def cmd_report(args) -> int:
     return 0
 
 
+def cmd_live(args) -> int:
+    import threading
+    import time
+    import webbrowser
+
+    from .events import default_bus
+    from .live import LiveServer
+    from .live import demo as live_demo
+
+    server = LiveServer(default_bus, host=args.host, port=args.port)
+    url = server.start()
+    print(f"[+] Live graph at {url}")
+    if not args.no_open:
+        webbrowser.open(url)
+
+    # Give the browser a beat to connect; the replay buffer covers late joiners anyway.
+    def drive():
+        time.sleep(1.5)
+        while True:
+            live_demo.run(default_bus)
+            if not args.loop:
+                break
+            time.sleep(2.0)
+
+    threading.Thread(target=drive, daemon=True).start()
+    print("[*] Streaming simulated enumeration. Ctrl+C to stop.")
+    try:
+        while True:
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print("\n[*] Stopping.")
+        server.stop()
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -113,6 +149,13 @@ def main(argv=None) -> int:
     rp.add_argument("findings")
     rp.add_argument("--out", default="report.docx")
     rp.set_defaults(func=cmd_report)
+
+    lv = sub.add_parser("live", help="serve the live 3D graph (simulated enumeration)")
+    lv.add_argument("--host", default="127.0.0.1")
+    lv.add_argument("--port", type=int, default=8765)
+    lv.add_argument("--no-open", action="store_true", help="don't auto-open a browser")
+    lv.add_argument("--loop", action="store_true", help="replay the demo continuously")
+    lv.set_defaults(func=cmd_live)
 
     args = p.parse_args(argv)
     return args.func(args)

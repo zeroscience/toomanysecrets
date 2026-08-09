@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>REDNESS — live enumeration</title>
+<!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) — works fully offline. -->
+<script src="/vendor/3d-force-graph.min.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #0b0d12; color: #e6e6e6;
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; overflow: hidden; }
+  #graph { position: fixed; inset: 0; }
+  .panel { position: fixed; background: rgba(14,17,23,.82); border: 1px solid #232a36;
+    border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(4px); }
+  #hud { top: 12px; left: 12px; max-width: 320px; }
+  #hud h1 { margin: 0 0 6px; font-size: 15px; letter-spacing: .12em; color: #ff5252; }
+  #hud .sub { color: #8a93a2; margin-bottom: 8px; }
+  #counts span { display: inline-block; margin-right: 10px; }
+  #log { bottom: 12px; left: 12px; max-width: 480px; max-height: 34vh; overflow-y: auto; }
+  #log .line { white-space: pre-wrap; opacity: .92; }
+  #legend { top: 12px; right: 12px; }
+  #legend .row { display: flex; align-items: center; gap: 7px; margin: 3px 0; }
+  #legend .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .sev-critical { color: #ff4d4d; } .sev-high { color: #ff7a45; }
+  .sev-medium { color: #f2c94c; } .sev-low { color: #6fcf97; } .sev-info { color: #8a93a2; }
+  #status { color: #6fcf97; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+
+<div id="hud" class="panel">
+  <h1>REDNESS</h1>
+  <div class="sub">live enumeration · <span id="conn">connecting…</span></div>
+  <div id="counts">
+    <span>nodes <b id="nnodes">0</b></span>
+    <span>edges <b id="nedges">0</b></span>
+    <span>findings <b id="nfind">0</b></span>
+  </div>
+  <div id="status" style="margin-top:6px;"></div>
+</div>
+
+<div id="legend" class="panel">
+  <div class="row"><span class="dot" style="background:#7c6cf0"></span>domain</div>
+  <div class="row"><span class="dot" style="background:#22c1a4"></span>host</div>
+  <div class="row"><span class="dot" style="background:#3aa0ff"></span>user</div>
+  <div class="row"><span class="dot" style="background:#e08a55"></span>share</div>
+  <div class="row"><span class="dot" style="background:#f4d06a"></span>CA / template</div>
+  <div class="row"><span class="dot" style="background:#ff4d4d"></span>finding (by severity)</div>
+</div>
+
+<div id="log" class="panel"></div>
+
+<script>
+const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
+  share:'#e08a55', ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a' };
+const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
+  low:'#6fcf97', info:'#8a93a2' };
+const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
+
+const nodes = [], links = [];
+const nodeById = new Map();
+const linkKeys = new Set();       // dedupe edges across replay/loop
+const seenFindings = new Set();   // dedupe findings across replay/loop
+const worstSev = new Map();       // node id -> worst severity string
+let findingCount = 0;
+
+const el = id => document.getElementById(id);
+function refreshCounts(){ el('nnodes').textContent=nodes.length;
+  el('nedges').textContent=links.length; el('nfind').textContent=findingCount; }
+
+const Graph = ForceGraph3D()(el('graph'))
+  .backgroundColor('#0b0d12')
+  .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' — '+worstSev.get(n.id).toUpperCase():''}`)
+  .nodeColor(n => worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
+  .nodeVal(n => n.__val || (n.type==='domain'?8:3))
+  .linkColor(() => 'rgba(120,130,150,.35)')
+  .linkDirectionalParticles(2)
+  .linkDirectionalParticleWidth(1.6)
+  .linkDirectionalParticleSpeed(0.012);
+
+let fitTimer = null;
+function bump(){
+  Graph.graphData({ nodes, links }); refreshCounts();
+  // Debounced auto-fit so the camera always frames the growing graph.
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(() => { if(nodes.length) Graph.zoomToFit(500, 40); }, 350);
+}
+
+function addNode(d){
+  if(nodeById.has(d.id)) return;
+  const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
+  nodeById.set(d.id, n); nodes.push(n); bump();
+}
+function addEdge(d){
+  const key = d.src + '|' + d.dst + '|' + (d.label||'');
+  if(linkKeys.has(key)) return;
+  linkKeys.add(key);
+  if(!nodeById.has(d.src)) addNode({id:d.src,label:d.src,type:'node'});
+  if(!nodeById.has(d.dst)) addNode({id:d.dst,label:d.dst,type:'node'});
+  links.push({ source:d.src, target:d.dst, label:d.label||'' }); bump();
+}
+function applyFinding(f){
+  const key = (f.id||f.title||'') + '|' + (f.affected||[]).join(',');
+  if(seenFindings.has(key)) return;
+  seenFindings.add(key);
+  findingCount++;
+  const sev = (f.severity||'info');
+  (f.affected||[]).forEach(id => {
+    if(!nodeById.has(id)) addNode({id, label:id, type:'node'});
+    const cur = worstSev.get(id);
+    if(!cur || SEV_RANK[sev] > SEV_RANK[cur]) worstSev.set(id, sev);
+  });
+  bump();
+  log(`[${sev.toUpperCase()}] ${f.title}`, 'sev-'+sev);
+}
+function probe(d){
+  const n = nodeById.get(d.target); if(!n) return;
+  n.__val = (n.type==='domain'?8:3) * 3;          // swell
+  bump();
+  setTimeout(()=>{ n.__val = undefined; bump(); }, 750);
+}
+
+const logEl = el('log');
+function log(msg, cls){
+  const line = document.createElement('div');
+  line.className = 'line ' + (cls||'');
+  line.textContent = '› ' + msg;
+  logEl.appendChild(line); logEl.scrollTop = logEl.scrollHeight;
+  while(logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
+}
+
+const es = new EventSource('/events');
+es.onopen = () => { el('conn').textContent = 'connected'; el('conn').style.color='#6fcf97'; };
+es.onerror = () => { el('conn').textContent = 'disconnected'; el('conn').style.color='#ff7a45'; };
+es.onmessage = (e) => {
+  let ev; try { ev = JSON.parse(e.data); } catch { return; }
+  const d = ev.data || {};
+  switch(ev.kind){
+    case 'node':    addNode(d); break;
+    case 'edge':    addEdge(d); break;
+    case 'finding': applyFinding(d.finding||{}); break;
+    case 'probe':   probe(d); break;
+    case 'status':  el('status').textContent = d.message||''; log(d.message||''); break;
+    case 'done':    log('engine done: '+(ev.engine||d.engine||''), 'sev-low'); break;
+  }
+};
+</script>
+</body>
+</html>
