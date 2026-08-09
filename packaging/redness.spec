@@ -5,15 +5,21 @@
 #
 # python-docx bundles a default template (docx/templates/default.docx) and other
 # package data; collect_all pulls those in so the frozen exe can render reports.
+import os
 from PyInstaller.utils.hooks import collect_all
+
+# Repo root (SPECPATH is the dir holding this spec, i.e. packaging/).
+_REPO = os.path.abspath(os.path.join(SPECPATH, ".."))
 
 _docx_datas, _docx_bins, _docx_hidden = collect_all("docx")
 
 block_cipher = None
 
 a = Analysis(
-    ["../redness/__main__.py"],
-    pathex=["."],
+    # Entry lives OUTSIDE the package and imports it absolutely, so the frozen exe
+    # doesn't hit "attempted relative import with no known parent package".
+    [os.path.join(SPECPATH, "entry.py")],
+    pathex=[_REPO],            # so `import redness...` resolves during analysis
     binaries=_docx_bins,
     datas=_docx_datas,
     hiddenimports=_docx_hidden + ["lxml._elementpath"],
