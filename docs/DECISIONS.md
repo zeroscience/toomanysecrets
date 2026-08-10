@@ -106,3 +106,12 @@ Validated packaging/redness-full.spec on Windows/py3.12. Findings:
 Net: a working batteries-included exe needs (1) Defender exclusion + clean reinstall,
 (2) netexec via pipx/git, (3) in-process engine invocation. The lean packaging/
 redness.spec (nxc/certipy on PATH) remains the supported default.
+
+## 2026-08-10 — certipy bundles in-process; netexec stays external (pipx)
+Validated after the Defender exclusion: certipy + impacket install clean on py3.12 and
+bundle into redness-full.exe; CertipyEngine runs certipy in-process (certipy.entry:main)
+so the frozen exe executes it with nothing on PATH (proven: banner + real LDAP attempt
+from inside the exe). NetExec, however, has no py3.12 wheel and its git build also fails
+on 3.12 -> it is NOT bundled; recommended install is `pipx install netexec` (isolated
+compatible Python, `nxc` on PATH) and our shell-out NetExec/LDAP engines use it. So:
+certipy = batteries-included/in-process; netexec = external tool via pipx.

@@ -12,10 +12,14 @@ from dataclasses import dataclass
 from .scan import default_engines
 
 # How to enable each engine / tool.
+# NOTE: NetExec has no wheel for Python 3.12 (published versions require <3.12), so
+# `pip install netexec` fails on 3.12. Use pipx, which runs it under a compatible
+# Python in its own env and puts `nxc` on PATH. Certipy bundles cleanly and REDNESS
+# can even run it in-process (see engines/certipy.py), so the self-contained exe works.
 INSTALL_HINTS = {
-    "netexec": "pip install netexec        (provides the `nxc` binary)",
-    "netexec-ldap": "pip install netexec   (LDAP: users + AS-REP/Kerberoast capture)",
-    "certipy": "pip install certipy-ad     (provides the `certipy` binary)",
+    "netexec": "pipx install netexec       (no py3.12 wheel; pipx picks a compatible Python)",
+    "netexec-ldap": "pipx install netexec  (LDAP: users + AS-REP/Kerberoast capture)",
+    "certipy": "pip install certipy-ad     (or bundle it; REDNESS runs it in-process)",
     "tls": "built-in (Python stdlib) — always available",
 }
 
