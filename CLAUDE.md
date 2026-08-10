@@ -103,7 +103,8 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
 ## Next up (not started)
-NetNTLMv2 capture via an LLMNR/NBT-NS poisoner (intrusive — separate, gated feature);
+NetNTLMv2 capture via an LLMNR/NBT-NS poisoner — **design note: docs/NETNTLM.md**
+(anjaiv's area; intrusive/gated, `redness poison` command, feeds crack.py via meta hashes);
 stream crack results to the live graph; replace web/logo.svg with the real lab logo;
 "download report" button in the GUI.
 Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
