@@ -1,0 +1,16 @@
+# Engine dependencies — install these so REDNESS produces REAL findings.
+# REDNESS orchestrates these tools (it does not reimplement them); with them on
+# PATH the scan engines light up. Check status any time with:  redness doctor
+#
+#   pip install -r requirements-engines.txt
+#
+# These pull a large tree (impacket, ldap3, cryptography, dsinternals, ...); a
+# virtualenv is recommended.
+
+netexec>=1.3.0        # provides `nxc` — SMB + LDAP (users, AS-REP/Kerberoast)
+certipy-ad>=4.8.2     # provides `certipy` — AD CS ESC1-ESC16
+impacket>=0.12.0      # protocol library (pulled in by netexec; pinned for clarity)
+
+# Cracking (optional) is a separate native install, not pip:
+#   hashcat  -> https://hashcat.net/hashcat/
+#   john     -> John the Ripper (jumbo)

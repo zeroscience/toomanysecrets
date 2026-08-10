@@ -81,3 +81,13 @@ thread streaming to the bus. Guarded by a per-server CSRF token injected into in
 adds the ZeroScience logo (web/logo.svg — placeholder, swap for the real one), a targets
 textarea + .txt scope loader (client-side FileReader), and optional creds. `redness live`
 now waits for a GUI-initiated scan; `--demo` streams the simulated data (old default).
+
+## 2026-08-10 — Bundle engines as deps, don't copy adscan
+Do NOT vendor adscan's source (it's a peer orchestrator — copying invites license
+entanglement and is redundant). Instead depend on the real engines: netexec/impacket/
+certipy-ad (requirements-engines.txt), which our engines already shell out to. Added a
+`doctor` command that reports engine/tool availability + install hints (answers the
+"why 0 findings?" question). Two build modes: packaging/redness.spec (lean, expects
+nxc/certipy on PATH) and packaging/redness-full.spec (self-contained: collect_all the
+engine packages into one ~100MB exe — scaffold, needs validation on a deps-installed box
+because nxc loads modules dynamically and PyInstaller misses those without hidden-imports).
