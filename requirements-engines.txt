@@ -7,7 +7,10 @@
 # These pull a large tree (impacket, ldap3, cryptography, dsinternals, ...); a
 # virtualenv is recommended.
 
-netexec>=1.3.0        # provides `nxc` — SMB + LDAP (users, AS-REP/Kerberoast)
+# netexec is NOT pip-installable into a shared venv (no matching distribution on
+# PyPI for these pins); install it in its own isolated environment instead:
+#   pipx install netexec        # provides `nxc` — SMB + LDAP (users, AS-REP/Kerberoast)
+# netexec>=1.3.0
 certipy-ad>=4.8.2     # provides `certipy` — AD CS ESC1-ESC16
 impacket>=0.12.0      # protocol library (pulled in by netexec; pinned for clarity)
 
