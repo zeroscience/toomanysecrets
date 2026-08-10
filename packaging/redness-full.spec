@@ -8,21 +8,18 @@
 #   pip install -r requirements.txt -r requirements-engines.txt pyinstaller
 #   pyinstaller --clean --noconfirm packaging/redness-full.spec
 #
-# STATUS (validated 2026-08-10 on Windows/py3.12):
-#   * The BUILD works: this spec produces dist/redness-full.exe (~29MB) with impacket
-#     (library) + certipy + ldap3 bundled, once impacket's examples/ are excluded
-#     (Defender locks those hacktool scripts -> [Errno 22] during read; see below).
-#   * Two things still block a *working* self-contained exe:
-#     1. RUNTIME INVOCATION: the engines shell out to `certipy`/`nxc` binaries via
-#        shutil.which, which a frozen exe won't find on PATH even though the modules
-#        are bundled. To actually use bundled engines, add an in-process invocation
-#        path (e.g. call `certipy.entry:main` with a patched sys.argv) — TODO.
-#     2. WINDOWS DEFENDER quarantines core impacket files (impacket/krb5/constants.py)
-#        and all examples, so both `pip install` and this build fail until the project/
-#        venv folder is added to Defender exclusions (a user action — we can't change AV).
-#   * NetExec has no PyPI release for Python 3.12: install via pipx/git, not pip.
-# NetExec also loads protocol modules dynamically; expect hiddenimport iteration once
-# it's installed and this build actually includes it.
+# STATUS (validated 2026-08-10 on Windows/py3.12, after a Defender folder exclusion):
+#   * WORKS for certipy: dist/redness-full.exe (~29MB) bundles impacket + certipy + ldap3
+#     (impacket examples excluded — Defender locks those). CertipyEngine now runs certipy
+#     IN-PROCESS via certipy.entry:main when no `certipy` binary is on PATH, so the frozen
+#     exe actually executes it — verified: `redness-full.exe doctor` shows certipy [OK] and
+#     a scan prints certipy's banner + attempts the real LDAP connection from inside the exe.
+#   * PREREQ: Windows Defender quarantines core impacket files (impacket/krb5/constants.py)
+#     + all examples; add the project/venv folder to Defender exclusions before installing
+#     requirements-engines.txt (a user action — we don't modify AV/security settings).
+#   * netexec: no PyPI release for py3.12 (install via pipx/git). Once installed, give
+#     LdapEngine/NetExecEngine the same in-process treatment (nxc entrypoint) and add any
+#     hidden imports its dynamic module loading needs.
 import os
 from PyInstaller.utils.hooks import collect_all, copy_metadata
 
