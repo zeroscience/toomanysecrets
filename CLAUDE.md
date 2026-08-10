@@ -27,10 +27,12 @@ redness/
   events.py       # EventBus (status/finding/node/edge/probe/done) — live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
+  crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan
   engines/        # tool wrappers -> List[Finding]  (Person A)
     base.py       #   Engine ABC + Target + emit_* helpers
     netexec.py    #   nxc SMB: signing, SMBv1, null/guest, shares
+    ldap.py       #   nxc LDAP: users + AS-REP/Kerberoast hash capture (meta["hashes"])
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
   report/         # List[Finding] -> .docx  (Person B)
@@ -56,7 +58,11 @@ python -m redness.cli demo --out report.docx            # sample report, no DC
 python -m redness.cli live                               # live 3D graph, simulated data
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
+python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
 ```
+Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
+`--wordlist` cracks them if hashcat/john is on PATH; otherwise the loot files remain
+for offline cracking. NetNTLMv2 *capture* (LLMNR/NBT-NS poisoning) is out of scope.
 Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.spec`
 
 ## Adding an engine (the common task)
@@ -79,9 +85,10 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
 ## Next up (not started)
-TLS scanner (pure-Python, fills report TLS findings), LDAP engine (users/kerberoast/
-asrep via impacket), wire real engines' own probe animation, then the GUI proper
-(ZeroScience logo + scope file picker — see docs/LIVE_GRAPH.md).
+GUI proper (ZeroScience logo + scope file picker + start-scan controls — see
+docs/LIVE_GRAPH.md); NetNTLMv2 capture via an LLMNR/NBT-NS poisoner (intrusive —
+separate, gated feature); stream crack results to the live graph.
+Done recently: TLS scanner, LDAP/Kerberos hash capture, offline cracking (crack.py).
 
 ## Legal / ethics
 Authorized assessments only. Assume written scope exists before running against any target.

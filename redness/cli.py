@@ -186,6 +186,22 @@ def cmd_scan(args) -> int:
         domain=args.domain, kerberos=args.kerberos, bus=bus,
         engagement=args.engagement,
     )
+
+    # Hash loot + optional cracking (AS-REP / Kerberoast).
+    from .crack import run_cracking
+    crackres = run_cracking(report, loot_dir=args.loot_dir, wordlist=args.wordlist)
+    if crackres.creds:
+        print(f"[+] Captured {len(crackres.creds)} hash(es) -> {', '.join(crackres.loot_files)}")
+        if args.wordlist:
+            if not crackres.tool:
+                print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
+            elif crackres.cracked:
+                print(f"[+] Cracked {len(crackres.cracked)} credential(s) via {crackres.tool}:")
+                for c in crackres.cracked:
+                    print(f"    {c.account}:{c.password}")
+            else:
+                print(f"[*] {crackres.tool} ran but cracked nothing with this wordlist.")
+
     _print_summary(report)
 
     if args.out:
@@ -236,6 +252,8 @@ def main(argv=None) -> int:
     sc.add_argument("-d", "--domain")
     sc.add_argument("-k", "--kerberos", action="store_true", help="use Kerberos auth")
     sc.add_argument("--engagement", default="REDNESS assessment")
+    sc.add_argument("--wordlist", help="crack captured AS-REP/Kerberoast hashes (needs hashcat/john)")
+    sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")
     sc.add_argument("--live", action="store_true", help="stream to the live 3D graph")
