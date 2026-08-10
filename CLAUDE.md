@@ -32,6 +32,7 @@ redness/
     base.py       #   Engine ABC + Target + emit_* helpers
     netexec.py    #   nxc SMB: signing, SMBv1, null/guest, shares
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
+    tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
   report/         # List[Finding] -> .docx  (Person B)
   live/           # 3D live graph: SSE bridge + web UI + demo driver  (Person B)
     bridge.py, demo.py, web/index.html, web/vendor/3d-force-graph.min.js
