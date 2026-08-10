@@ -2,7 +2,8 @@
 
   python -m redness.cli demo --out report.docx     # end-to-end with sample data
   python -m redness.cli report findings.json --out report.docx
-  python -m redness.cli live                        # live 3D graph (simulated enum)
+  python -m redness.cli doctor                       # what engines/tools are installed
+  python -m redness.cli live                          # live 3D GUI
   python -m redness.cli scan --target 10.0.0.10 -u user -p pass --out report.docx
   python -m redness.cli scan --targets scope.txt --live
 """
@@ -168,6 +169,12 @@ def cmd_live(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    from .doctor import report_text
+    print(report_text())
+    return 0
+
+
 def cmd_scan(args) -> int:
     import time
     import webbrowser
@@ -252,6 +259,8 @@ def main(argv=None) -> int:
     rp.add_argument("findings")
     rp.add_argument("--out", default="report.docx")
     rp.set_defaults(func=cmd_report)
+
+    sub.add_parser("doctor", help="check which engines/tools are installed").set_defaults(func=cmd_doctor)
 
     lv = sub.add_parser("live", help="serve the live 3D graph (simulated enumeration)")
     lv.add_argument("--host", default="127.0.0.1")
