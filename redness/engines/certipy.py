@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from typing import Any
 
@@ -151,34 +152,82 @@ class CertipyEngine(Engine):
     def __init__(self, timeout: int = 300):
         self.timeout = timeout
 
-    def is_available(self) -> bool:
-        return shutil.which("certipy") is not None or shutil.which("certipy-ad") is not None
-
     def _bin(self) -> str | None:
         return shutil.which("certipy") or shutil.which("certipy-ad")
 
-    def run(self, target: Target) -> list[Finding]:
+    @staticmethod
+    def _module_available() -> bool:
+        """True if the certipy package is importable (bundled into the exe or pip-installed)."""
+        try:
+            import certipy.entry  # noqa: F401
+            return True
+        except Exception:
+            return False
+
+    def is_available(self) -> bool:
+        # Prefer a CLI binary on PATH, but a bundled/importable module works too — that's
+        # what lets the self-contained exe run certipy without certipy.exe on PATH.
+        return self._bin() is not None or self._module_available()
+
+    def _certipy_args(self, target: Target, prefix: str) -> list[str]:
+        args = ["find", "-dc-ip", target.host, "-vulnerable", "-json", "-output", prefix]
+        if target.username:
+            args += ["-u", f"{target.username}@{target.domain}" if target.domain else target.username]
+        if target.nthash:
+            args += ["-hashes", f":{target.nthash}"]
+        elif target.password is not None:
+            args += ["-p", target.password]
+        return args
+
+    def _run_cli(self, args: list[str]) -> bool:
         exe = self._bin()
         if not exe:
+            return False
+        try:
+            subprocess.run([exe] + args, capture_output=True, text=True, timeout=self.timeout)
+            return True
+        except (subprocess.TimeoutExpired, OSError):
+            self.emit_status("certipy CLI failed/timed out")
+            return False
+
+    def _run_inproc(self, args: list[str]) -> bool:
+        """Invoke certipy in-process via its console entrypoint (certipy.entry:main).
+
+        This is the path a frozen/self-contained exe takes: the certipy binary isn't on
+        PATH, but the module is bundled. We patch sys.argv and call main(); it parses argv
+        exactly like the CLI and writes the same -output JSON we then parse.
+        """
+        try:
+            import certipy.entry
+        except Exception as e:
+            self.emit_status(f"certipy module unavailable: {e}")
+            return False
+        old_argv = sys.argv
+        sys.argv = ["certipy"] + args
+        try:
+            certipy.entry.main()
+        except SystemExit:
+            pass                              # argparse/normal exit
+        except Exception as e:
+            self.emit_status(f"certipy in-process error: {e}")
+            return False
+        finally:
+            sys.argv = old_argv
+        return True
+
+    def run(self, target: Target) -> list[Finding]:
+        if not self.is_available():
             return []
-        self.emit_status(f"certipy find against {target.host}")
+        via = "CLI" if self._bin() else "in-process"
+        self.emit_status(f"certipy find against {target.host} ({via})")
         self.emit_probe(target=target.host, test="adcs-find")
 
         with tempfile.TemporaryDirectory() as td:
             prefix = os.path.join(td, "redness")
-            cmd = [exe, "find", "-dc-ip", target.host, "-vulnerable", "-json", "-output", prefix]
-            if target.username:
-                cmd += ["-u", f"{target.username}@{target.domain}" if target.domain else target.username]
-            if target.nthash:
-                cmd += ["-hashes", f":{target.nthash}"]
-            elif target.password is not None:
-                cmd += ["-p", target.password]
-            try:
-                subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
-            except (subprocess.TimeoutExpired, OSError):
-                self.emit_status("certipy invocation failed/timed out")
+            args = self._certipy_args(target, prefix)
+            ok = self._run_cli(args) if self._bin() else self._run_inproc(args)
+            if not ok:
                 return []
-
             matches = glob.glob(os.path.join(td, "*.json"))
             if not matches:
                 return []
