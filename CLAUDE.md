@@ -36,8 +36,9 @@ redness/
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
   report/         # List[Finding] -> .docx  (Person B)
-  live/           # 3D live graph: SSE bridge + web UI + demo driver  (Person B)
-    bridge.py, demo.py, web/index.html, web/vendor/3d-force-graph.min.js
+  live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
+    bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
+    demo.py, web/index.html, web/logo.svg, web/vendor/3d-force-graph.min.js
 packaging/        # PyInstaller: entry.py + redness.spec + build.ps1
 tests/            # pure-parser / orchestration tests, no DC/tools needed
 docs/             # DECISIONS.md, LIVE_GRAPH.md, screenshots/
@@ -55,7 +56,8 @@ Touch the other's directory only via a PR they review.
 pip install -r requirements.txt
 
 python -m redness.cli demo --out report.docx            # sample report, no DC
-python -m redness.cli live                               # live 3D graph, simulated data
+python -m redness.cli live                               # GUI: logo + 'New scan' panel
+python -m redness.cli live --demo                        # GUI streaming simulated data
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
@@ -85,10 +87,11 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
 ## Next up (not started)
-GUI proper (ZeroScience logo + scope file picker + start-scan controls — see
-docs/LIVE_GRAPH.md); NetNTLMv2 capture via an LLMNR/NBT-NS poisoner (intrusive —
-separate, gated feature); stream crack results to the live graph.
-Done recently: TLS scanner, LDAP/Kerberos hash capture, offline cracking (crack.py).
+NetNTLMv2 capture via an LLMNR/NBT-NS poisoner (intrusive — separate, gated feature);
+stream crack results to the live graph; replace web/logo.svg with the real lab logo;
+"download report" button in the GUI.
+Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
+and the GUI (logo + scope-file loader + token-gated POST /scan that runs real engines).
 
 ## Legal / ethics
 Authorized assessments only. Assume written scope exists before running against any target.

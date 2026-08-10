@@ -73,3 +73,11 @@ ready loot files, and (if hashcat/john on PATH + --wordlist) cracks and annotate
 report with CRITICAL credential-cracked findings. hashcat mapping is prefix-based (hash
 values can contain ':'). NetNTLMv2 CAPTURE needs an active LLMNR/NBT-NS poisoner — kept
 OUT of scope for now (intrusive; separate gated feature).
+
+## 2026-08-10 — GUI controls: token-gated POST /scan
+The live bridge gained a POST /scan endpoint that runs the real engines (run_scan) in a
+thread streaming to the bus. Guarded by a per-server CSRF token injected into index.html
+(a cross-origin page can't read it, so it can't forge scans); bound to 127.0.0.1. The GUI
+adds the ZeroScience logo (web/logo.svg — placeholder, swap for the real one), a targets
+textarea + .txt scope loader (client-side FileReader), and optional creds. `redness live`
+now waits for a GUI-initiated scan; `--demo` streams the simulated data (old default).
