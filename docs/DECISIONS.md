@@ -115,3 +115,12 @@ from inside the exe). NetExec, however, has no py3.12 wheel and its git build al
 on 3.12 -> it is NOT bundled; recommended install is `pipx install netexec` (isolated
 compatible Python, `nxc` on PATH) and our shell-out NetExec/LDAP engines use it. So:
 certipy = batteries-included/in-process; netexec = external tool via pipx.
+
+## 2026-08-10 — pip-installable (pyproject.toml) + one-shot installers
+Added pyproject.toml so `pip install .` gives a `redness` console script and ships the
+live GUI assets (package-data: live/web incl. vendored 3d-force-graph). Engines are an
+extra: `pip install ".[engines]"` = certipy-ad + impacket (both have py3.12 wheels).
+NetExec is intentionally NOT a dependency (no py3.12 wheel) — scripts/install.sh|ps1
+install it via pipx, or use a box where nxc is already on PATH (Kali). Validated: the
+installed `redness` runs from outside the repo and `redness live` serves index/logo/vendor
+(1.3MB) from site-packages. Flow: git clone -> ./scripts/install.sh -> redness doctor/scan.
