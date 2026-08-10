@@ -39,3 +39,23 @@ Added redness/events.py (EventBus + Event kinds: status/finding/node/edge/probe/
 and Engine.emit_* helpers. Engines can stream as they enumerate so the SAME normalized
 stream feeds both the docx report and a later 3D GUI, decoupled from any renderer.
 Bus swallows subscriber errors (a broken UI can't break a scan). See docs/LIVE_GRAPH.md.
+
+## 2026-08-10 — Live graph: stdlib SSE + vendored 3d-force-graph
+Bridge uses stdlib http.server + Server-Sent Events (one-directional engine->UI, no
+dependency, bundles into the exe) with a replay buffer so a browser rebuilds the full
+graph on connect/refresh. 3d-force-graph vendored locally (v1.80.0, bundles three.js)
+for offline/field use; web assets bundled via the spec's datas walk; bridge._web_dir()
+is sys._MEIPASS-aware. preserveDrawingBuffer:true on the renderer so frames can be
+captured for docs screenshots.
+
+## 2026-08-10 — Packaging entry is outside the package
+Frozen entry is packaging/entry.py (absolute `from redness.cli import main`), not
+redness/__main__.py — PyInstaller runs the entry as top-level __main__ with no package
+context, so a relative import crashes at runtime. pathex=<repo root> so analysis resolves.
+
+## 2026-08-10 — scan command + scope orchestration
+redness/scan.py run_scan() runs each available engine per target, aggregates Findings
+into one Report, and (if given a bus) owns ALL graph emission so the picture is uniform
+regardless of which engine found what (engines run headless in a scan). Missing tools
+are skipped, not fatal; a crashing engine can't abort the scan. redness/scope.py parses
+`--targets` files and merges with `--target`; shared with the future GUI file picker.
