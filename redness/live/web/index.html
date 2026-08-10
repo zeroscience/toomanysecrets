@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>REDNESS — live enumeration</title>
+<!-- live 3D graph: domain -> hosts/users/shares/CA, colored by finding severity -->
+
 <!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) — works fully offline. -->
 <script src="/vendor/3d-force-graph.min.js"></script>
 <style>
@@ -70,7 +72,7 @@ const el = id => document.getElementById(id);
 function refreshCounts(){ el('nnodes').textContent=nodes.length;
   el('nedges').textContent=links.length; el('nfind').textContent=findingCount; }
 
-const Graph = ForceGraph3D()(el('graph'))
+const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(el('graph'))
   .backgroundColor('#0b0d12')
   .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' — '+worstSev.get(n.id).toUpperCase():''}`)
   .nodeColor(n => worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))

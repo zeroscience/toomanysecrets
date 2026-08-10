@@ -1,2 +1,7 @@
 # Vendored third-party assets: store/check out verbatim, never convert line endings.
 redness/live/web/vendor/** binary
+
+# Images: binary, no EOL conversion.
+*.jpg binary
+*.png binary
+*.ico binary
