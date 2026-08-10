@@ -7,9 +7,14 @@
 # These pull a large tree (impacket, ldap3, cryptography, dsinternals, ...); a
 # virtualenv is recommended.
 
-netexec>=1.3.0        # provides `nxc` — SMB + LDAP (users, AS-REP/Kerberoast)
-certipy-ad>=4.8.2     # provides `certipy` — AD CS ESC1-ESC16
-impacket>=0.12.0      # protocol library (pulled in by netexec; pinned for clarity)
+# NOTE: NetExec has NO wheel for Python 3.12 (versions require <3.12) and its git
+# build also fails on 3.12 — install it with pipx instead (isolated compatible Python):
+#     pipx install netexec        # provides `nxc` on PATH
+#
+# certipy + impacket DO install on 3.12 and can be bundled into the self-contained exe
+# (packaging/redness-full.spec) — CertipyEngine runs certipy in-process there.
+certipy-ad>=5.1.0     # provides `certipy` — AD CS ESC1-ESC16 (bundlable, in-process capable)
+impacket>=0.12.0      # protocol library (certipy dependency)
 
 # Cracking (optional) is a separate native install, not pip:
 #   hashcat  -> https://hashcat.net/hashcat/
