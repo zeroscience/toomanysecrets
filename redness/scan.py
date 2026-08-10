@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .engines import CertipyEngine, NetExecEngine, TLSEngine
+from .engines import CertipyEngine, LdapEngine, NetExecEngine, TLSEngine
 from .engines.base import Engine, Target
 from .events import Event, EventBus, EventKind
 from .findings import Category, Finding, Report
@@ -22,9 +22,10 @@ def default_engines() -> list[Engine]:
     """The engines a scan runs by default (order = execution order).
 
     TLS is pure-Python (always available), so a scan yields findings even on a box
-    with neither nxc nor certipy installed.
+    with neither nxc nor certipy installed. LdapEngine captures AS-REP/Kerberoast
+    hashes (fed to redness.crack).
     """
-    return [NetExecEngine(), CertipyEngine(), TLSEngine()]
+    return [NetExecEngine(), LdapEngine(), CertipyEngine(), TLSEngine()]
 
 
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:

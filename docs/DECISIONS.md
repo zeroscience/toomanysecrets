@@ -59,3 +59,17 @@ into one Report, and (if given a bus) owns ALL graph emission so the picture is 
 regardless of which engine found what (engines run headless in a scan). Missing tools
 are skipped, not fatal; a crashing engine can't abort the scan. redness/scope.py parses
 `--targets` files and merges with `--target`; shared with the future GUI file picker.
+
+## 2026-08-10 — TLS engine is pure stdlib (no hard dep)
+Protocol + cipher checks force each ssl.TLSVersion and read ss.cipher(); cert
+expiry/self-signed via stdlib ssl (get_server_certificate + _test_decode_cert). SHA1/MD5
+signature and <2048-bit key checks only when `cryptography` happens to be importable.
+Always-available engine so a scan yields findings with no nxc/certipy present.
+
+## 2026-08-10 — Hash capture + cracking scope (like adscan, minus poisoning)
+LdapEngine captures AS-REP (krb5asrep) and Kerberoast (krb5tgs) hashes during LDAP enum,
+stashing them in finding.meta["hashes"]. crack.py collects them, always writes hashcat-
+ready loot files, and (if hashcat/john on PATH + --wordlist) cracks and annotates the
+report with CRITICAL credential-cracked findings. hashcat mapping is prefix-based (hash
+values can contain ':'). NetNTLMv2 CAPTURE needs an active LLMNR/NBT-NS poisoner — kept
+OUT of scope for now (intrusive; separate gated feature).
