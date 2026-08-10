@@ -45,27 +45,51 @@ REDNESS is those three things. Everything else, it delegates.
 The `Finding` schema in `redness/findings.py` is the interface between the two halves.
 Agree on it, and both sides can be built in parallel without touching each other's files.
 
-## Quick start
+## Install (git clone → one command → `redness`)
+
+**Linux / Kali** (recommended operator box — `nxc` runs natively here):
+```bash
+git clone https://github.com/zeroscience/toomanysecrets.git
+cd toomanysecrets
+./scripts/install.sh        # venv + engines; installs NetExec via pipx if missing
+source .venv/bin/activate
+redness doctor              # confirms which engines are ready
+```
+
+**Windows** (PowerShell):
+```powershell
+git clone https://github.com/zeroscience/toomanysecrets.git
+cd toomanysecrets
+.\scripts\install.ps1
+.\.venv\Scripts\redness.exe doctor
+```
+
+Under the hood that's just `pip install ".[engines]"` (certipy + impacket) — which also
+gives you the `redness` command. **NetExec has no Python 3.12 wheel**, so the installer
+adds it via `pipx` (its own compatible Python); if you already have `nxc` on PATH (e.g. a
+Kali box), it's used as-is. TLS + reporting + the live GUI need no external tools.
+
+## Quick start (no install)
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows
+python -m venv .venv && .venv\Scripts\activate     # Windows
 pip install -r requirements.txt
-python -m redness.cli demo --out report.docx    # end-to-end with sample findings, no DC needed
+python -m redness.cli demo --out report.docx       # sample report, no DC needed
 ```
 
 ## Usage
 
 ```bash
-# Scan one target, write a report (needs nxc / certipy on PATH for real findings)
-python -m redness.cli scan --target 10.10.0.15 -u user -p pass -d acme.local --out report.docx
+# Scan one target, write a report (nxc/certipy provide the real findings)
+redness scan --target 10.10.0.15 -u user -p pass -d acme.local --out report.docx
 
 # Scan a scope file (one IP/hostname/CIDR per line, # comments), stream to the live 3D graph
-python -m redness.cli scan --targets examples/scope.txt --live
+redness scan --targets examples/scope.txt --live
 
 # Just watch the live 3D graph with simulated data (no targets/tools needed)
-python -m redness.cli live
+redness live --demo
 ```
+(Without installing, prefix any of these with `python -m redness.cli` instead of `redness`.)
 
 Auth options: `-u/--username`, `-p/--password`, `-H/--hash` (pass-the-hash),
 `-d/--domain`, `-k/--kerberos`. Output: `--out report.docx`, `--json findings.json`.

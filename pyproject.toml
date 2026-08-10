@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redness"
+version = "0.1.0"
+description = "Red-team orchestrator + normalizer + reporter for AD/Windows assessments (codename REDNESS)."
+readme = "README.md"
+requires-python = ">=3.10"
+# Base install: CLI + reporting + live GUI (pure stdlib). Engines are extras below.
+dependencies = [
+    "python-docx>=1.1.0",
+]
+
+[project.optional-dependencies]
+# `pip install ".[engines]"` — the engines that DO ship a Python 3.12 wheel.
+# NetExec is deliberately NOT here: it has no py3.12 wheel; install it with pipx
+# (`pipx install netexec`) so it runs under a compatible Python with `nxc` on PATH.
+engines = [
+    "certipy-ad>=5.1.0",
+    "impacket>=0.12.0",
+]
+
+[project.scripts]
+# After install you get a `redness` command (redness.exe on Windows) on PATH.
+redness = "redness.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["redness*"]
+
+[tool.setuptools.package-data]
+# Ship the live 3D GUI assets so `redness live` works from an installed package.
+redness = ["live/web/*", "live/web/vendor/*", "live/web/**/*"]

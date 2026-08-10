@@ -51,11 +51,17 @@ examples/scope.txt
 - **Person B — `redness/report/` + `redness/live/` + packaging.**
 Touch the other's directory only via a PR they review.
 
+## Install (git clone -> one command -> `redness`)
+`./scripts/install.sh` (Linux/Kali) or `.\scripts\install.ps1` (Windows): makes a venv,
+`pip install ".[engines]"` (certipy+impacket via pyproject.toml, console script `redness`),
+installs NetExec via pipx if missing, runs `redness doctor`. Kali with `nxc` already on PATH
+is the easy operator box.
+
 ## Making real findings flow (the "why 0 findings?" answer)
 REDNESS *orchestrates* external tools; install them so engines light up, then check:
 ```bash
-pip install -r requirements-engines.txt   # netexec (nxc), certipy-ad, impacket
-python -m redness.cli doctor               # shows which engines/tools are ready
+pip install ".[engines]"    # certipy-ad + impacket (netexec: pipx, no py3.12 wheel)
+redness doctor              # shows which engines/tools are ready
 ```
 TLS is stdlib (always ready). hashcat/john are separate native installs for `--wordlist`.
 Self-contained build (bundles the engines into one exe): `packaging/redness-full.spec`
