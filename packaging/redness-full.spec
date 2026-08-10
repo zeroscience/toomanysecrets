@@ -8,10 +8,21 @@
 #   pip install -r requirements.txt -r requirements-engines.txt pyinstaller
 #   pyinstaller --clean --noconfirm packaging/redness-full.spec
 #
-# STATUS: scaffold. NetExec loads protocol/module code dynamically, so PyInstaller's
-# static analysis will miss pieces — expect to iterate on hiddenimports after the
-# first build (run `dist/redness.exe scan ...` and add any ModuleNotFoundError here).
-# Validate on a machine that has requirements-engines.txt installed.
+# STATUS (validated 2026-08-10 on Windows/py3.12):
+#   * The BUILD works: this spec produces dist/redness-full.exe (~29MB) with impacket
+#     (library) + certipy + ldap3 bundled, once impacket's examples/ are excluded
+#     (Defender locks those hacktool scripts -> [Errno 22] during read; see below).
+#   * Two things still block a *working* self-contained exe:
+#     1. RUNTIME INVOCATION: the engines shell out to `certipy`/`nxc` binaries via
+#        shutil.which, which a frozen exe won't find on PATH even though the modules
+#        are bundled. To actually use bundled engines, add an in-process invocation
+#        path (e.g. call `certipy.entry:main` with a patched sys.argv) — TODO.
+#     2. WINDOWS DEFENDER quarantines core impacket files (impacket/krb5/constants.py)
+#        and all examples, so both `pip install` and this build fail until the project/
+#        venv folder is added to Defender exclusions (a user action — we can't change AV).
+#   * NetExec has no PyPI release for Python 3.12: install via pipx/git, not pip.
+# NetExec also loads protocol modules dynamically; expect hiddenimport iteration once
+# it's installed and this build actually includes it.
 import os
 from PyInstaller.utils.hooks import collect_all, copy_metadata
 
@@ -19,10 +30,22 @@ _REPO = os.path.abspath(os.path.join(SPECPATH, ".."))
 
 datas, binaries, hiddenimports = [], [], []
 
+def _drop_impacket_examples(datas_, hidden_):
+    # impacket's examples/ are CLI hacktool scripts (ntlmrelayx, GetNPUsers, ...): not
+    # needed as a library, and Windows Defender locks/quarantines them, which breaks
+    # both pip install and the PyInstaller read. Exclude them.
+    hidden_ = [m for m in hidden_ if not m.startswith("impacket.examples")]
+    datas_ = [(s, d) for (s, d) in datas_
+              if "examples" not in os.path.normpath(s).replace("\\", "/").split("/")]
+    return datas_, hidden_
+
+
 # Pull in each engine package wholesale (code, data files, dynamic submodules).
 for pkg in ("nxc", "impacket", "certipy", "ldap3", "dsinternals", "docx"):
     try:
         d, b, h = collect_all(pkg)
+        if pkg == "impacket":
+            d, h = _drop_impacket_examples(d, h)
         datas += d
         binaries += b
         hiddenimports += h
@@ -55,7 +78,7 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
-    excludes=[],
+    excludes=["impacket.examples"],
     cipher=block_cipher,
 )
 

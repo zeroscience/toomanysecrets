@@ -91,3 +91,18 @@ certipy-ad (requirements-engines.txt), which our engines already shell out to. A
 nxc/certipy on PATH) and packaging/redness-full.spec (self-contained: collect_all the
 engine packages into one ~100MB exe — scaffold, needs validation on a deps-installed box
 because nxc loads modules dynamically and PyInstaller misses those without hidden-imports).
+
+## 2026-08-10 — Full self-contained exe: validated, partially blocked
+Validated packaging/redness-full.spec on Windows/py3.12. Findings:
+- BUILD works (~29MB exe with impacket-lib + certipy + ldap3) after excluding
+  impacket.examples (Defender locks those hacktool scripts -> [Errno 22] on read).
+- RUNTIME gap: engines shell out to certipy/nxc binaries (shutil.which); a frozen exe
+  won't find them on PATH even though the modules are bundled. TODO: in-process
+  invocation (call certipy.entry:main with patched sys.argv) to actually use them.
+- Windows Defender quarantines core impacket files (impacket/krb5/constants.py + all
+  examples) -> pip install and the build fail until the venv/project folder is a
+  Defender exclusion (USER action; we can't modify AV/security settings).
+- NetExec has no PyPI release for py3.12 -> install via pipx/git, not pip.
+Net: a working batteries-included exe needs (1) Defender exclusion + clean reinstall,
+(2) netexec via pipx/git, (3) in-process engine invocation. The lean packaging/
+redness.spec (nxc/certipy on PATH) remains the supported default.
