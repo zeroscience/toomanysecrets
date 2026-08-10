@@ -124,24 +124,41 @@ def cmd_live(args) -> int:
     from .events import default_bus
     from .live import LiveServer
     from .live import demo as live_demo
+    from .scan import run_scan
 
-    server = LiveServer(default_bus, host=args.host, port=args.port)
+    # Scan handler invoked when the GUI's "Start scan" button POSTs targets.
+    def on_scan(params: dict) -> None:
+        targets = [t.strip() for t in (params.get("targets") or []) if t and t.strip()]
+        if not targets:
+            return
+        run_scan(
+            targets,
+            username=params.get("username") or None,
+            password=params.get("password") or None,
+            domain=params.get("domain") or None,
+            bus=default_bus,
+            engagement="REDNESS live scan",
+        )
+
+    server = LiveServer(default_bus, host=args.host, port=args.port, on_scan=on_scan)
     url = server.start()
     print(f"[+] Live graph at {url}")
+    print("[*] Use the browser's 'New scan' panel to run against targets.")
     if not args.no_open:
         webbrowser.open(url)
 
-    # Give the browser a beat to connect; the replay buffer covers late joiners anyway.
-    def drive():
-        time.sleep(1.5)
-        while True:
-            live_demo.run(default_bus)
-            if not args.loop:
-                break
-            time.sleep(2.0)
+    if args.demo:                     # opt-in simulated stream (no targets needed)
+        def drive():
+            time.sleep(1.5)
+            while True:
+                live_demo.run(default_bus)
+                if not args.loop:
+                    break
+                time.sleep(2.0)
+        threading.Thread(target=drive, daemon=True).start()
+        print("[*] Streaming simulated enumeration (--demo).")
 
-    threading.Thread(target=drive, daemon=True).start()
-    print("[*] Streaming simulated enumeration. Ctrl+C to stop.")
+    print("[*] Ctrl+C to stop.")
     try:
         while True:
             time.sleep(0.5)
@@ -240,7 +257,8 @@ def main(argv=None) -> int:
     lv.add_argument("--host", default="127.0.0.1")
     lv.add_argument("--port", type=int, default=8765)
     lv.add_argument("--no-open", action="store_true", help="don't auto-open a browser")
-    lv.add_argument("--loop", action="store_true", help="replay the demo continuously")
+    lv.add_argument("--demo", action="store_true", help="stream simulated data (no targets needed)")
+    lv.add_argument("--loop", action="store_true", help="with --demo: replay continuously")
     lv.set_defaults(func=cmd_live)
 
     sc = sub.add_parser("scan", help="run engines against targets -> report (+ optional live graph)")

@@ -6,6 +6,8 @@
 <title>REDNESS — live enumeration</title>
 <!-- live 3D graph: domain -> hosts/users/shares/CA, colored by finding severity -->
 
+<meta name="csrf" content="__CSRF_TOKEN__">
+<meta name="scan-enabled" content="__SCAN_ENABLED__">
 <!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) — works fully offline. -->
 <script src="/vendor/3d-force-graph.min.js"></script>
 <style>
@@ -27,12 +29,33 @@
   .sev-critical { color: #ff4d4d; } .sev-high { color: #ff7a45; }
   .sev-medium { color: #f2c94c; } .sev-low { color: #6fcf97; } .sev-info { color: #8a93a2; }
   #status { color: #6fcf97; }
+  #brand { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  #brand img { height: 26px; }
+  #scanpanel { top: 12px; left: 50%; transform: translateX(-50%); width: 340px; display:none; }
+  #scanpanel.show { display:block; }
+  #scanpanel h2 { margin:0 0 8px; font-size:13px; letter-spacing:.1em; color:#ff5252; }
+  #scanpanel textarea, #scanpanel input {
+    width:100%; box-sizing:border-box; background:#0b0d12; color:#e6e6e6;
+    border:1px solid #232a36; border-radius:5px; padding:6px 8px; margin:3px 0;
+    font:12px ui-monospace, Consolas, monospace; }
+  #scanpanel textarea { height:70px; resize:vertical; }
+  #scanpanel .row2 { display:flex; gap:6px; }
+  #scanpanel button {
+    width:100%; margin-top:6px; padding:7px; border:0; border-radius:6px; cursor:pointer;
+    background:#ff5252; color:#0b0d12; font-weight:700; letter-spacing:.06em; }
+  #scanpanel button:disabled { opacity:.5; cursor:default; }
+  #scanpanel .hint { color:#8a93a2; font-size:11px; margin-top:4px; }
+  #scantoggle { position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    background:rgba(14,17,23,.82); border:1px solid #232a36; border-radius:6px;
+    color:#e6e6e6; padding:6px 12px; cursor:pointer; font:12px ui-monospace,monospace; }
+  #scantoggle.hidden { display:none; }
 </style>
 </head>
 <body>
 <div id="graph"></div>
 
 <div id="hud" class="panel">
+  <div id="brand"><img src="/logo.svg" alt="ZeroScience"></div>
   <h1>REDNESS</h1>
   <div class="sub">live enumeration · <span id="conn">connecting…</span></div>
   <div id="counts">
@@ -50,6 +73,20 @@
   <div class="row"><span class="dot" style="background:#e08a55"></span>share</div>
   <div class="row"><span class="dot" style="background:#f4d06a"></span>CA / template</div>
   <div class="row"><span class="dot" style="background:#ff4d4d"></span>finding (by severity)</div>
+</div>
+
+<button id="scantoggle" class="hidden">＋ New scan</button>
+<div id="scanpanel" class="panel">
+  <h2>NEW SCAN</h2>
+  <textarea id="targets" placeholder="targets — one IP / hostname / CIDR per line&#10;10.10.0.15&#10;dc01.acme.local"></textarea>
+  <input type="file" id="scopefile" accept=".txt" title="Load a scope .txt">
+  <div class="row2">
+    <input id="s_user" placeholder="username (optional)">
+    <input id="s_domain" placeholder="domain (optional)">
+  </div>
+  <input id="s_pass" type="password" placeholder="password (optional)">
+  <button id="startbtn">Start scan</button>
+  <div class="hint">Runs the real engines (nxc/certipy/tls). Loot & cracking via CLI.</div>
 </div>
 
 <div id="log" class="panel"></div>
@@ -148,6 +185,39 @@ es.onmessage = (e) => {
     case 'done':    log('engine done: '+(ev.engine||d.engine||''), 'sev-low'); break;
   }
 };
+
+// ---- New-scan controls (enabled only when the server allows scanning) ----
+const CSRF = document.querySelector('meta[name="csrf"]').content;
+const SCAN_ENABLED = document.querySelector('meta[name="scan-enabled"]').content === '1';
+const panel = el('scanpanel'), toggle = el('scantoggle');
+if (SCAN_ENABLED) {
+  toggle.classList.remove('hidden');
+  toggle.onclick = () => panel.classList.toggle('show');
+  el('scopefile').onchange = (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = () => { el('targets').value = r.result; };
+    r.readAsText(f);
+  };
+  el('startbtn').onclick = async () => {
+    const targets = el('targets').value.split(/\r?\n/).map(s=>s.trim())
+      .filter(s => s && !s.startsWith('#'));
+    if (!targets.length) { log('no targets entered', 'sev-medium'); return; }
+    const body = { targets,
+      username: el('s_user').value || null,
+      password: el('s_pass').value || null,
+      domain: el('s_domain').value || null };
+    const btn = el('startbtn'); btn.disabled = true; btn.textContent = 'Scanning…';
+    try {
+      const res = await fetch('/scan', { method:'POST',
+        headers: { 'Content-Type':'application/json', 'X-REDNESS-Token': CSRF },
+        body: JSON.stringify(body) });
+      log(res.ok ? `scan started: ${targets.length} target(s)` : `scan rejected (${res.status})`,
+          res.ok ? 'sev-low' : 'sev-high');
+    } catch (err) { log('scan request failed: '+err, 'sev-high'); }
+    finally { btn.disabled = false; btn.textContent = 'Start scan'; panel.classList.remove('show'); }
+  };
+}
 </script>
 </body>
 </html>
