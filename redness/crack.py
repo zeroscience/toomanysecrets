@@ -1,8 +1,10 @@
 """Offline cracking of captured hashes — the adscan-style "detect a hash, crack it" loop.
 
-Scope: the crackable material REDNESS obtains during enumeration — AS-REP
-(`krb5asrep`) and Kerberoast (`krb5tgs`) hashes (see engines/ldap.py). NetNTLMv2
-*capture* needs an active poisoner/responder and is intentionally out of scope here.
+Scope: the crackable material REDNESS obtains — AS-REP (`krb5asrep`) and Kerberoast
+(`krb5tgs`) hashes captured during enumeration (see engines/ldap.py), plus NetNTLMv2
+(`netntlmv2`) hashes from the opt-in poisoner (see poison.py). The *capture* of NetNTLMv2
+(active LLMNR/NBT-NS poisoning) lives in poison.py, not here; this module only cracks
+whatever hashes arrive via finding.meta["hashes"].
 
 Two independent capabilities:
   1. write_loot()  — always available: dump hashes to hashcat-ready files so they can be

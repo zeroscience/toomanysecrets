@@ -14,9 +14,10 @@ their output into one findings model, renders a `.docx` report, and can stream a
 consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
-## Current status (2026-08-10)
-PRs #1–#4 all merged to `main`. Working, tested (21 tests), builds to a single offline
-`.exe` with `demo / report / live / scan`. Real findings need `nxc` + `certipy` on PATH.
+## Current status (2026-08-11)
+PRs #1–#4 all merged to `main`. Working, tested (67 tests), builds to a single offline
+`.exe` with `demo / report / live / scan / poison`. Real findings need `nxc` + `certipy`
+on PATH; `poison` needs `responder` (Linux/Kali).
 
 ![live 3D graph](docs/screenshots/live-graph.jpg)
 
@@ -77,10 +78,12 @@ python -m redness.cli live --demo                        # GUI streaming simulat
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
+python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (intrusive; prompts)
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
 `--wordlist` cracks them if hashcat/john is on PATH; otherwise the loot files remain
-for offline cracking. NetNTLMv2 *capture* (LLMNR/NBT-NS poisoning) is out of scope.
+for offline cracking. NetNTLMv2 *capture* is the opt-in, gated `redness poison` command
+(LLMNR/NBT-NS poisoning via Responder — intrusive); captured hashes feed the same crack pipeline.
 Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.spec`
 
 ## Adding an engine (the common task)
@@ -103,12 +106,13 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
 ## Next up (not started)
-NetNTLMv2 capture via an LLMNR/NBT-NS poisoner — **design note: docs/NETNTLM.md**
-(anjaiv's area; intrusive/gated, `redness poison` command, feeds crack.py via meta hashes);
-stream crack results to the live graph; replace web/logo.svg with the real lab logo;
-"download report" button in the GUI.
+Stream crack results to the live graph; ntlmrelayx *relay* mode (SMB/LDAP/HTTP) as a
+Phase 2 of the poison feature (docs/NETNTLM.md); replace web/logo.svg with the real lab
+logo; "download report" button in the GUI.
 Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
-and the GUI (logo + scope-file loader + token-gated POST /scan that runs real engines).
+the GUI (logo + scope-file loader + token-gated POST /scan that runs real engines), and
+NetNTLMv2 capture via the gated `redness poison` command (Responder LLMNR/NBT-NS
+poisoning → crack pipeline).
 
 ## Legal / ethics
 Authorized assessments only. Assume written scope exists before running against any target.
