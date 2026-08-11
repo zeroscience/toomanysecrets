@@ -12,6 +12,7 @@ This is step 1 of docs/NETNTLM.md — parser only.
 from __future__ import annotations
 
 import re
+import shutil
 
 # Responder writes one line per capture; the protocol tag varies (SMB/HTTP/LDAP/
 # MSSQL/...) and session-log lines may carry a leading timestamp, e.g.:
@@ -46,3 +47,30 @@ def parse_responder_log(text: str) -> list[tuple[str, str]]:
         account = f"{domain}\\{user}" if domain else user
         out.append((account, h))
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Thin Responder wrapper (subprocess construction only — kept pure/testable)  #
+# --------------------------------------------------------------------------- #
+def responder_binary() -> str | None:
+    """Path to the `responder` executable, or None if not installed."""
+    return shutil.which("responder") or shutil.which("Responder.py")
+
+
+def is_available() -> bool:
+    """True if Responder is installed (Linux/Kali only — never on the Windows box)."""
+    return responder_binary() is not None
+
+
+def responder_argv(iface: str, *, analyze: bool = False, binary: str | None = None) -> list[str]:
+    """Build the Responder command line (no subprocess launched here).
+
+    `-I <iface>` selects the listening interface; `-A` is analyze mode — Responder
+    *observes* LLMNR/NBT-NS/mDNS traffic without answering it (passive, non-intrusive).
+    Without `-A`, Responder actively poisons name resolution on the segment.
+    """
+    exe = binary or responder_binary() or "responder"
+    argv = [exe, "-I", iface]
+    if analyze:
+        argv.append("-A")
+    return argv

