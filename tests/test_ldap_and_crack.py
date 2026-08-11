@@ -118,6 +118,12 @@ def test_crack_noop_without_tool_or_wordlist():
     assert crack.crack(creds, "/nonexistent/wordlist", tool="hashcat") == ""
 
 
+def test_netntlmv2_hash_type_mapped():
+    # NetNTLMv2 (from the Responder poisoner) cracks as hashcat -m 5600 / john netntlmv2.
+    assert crack.HASHCAT_MODE["netntlmv2"] == "5600"
+    assert crack.JOHN_FORMAT["netntlmv2"] == "netntlmv2"
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

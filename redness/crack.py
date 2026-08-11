@@ -24,8 +24,8 @@ from typing import Optional
 from .findings import Category, Evidence, Finding, Report, Severity
 
 # hashcat -m mode per hash type; john --format per hash type.
-HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100"}
-JOHN_FORMAT = {"krb5asrep": "krb5asrep", "krb5tgs": "krb5tgs"}
+HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100", "netntlmv2": "5600"}
+JOHN_FORMAT = {"krb5asrep": "krb5asrep", "krb5tgs": "krb5tgs", "netntlmv2": "netntlmv2"}
 
 
 @dataclass
