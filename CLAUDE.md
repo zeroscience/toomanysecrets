@@ -105,6 +105,12 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 - The EventBus swallows subscriber errors: a broken UI can never break a scan.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
+## First real-DC validation (THE priority — nothing has run against a live DC yet)
+Everything is unit-tested offline. Prove it in the field from Kali: `docs/VALIDATION.md`
+(checklist + lab options) and `scripts/smoke.sh` (DC=... ./scripts/smoke.sh → doctor/scan/
+passive-poison). Real tool output is the source of truth; if a parser misses a line format,
+add a captured sample to the matching tests/ file.
+
 ## Next up (not started)
 Stream crack results to the live graph; ntlmrelayx *relay* mode (SMB/LDAP/HTTP) as a
 Phase 2 of the poison feature (docs/NETNTLM.md); replace web/logo.svg with the real lab
