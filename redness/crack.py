@@ -28,6 +28,13 @@ from .findings import Category, Evidence, Finding, Report, Severity
 # hashcat -m mode per hash type; john --format per hash type.
 HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100", "netntlmv2": "5600"}
 JOHN_FORMAT = {"krb5asrep": "krb5asrep", "krb5tgs": "krb5tgs", "netntlmv2": "netntlmv2"}
+# Which finding category a cracked credential belongs to, by source hash type. Keeps the
+# `credential-cracked` finding labeled correctly (Kerberos roasting vs NetNTLMv2 poisoning).
+HASH_CATEGORY = {
+    "krb5asrep": Category.KERBEROS,
+    "krb5tgs": Category.KERBEROS,
+    "netntlmv2": Category.SMB,
+}
 
 
 @dataclass
@@ -172,7 +179,7 @@ def annotate(report: Report, cracked: list[Cred], tool: str = "") -> None:
             id="credential-cracked",
             title=f"Password recovered for {c.account}",
             severity=Severity.CRITICAL,
-            category=Category.KERBEROS,
+            category=HASH_CATEGORY.get(c.hash_type, Category.KERBEROS),
             description=f"The {c.hash_type} hash for '{c.account}' was cracked offline.",
             impact="A recovered password is a valid domain credential enabling authenticated "
                    "access and further compromise.",

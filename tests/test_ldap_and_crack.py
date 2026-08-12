@@ -124,6 +124,22 @@ def test_netntlmv2_hash_type_mapped():
     assert crack.JOHN_FORMAT["netntlmv2"] == "netntlmv2"
 
 
+def test_annotate_category_by_hash_type():
+    """credential-cracked category derives from the source hash type, not hardcoded."""
+    from redness.findings import Category, Report
+    report = Report(engagement="t", target="dc")
+    creds = [
+        crack.Cred(account="svc-backup", hash_type="krb5asrep",
+                   value="$krb5asrep$...", password="Pw1"),
+        crack.Cred(account="ACME\\jdoe", hash_type="netntlmv2",
+                   value="jdoe::ACME:...", password="Pw2"),
+    ]
+    crack.annotate(report, creds, tool="hashcat")
+    by_acct = {f.affected[0]: f.category for f in report.findings if f.id == "credential-cracked"}
+    assert by_acct["svc-backup"] is Category.KERBEROS
+    assert by_acct["ACME\\jdoe"] is Category.SMB      # NetNTLMv2 -> SMB, not mislabeled Kerberos
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
