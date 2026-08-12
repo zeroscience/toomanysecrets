@@ -30,6 +30,11 @@ _ASREP = re.compile(r"\$krb5asrep\$\S+")
 _TGS = re.compile(r"\$krb5tgs\$\S+")
 # nxc ldap line: LDAP  <host>  <port>  <name>  <body>
 _LDAP_LINE = re.compile(r"^LDAP\s+\S+\s+\d+\s+\S+\s+(?P<body>.*?)\s*$")
+# `--users` prints columns: sAMAccountName | pwdLastSet | badPwdCount | description
+# (nxc/protocols/ldap.py). The 2nd column is always a date or "<never>" — a reliable
+# positive signal that a line is a real user row, so we don't rely on a noise blocklist
+# (which missed nxc's "Enumerated N domain users" summary, "No entries found!", etc.).
+_PWD_LAST_SET = re.compile(r"^(?:\d{4}-\d\d-\d\d|<never>)", re.I)
 
 
 def _asrep_account(h: str) -> str:
@@ -74,22 +79,23 @@ def parse_kerberoast(raw: str) -> list[tuple[str, str]]:
 
 
 def parse_users(raw: str) -> list[str]:
-    """Best-effort user list from `nxc ldap --users` output (skip headers/hashes)."""
-    users = []
+    """User list from `nxc ldap --users`.
+
+    A real row is `sAMAccountName  <pwdLastSet>  <badPwdCount>  <description>`; we accept a
+    line only when its 2nd column is a date or ``<never>`` (pwdLastSet). That positively
+    excludes the ``-Username-`` header, the ``Enumerated N domain users`` summary, status
+    lines (``No entries found!``, ``Skipping...``), and interleaved krb5 hash lines — no
+    fragile keyword blocklist. Verified against NetExec nxc/protocols/ldap.py.
+    """
+    users: list[str] = []
     for line in raw.splitlines():
         m = _LDAP_LINE.match(strip_log_prefix(line))   # tolerate nxc --verbose/--log prefix
         if not m:
             continue
-        body = m.group("body")
-        low = body.lower()
-        if (not body or body.startswith("[") or "$krb5" in body
-                or low.startswith("-username-") or "total" in low
-                or low.startswith("username")):
-            continue
-        user = body.split()[0]
-        if user and user not in users:
-            users.append(user)
-    return users
+        parts = m.group("body").split()
+        if len(parts) >= 2 and _PWD_LAST_SET.match(parts[1]):
+            users.append(parts[0])
+    return list(dict.fromkeys(users))
 
 
 def _hash_finding(fid: str, title: str, hash_type: str,
