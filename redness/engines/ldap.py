@@ -24,6 +24,7 @@ import tempfile
 
 from ..findings import Category, Evidence, Finding, Severity
 from .base import Engine, Target
+from .netexec import strip_log_prefix
 
 _ASREP = re.compile(r"\$krb5asrep\$\S+")
 _TGS = re.compile(r"\$krb5tgs\$\S+")
@@ -76,7 +77,7 @@ def parse_users(raw: str) -> list[str]:
     """Best-effort user list from `nxc ldap --users` output (skip headers/hashes)."""
     users = []
     for line in raw.splitlines():
-        m = _LDAP_LINE.match(line.strip())
+        m = _LDAP_LINE.match(strip_log_prefix(line))   # tolerate nxc --verbose/--log prefix
         if not m:
             continue
         body = m.group("body")

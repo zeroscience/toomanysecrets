@@ -58,10 +58,23 @@ class _Host:
     smbv1: bool | None = None
 
 
+# nxc's --verbose / --log format prepends a log prefix before the protocol token, e.g.
+#   "2026-07-22 12:49:01 | samruser.py:172 - INFO - SMB   10.0.0.1  445 ..."
+# Strip it so the anchored SMB/LDAP parsers still work if verbose output ever reaches us.
+_LOG_PREFIX = re.compile(
+    r"^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d\s*\|\s*\S+\s*-\s*\w+\s*-\s*"
+)
+
+
+def strip_log_prefix(line: str) -> str:
+    """Remove an optional nxc verbose/log line prefix (shared with the LDAP parser)."""
+    return _LOG_PREFIX.sub("", line.strip(), count=1)
+
+
 def _iter_lines(raw: str):
     """Yield (host, port, name, body) tuples from nxc SMB output."""
     for line in raw.splitlines():
-        m = _LINE.match(line.strip())
+        m = _LINE.match(strip_log_prefix(line))
         if m:
             yield m.group("host"), m.group("port"), m.group("name"), m.group("body")
 
