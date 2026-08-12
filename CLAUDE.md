@@ -73,8 +73,9 @@ Self-contained build (bundles the engines into one exe): `packaging/redness-full
 pip install -r requirements.txt
 
 python -m redness.cli demo --out report.docx            # sample report, no DC
-python -m redness.cli live                               # GUI: logo + 'New scan' panel
-python -m redness.cli live --demo                        # GUI streaming simulated data
+python -m redness.cli gui                                # NATIVE window (pywebview; browser fallback)
+python -m redness.cli live                               # same UI in a browser
+python -m redness.cli live --demo                        # streaming simulated data
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
@@ -110,6 +111,14 @@ Everything is unit-tested offline. Prove it in the field from Kali: `docs/VALIDA
 (checklist + lab options) and `scripts/smoke.sh` (DC=... ./scripts/smoke.sh → doctor/scan/
 passive-poison). Real tool output is the source of truth; if a parser misses a line format,
 add a captured sample to the matching tests/ file.
+
+## GUI vision & roadmap — docs/GUI.md
+Native window via `redness gui` (pywebview, browser fallback) reusing the web UI; branded
+REDNESS v1.33.7 / Zero Science Lab / Silly Security Inc. (Anja Ivanovska & Gjoko Krstic);
+About + Usage modals shipped. NEXT big piece: right-click node actions ("further attacks in
+one place" — Kerberoast/secretsdump/PtH/DCSync/ADCS) via a token-gated POST /action + engines
+(anjaiv). Phased plan + action catalog in docs/GUI.md. Bump version in web/index.html +
+pyproject.toml together.
 
 ## Next up (not started)
 Stream crack results to the live graph; ntlmrelayx *relay* mode (SMB/LDAP/HTTP) as a

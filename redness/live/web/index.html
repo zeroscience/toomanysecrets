@@ -49,14 +49,43 @@
     background:rgba(14,17,23,.82); border:1px solid #232a36; border-radius:6px;
     color:#e6e6e6; padding:6px 12px; cursor:pointer; font:12px ui-monospace,monospace; }
   #scantoggle.hidden { display:none; }
+  /* branding + About/Usage */
+  #brand { justify-content: space-between; }
+  #ver { color:#ff5252; font-size:11px; letter-spacing:.1em; opacity:.85; }
+  #hud .tagline { color:#6b7280; font-size:10.5px; letter-spacing:.06em; margin:-2px 0 6px; }
+  #hudbtns { margin-top:8px; display:flex; gap:6px; }
+  .hbtn { background:#151a22; color:#c9d1d9; border:1px solid #232a36; border-radius:5px;
+    padding:4px 10px; cursor:pointer; font:11px ui-monospace,monospace; letter-spacing:.06em; }
+  .hbtn:hover { border-color:#ff5252; color:#fff; }
+  /* modal overlay — retro-futuristic card */
+  .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(4,6,10,.72); backdrop-filter:blur(3px); z-index:50; }
+  .modal.show { display:flex; }
+  .modal .card { width:min(560px,92vw); max-height:82vh; overflow-y:auto;
+    background:linear-gradient(180deg,#12161d,#0d1015); border:1px solid #2a3140;
+    border-radius:12px; box-shadow:0 0 0 1px rgba(255,82,82,.15),0 20px 60px rgba(0,0,0,.6);
+    padding:22px 24px; }
+  .modal h2 { margin:0; font-size:18px; letter-spacing:.16em; color:#ff5252; }
+  .modal .card .brandline { color:#8a93a2; font-size:12px; margin:2px 0 14px; }
+  .modal .card p, .modal .card li { color:#c9d1d9; font-size:12.5px; line-height:1.6; }
+  .modal .card a { color:#ff7a45; text-decoration:none; }
+  .modal .card code { background:#0b0d12; border:1px solid #232a36; border-radius:4px;
+    padding:1px 5px; color:#e6e6e6; }
+  .modal .grid { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:12px;
+    margin:10px 0; }
+  .modal .grid .k { color:#6b7280; }
+  .modal .x { float:right; cursor:pointer; color:#8a93a2; font-size:16px; line-height:1; }
+  .modal .x:hover { color:#ff5252; }
+  .modal .foot { margin-top:16px; color:#4b5563; font-size:10.5px; letter-spacing:.05em; }
 </style>
 </head>
 <body>
 <div id="graph"></div>
 
 <div id="hud" class="panel">
-  <div id="brand"><img src="/logo.svg" alt="ZeroScience"></div>
+  <div id="brand"><img src="/logo.svg" alt="ZeroScience"><span id="ver">v1.33.7</span></div>
   <h1>REDNESS</h1>
+  <div class="tagline">Zero Science Lab · powered by Silly Security Inc.</div>
   <div class="sub">live enumeration · <span id="conn">connecting…</span></div>
   <div id="counts">
     <span>nodes <b id="nnodes">0</b></span>
@@ -64,6 +93,10 @@
     <span>findings <b id="nfind">0</b></span>
   </div>
   <div id="status" style="margin-top:6px;"></div>
+  <div id="hudbtns">
+    <button class="hbtn" onclick="showModal('about')">About</button>
+    <button class="hbtn" onclick="showModal('usage')">Usage</button>
+  </div>
 </div>
 
 <div id="legend" class="panel">
@@ -90,6 +123,46 @@
 </div>
 
 <div id="log" class="panel"></div>
+
+<div id="about" class="modal" onclick="if(event.target===this)hideModal('about')">
+  <div class="card">
+    <span class="x" onclick="hideModal('about')">✕</span>
+    <h2>REDNESS</h2>
+    <div class="brandline">v1.33.7 · Zero Science Lab · powered by Silly Security Inc.</div>
+    <p>REDNESS is a red-team orchestrator for Active Directory &amp; Windows assessments. It
+    drives NetExec, Impacket and Certipy — it does not reimplement them — normalizes every
+    result into one findings model, and renders it as a live 3D graph and a Word report.</p>
+    <p>Capabilities: SMB / LDAP / Kerberos / AD CS enumeration (with and without credentials),
+    shares, users, certificate (ESC) issues, TLS weaknesses, AS-REP &amp; Kerberoast hash
+    capture with offline cracking, and NetNTLMv2 capture via LLMNR/NBT-NS poisoning — all
+    fed into loot, the report, and the graph.</p>
+    <div class="grid">
+      <span class="k">Developed by</span><span>Anja Ivanovska &amp; Gjoko Krstic</span>
+      <span class="k">Contact</span><span><a href="mailto:anja@zeroscience.mk">anja@zeroscience.mk</a> · <a href="mailto:gjoko@zeroscience.mk">gjoko@zeroscience.mk</a></span>
+      <span class="k">Version</span><span>1.33.7</span>
+    </div>
+    <div class="foot">Authorized security assessments only.</div>
+  </div>
+</div>
+
+<div id="usage" class="modal" onclick="if(event.target===this)hideModal('usage')">
+  <div class="card">
+    <span class="x" onclick="hideModal('usage')">✕</span>
+    <h2>USAGE</h2>
+    <div class="brandline">command reference — full docs on the wiki (coming soon)</div>
+    <p><code>redness doctor</code> — check which engines/tools are installed.</p>
+    <p><code>redness gui</code> — this native window · <code>redness live</code> — browser graph.</p>
+    <p><code>redness scan --targets scope.txt -u USER -p PASS -d DOMAIN --wordlist rockyou.txt --out report.docx --live</code><br>
+       run the engines against one or many targets (scope file = one IP/host/CIDR per line),
+       capture &amp; crack hashes, write the report, stream the graph.</p>
+    <p><code>redness scan --target 10.0.0.10</code> — a single target, no creds (SMB/TLS/AS-REP).</p>
+    <p><code>redness poison --iface eth0 --duration 600</code> — LLMNR/NBT-NS poisoning to capture
+       NetNTLMv2 (intrusive; opt-in; <code>--analyze</code> to observe only).</p>
+    <p><code>redness report findings.json --out report.docx</code> — re-render a saved report.</p>
+    <div class="foot">In the graph: nodes are domain / hosts / users / shares / CAs, colored by
+      finding severity. (Right-click actions — Kerberoast, secretsdump, pass-the-hash — coming.)</div>
+  </div>
+</div>
 
 <script>
 const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
@@ -218,6 +291,13 @@ if (SCAN_ENABLED) {
     finally { btn.disabled = false; btn.textContent = 'Start scan'; panel.classList.remove('show'); }
   };
 }
+
+// ---- About / Usage modals ----
+function showModal(id){ el(id).classList.add('show'); }
+function hideModal(id){ el(id).classList.remove('show'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { hideModal('about'); hideModal('usage'); }
+});
 </script>
 </body>
 </html>

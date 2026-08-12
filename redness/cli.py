@@ -175,6 +175,51 @@ def cmd_doctor(args) -> int:
     return 0
 
 
+def _live_scan_handler(bus):
+    """Scan handler for the GUI's 'Start scan' button (shared by live/gui)."""
+    from .scan import run_scan
+
+    def on_scan(params: dict) -> None:
+        targets = [t.strip() for t in (params.get("targets") or []) if t and t.strip()]
+        if not targets:
+            return
+        run_scan(targets, username=params.get("username") or None,
+                 password=params.get("password") or None,
+                 domain=params.get("domain") or None,
+                 bus=bus, engagement="REDNESS live scan")
+    return on_scan
+
+
+def cmd_gui(args) -> int:
+    """Native desktop window (pywebview) around the live GUI; falls back to a browser."""
+    import time
+
+    from .events import default_bus
+    from .live import LiveServer
+
+    server = LiveServer(default_bus, host=args.host, port=args.port,
+                        on_scan=_live_scan_handler(default_bus))
+    url = server.start()
+    print(f"[+] REDNESS GUI at {url}")
+    try:
+        import webview                                    # pywebview
+        webview.create_window("REDNESS · Zero Science Lab", url, width=1360, height=900)
+        webview.start()                                   # blocks until the window closes
+    except ImportError:
+        import webbrowser
+        print("[!] pywebview not installed — opening in your browser instead.")
+        print('    For a native window:  pip install ".[gui]"   (or: pip install pywebview)')
+        webbrowser.open(url)
+        print("[*] Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            pass
+    server.stop()
+    return 0
+
+
 def cmd_scan(args) -> int:
     import time
     import webbrowser
@@ -351,6 +396,11 @@ def main(argv=None) -> int:
     rp.set_defaults(func=cmd_report)
 
     sub.add_parser("doctor", help="check which engines/tools are installed").set_defaults(func=cmd_doctor)
+
+    g = sub.add_parser("gui", help="native desktop window (pywebview; falls back to browser)")
+    g.add_argument("--host", default="127.0.0.1")
+    g.add_argument("--port", type=int, default=8765)
+    g.set_defaults(func=cmd_gui)
 
     lv = sub.add_parser("live", help="serve the live 3D graph (simulated enumeration)")
     lv.add_argument("--host", default="127.0.0.1")
