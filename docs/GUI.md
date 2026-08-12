@@ -64,9 +64,11 @@ right-click a node ─▶ context menu (per node type) ─▶ POST /action {toke
 ## Phased roadmap
 1. **Done** — branded GUI (logo, version, tagline), About + Usage modals, `redness gui`
    native window (pywebview + browser fallback), in-tool Usage reference.
-2. **Read-only right-click enum** — `/action` channel + node context menus for the safe,
-   informational actions (shares, sessions, users, groups, ADCS find on that host). Proves
-   the plumbing with nothing destructive.
+2. **Done** — read-only right-click enum. `redness/actions.py` registry + token-gated
+   `POST /action` + `GET /actions`; the graph's `onNodeRightClick` builds a per-node-type
+   menu (host/domain → Enumerate SMB / LDAP / AD CS / TLS) that runs the matching engine
+   against that target and streams results back. This is the channel every Phase 3 action
+   plugs into — add an `Action(..., offensive=True)` with its gating.
 3. **Offensive actions** — Kerberoast/AS-REP/secretsdump/PtH/DCSync, each **gated** like
    `poison` (confirmation, authorization banner) and streamed to loot/report/graph.
 4. **Parity & polish** — RBCD, gMSA, shadow creds, NTLM relay/coercion (Phase 2 of NETNTLM),

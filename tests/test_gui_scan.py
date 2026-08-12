@@ -98,6 +98,54 @@ def test_logo_served():
         srv.stop()
 
 
+def test_actions_endpoint_serves_catalog():
+    cat = [{"id": "enum-smb", "label": "Enumerate SMB", "node_types": ["host"], "offensive": False}]
+    srv = LiveServer(EventBus(), port=0, on_action=lambda p: None, action_catalog=cat)
+    url = srv.start()
+    try:
+        got = json.loads(urllib.request.urlopen(url + "actions", timeout=3).read())
+        assert got == cat
+    finally:
+        srv.stop()
+
+
+def test_actions_endpoint_empty_when_disabled():
+    srv = LiveServer(EventBus(), port=0)                 # no on_action
+    url = srv.start()
+    try:
+        got = json.loads(urllib.request.urlopen(url + "actions", timeout=3).read())
+        assert got == []
+    finally:
+        srv.stop()
+
+
+def test_post_action_token_gated_and_dispatched():
+    seen = {}
+    done = []
+    srv = LiveServer(EventBus(), port=0,
+                     on_action=lambda p: (seen.update(p), done.append(1)),
+                     action_catalog=[])
+    url = srv.start()
+    try:
+        # no token -> 403
+        try:
+            _post(url + "action", {"action": "enum-smb", "target": "10.0.0.1"})
+            assert False
+        except urllib.error.HTTPError as e:
+            assert e.code == 403
+        # with token -> 202 + handler runs
+        resp = _post(url + "action", {"action": "enum-smb", "target": "10.0.0.1"},
+                     {"Content-Type": "application/json", "X-REDNESS-Token": srv.token})
+        assert resp.status == 202
+        for _ in range(30):
+            if done:
+                break
+            time.sleep(0.05)
+        assert seen.get("action") == "enum-smb" and seen.get("target") == "10.0.0.1"
+    finally:
+        srv.stop()
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

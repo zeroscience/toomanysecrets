@@ -4,11 +4,15 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
-- Right-click node actions in the GUI ("further attacks in one place": Kerberoast /
-  secretsdump / pass-the-hash / DCSync / ADCS abuse) via a token-gated `POST /action`
-  → engines. Design + phased roadmap in [docs/GUI.md](docs/GUI.md).
-- NetNTLM relay mode (ntlmrelayx) — Phase 2 of [docs/NETNTLM.md](docs/NETNTLM.md).
-- Stream cracked credentials to the live graph.
+### Added
+- **Right-click node actions (Phase 2, read-only):** `redness/actions.py` registry +
+  token-gated `POST /action` + `GET /actions`; right-click a host/domain node in the graph
+  to run Enumerate SMB / LDAP / AD CS / TLS against it, streamed back live. The channel every
+  future action plugs into.
+### Planned
+- Phase 3 offensive actions (Kerberoast / secretsdump / pass-the-hash / DCSync / ADCS abuse),
+  gated like `poison`. NetNTLM relay mode (ntlmrelayx). Stream cracked creds to the graph.
+  See [docs/GUI.md](docs/GUI.md).
 
 ## [1.33.7] — 2026-08-13
 
