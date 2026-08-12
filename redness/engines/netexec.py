@@ -1,4 +1,4 @@
-"""NetExec (nxc) engine — SMB.
+r"""NetExec (nxc) engine — SMB.
 
 Design: parsing is pure and separate from execution, so parsers are unit-testable
 against captured `nxc` output without a live DC or nxc installed (see tests/).
