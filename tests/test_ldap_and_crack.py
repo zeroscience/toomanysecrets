@@ -45,6 +45,15 @@ def test_parse_users_skips_noise():
     assert users == ["Administrator", "svc-backup"]
 
 
+def test_parse_users_tolerates_verbose_prefix():
+    # nxc --verbose/--log prepends a timestamp/log prefix before the LDAP token
+    raw = (
+        "2026-01-02 03:04:05 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  Administrator\n"
+        "2026-01-02 03:04:06 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  jdoe\n"
+    )
+    assert ldap.parse_users(raw) == ["Administrator", "jdoe"]
+
+
 def test_parse_all_findings_carry_hashes():
     findings = ldap.parse_all(ASREP + TGS + USERS, credentialed=True)
     ids = {f.id: f for f in findings}

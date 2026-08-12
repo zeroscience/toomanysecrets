@@ -96,6 +96,15 @@ def test_shares():
     assert f["enum-smb-shares"].category is Category.ENUM
 
 
+def test_verbose_log_prefix_tolerated():
+    # nxc --verbose/--log prepends "<ts> | file:line - INFO - " before the SMB token
+    raw = ("2026-01-02 03:04:05 | samruser.py:172 - INFO - SMB  10.10.0.15  445  DC01  "
+           "[*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:acme.local) "
+           "(signing:False) (SMBv1:False)\n")
+    ids = {f.id for f in nx.parse_banner_findings(raw)}
+    assert "smb-signing-not-required" in ids       # parsed despite the log prefix
+
+
 def test_parse_all_smoke():
     findings = nx.parse_all(SAMPLE, credentialed=True)
     ids = {f.id for f in findings}
