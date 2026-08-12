@@ -63,6 +63,30 @@ def test_null_session_deduped():
     assert len(f.affected) == 1
 
 
+def test_null_session_from_banner_field():
+    # newer nxc reports anonymous access in the banner, not as a [+] auth line
+    raw = ("SMB  10.10.0.15  445  DC01  [*] Windows Server 2022 Build 20348 x64 "
+           "(name:DC01) (domain:acme.local) (signing:True) (SMBv1:None) (Null Auth:True)\n")
+    f = nx.parse_null_session(raw)
+    assert f and f[0].id == "smb-null-or-guest-auth"
+    assert f[0].affected == ["10.10.0.15"]
+
+
+def test_null_auth_false_not_flagged():
+    raw = ("SMB  10.10.0.20  445  DC02  [*] Windows Server 2022 Build 20348 x64 "
+           "(name:DC02) (domain:acme.local) (signing:True) (SMBv1:None) (Null Auth:False)\n")
+    assert nx.parse_null_session(raw) == []
+
+
+def test_hardened_dc_banner_no_false_positives():
+    # signing:True + SMBv1:None (undetermined) must NOT yield signing/smbv1 findings
+    raw = ("SMB  10.10.0.15  445  DC01  [*] Windows Server 2022 Build 20348 x64 "
+           "(name:DC01) (domain:acme.local) (signing:True) (SMBv1:None) (Null Auth:True)\n")
+    ids = {f.id for f in nx.parse_banner_findings(raw)}
+    assert "smb-signing-not-required" not in ids
+    assert "smbv1-enabled" not in ids
+
+
 def test_shares():
     f = _by_id(nx.parse_shares(SAMPLE))
     assert "smb-writable-share" in f
