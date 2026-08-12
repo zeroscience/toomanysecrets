@@ -141,6 +141,7 @@ def parse_null_session(raw: str) -> list[Finding]:
         user = ident.split("\\")[-1]
         if user.endswith(":") or user in (":", "guest:") or user.lower().startswith("guest:"):
             hits.append(f"{host} ({ident})")
+    hits = list(dict.fromkeys(hits))            # de-dupe: banner+shares runs repeat the line
     if hits:
         findings.append(Finding(
             id="smb-null-or-guest-auth",

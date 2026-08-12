@@ -53,6 +53,16 @@ def test_null_session():
     assert any("10.10.0.15" in a for a in f["smb-null-or-guest-auth"].affected)
 
 
+def test_null_session_deduped():
+    # banner + shares runs repeat the same null-auth line; affected must not duplicate.
+    dup = (
+        "SMB  10.10.0.15  445  DC01  [+] acme.local\\:\n"
+        "SMB  10.10.0.15  445  DC01  [+] acme.local\\:\n"
+    )
+    f = nx.parse_null_session(dup)[0]
+    assert len(f.affected) == 1
+
+
 def test_shares():
     f = _by_id(nx.parse_shares(SAMPLE))
     assert "smb-writable-share" in f
