@@ -20,10 +20,13 @@ TGS = r"""
 LDAP        10.10.0.15   389    DC01    [*] Total kerberoastable users : 1
 LDAP        10.10.0.15   389    DC01    $krb5tgs$23$*svc-sql$ACME.LOCAL$svc-sql*$f00d$beef...
 """
+# Real nxc `--users` shape: -Username- | -Last PW Set- | -BadPW- | -Description-,
+# then an "Enumerated N domain users" summary. (fabricated values)
 USERS = r"""
-LDAP        10.10.0.15   389    DC01    Administrator
-LDAP        10.10.0.15   389    DC01    svc-backup
-LDAP        10.10.0.15   389    DC01    [*] Total 2
+LDAP        10.10.0.15   389    DC01    -Username-                    -Last PW Set-       -BadPW-  -Description-
+LDAP        10.10.0.15   389    DC01    Administrator                 2025-08-11 22:24:52 0        Built-in account for administering the computer/domain
+LDAP        10.10.0.15   389    DC01    svc-backup                    <never>             0        service account
+LDAP        10.10.0.15   389    DC01    Enumerated 2 domain users: acme.local
 """
 
 
@@ -48,10 +51,24 @@ def test_parse_users_skips_noise():
 def test_parse_users_tolerates_verbose_prefix():
     # nxc --verbose/--log prepends a timestamp/log prefix before the LDAP token
     raw = (
-        "2026-01-02 03:04:05 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  Administrator\n"
-        "2026-01-02 03:04:06 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  jdoe\n"
+        "2026-01-02 03:04:05 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  "
+        "Administrator  2025-01-01 00:00:00 0  admin\n"
+        "2026-01-02 03:04:06 | ldap.py:100 - INFO - LDAP  10.10.0.15  389  DC01  "
+        "jdoe          <never>             0  user\n"
     )
     assert ldap.parse_users(raw) == ["Administrator", "jdoe"]
+
+
+def test_parse_users_rejects_summary_and_status_noise():
+    # the words Enumerated/No/Found/Skipping must never become usernames
+    raw = r"""
+LDAP  10.10.0.15  389  DC01  Enumerated 3 domain users: acme.local
+LDAP  10.10.0.15  389  DC01  No entries found!
+LDAP  10.10.0.15  389  DC01  Found 2 enabled users without SPN.
+LDAP  10.10.0.15  389  DC01  Skipping disabled account: olduser
+LDAP  10.10.0.15  389  DC01  realuser                      2024-05-06 07:08:09 1  desc
+"""
+    assert ldap.parse_users(raw) == ["realuser"]
 
 
 def test_parse_all_findings_carry_hashes():
