@@ -124,3 +124,29 @@ NetExec is intentionally NOT a dependency (no py3.12 wheel) — scripts/install.
 install it via pipx, or use a box where nxc is already on PATH (Kali). Validated: the
 installed `redness` runs from outside the repo and `redness live` serves index/logo/vendor
 (1.3MB) from site-packages. Flow: git clone -> ./scripts/install.sh -> redness doctor/scan.
+
+## 2026-08-11 — NetNTLMv2 capture: a gated `poison` command, not an engine
+Built the intrusive NetNTLMv2 feature (docs/NETNTLM.md) as a standalone `redness poison`
+command driving Responder (LLMNR/NBT-NS/mDNS) — deliberately NOT an Engine and NOT in
+default_engines(), so `scan` can never trigger it. Gated: `--iface` required, `--duration`
+time-box (default 600s), a `type YES` confirmation (+ `--yes`), a passive `--analyze`
+(responder -A) mode, an authorization banner, and loot to git-ignored `loot/`.
+
+Design decisions:
+- Read Responder's **stdout** live rather than tailing logs/Responder-Session.log — no
+  log-dir discovery, and the pure parser (engines/responder.py) feeds a `run_poison` that
+  takes an injectable line source, so tests need no Responder/root/LAN.
+- Findings reuse **Category.SMB** (NTLM relay/signing already live there) — **no
+  SCHEMA_VERSION bump**, findings.py contract untouched. Emits `netntlm-captured` (HIGH,
+  carries `meta["hashes"]` type `netntlmv2`) and `llmnr-nbtns-poisoning-possible` (MEDIUM,
+  only when poisoning was active AND a host took the bait).
+- Cracking flows through the existing pipeline: `netntlmv2` -> hashcat 5600 / john
+  netntlmv2 (crack.py), yielding `credential-cracked` (CRITICAL) unchanged.
+- `doctor` gained a `responder` check in its own optional section (not the engine-ready
+  count, since poison isn't a scan engine).
+
+Known caveat / follow-up: crack.py's `annotate()` hardcodes `Category.KERBEROS` on
+`credential-cracked`, so a cracked NetNTLMv2 credential is mislabeled Kerberos in the
+report. Pre-existing; left as-is (a fix also touches the AS-REP/Kerberoast path). Follow-up:
+derive that finding's category from the source hash_type. Also still open: stream crack
+results to the live graph; ntlmrelayx *relay* mode (NETNTLM.md Phase 2).

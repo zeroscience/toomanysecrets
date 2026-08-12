@@ -21,6 +21,7 @@ INSTALL_HINTS = {
     "netexec-ldap": "pipx install netexec  (LDAP: users + AS-REP/Kerberoast capture)",
     "certipy": "pip install certipy-ad     (or bundle it; REDNESS runs it in-process)",
     "tls": "built-in (Python stdlib) — always available",
+    "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
 }
 
 
@@ -48,6 +49,12 @@ def check_crackers() -> list[Check]:
     return checks
 
 
+def check_poison() -> list[Check]:
+    """Responder — the poisoner behind the opt-in `poison` command (not a scan engine)."""
+    from .engines.responder import is_available as responder_available
+    return [Check("responder", responder_available(), INSTALL_HINTS["responder"])]
+
+
 def report_text() -> str:
     lines = ["REDNESS environment check", "=" * 26, "", "Engines:"]
     engines = check_engines()
@@ -56,6 +63,11 @@ def report_text() -> str:
         lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
     lines += ["", "Hash cracking (optional, for scan --wordlist):"]
     for c in check_crackers():
+        mark = "OK " if c.available else "-- "
+        lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
+
+    lines += ["", "NetNTLMv2 capture (optional, for the intrusive `poison` command):"]
+    for c in check_poison():
         mark = "OK " if c.available else "-- "
         lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
 

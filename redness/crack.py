@@ -1,8 +1,10 @@
 """Offline cracking of captured hashes — the adscan-style "detect a hash, crack it" loop.
 
-Scope: the crackable material REDNESS obtains during enumeration — AS-REP
-(`krb5asrep`) and Kerberoast (`krb5tgs`) hashes (see engines/ldap.py). NetNTLMv2
-*capture* needs an active poisoner/responder and is intentionally out of scope here.
+Scope: the crackable material REDNESS obtains — AS-REP (`krb5asrep`) and Kerberoast
+(`krb5tgs`) hashes captured during enumeration (see engines/ldap.py), plus NetNTLMv2
+(`netntlmv2`) hashes from the opt-in poisoner (see poison.py). The *capture* of NetNTLMv2
+(active LLMNR/NBT-NS poisoning) lives in poison.py, not here; this module only cracks
+whatever hashes arrive via finding.meta["hashes"].
 
 Two independent capabilities:
   1. write_loot()  — always available: dump hashes to hashcat-ready files so they can be
@@ -24,8 +26,15 @@ from typing import Optional
 from .findings import Category, Evidence, Finding, Report, Severity
 
 # hashcat -m mode per hash type; john --format per hash type.
-HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100"}
-JOHN_FORMAT = {"krb5asrep": "krb5asrep", "krb5tgs": "krb5tgs"}
+HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100", "netntlmv2": "5600"}
+JOHN_FORMAT = {"krb5asrep": "krb5asrep", "krb5tgs": "krb5tgs", "netntlmv2": "netntlmv2"}
+# Which finding category a cracked credential belongs to, by source hash type. Keeps the
+# `credential-cracked` finding labeled correctly (Kerberos roasting vs NetNTLMv2 poisoning).
+HASH_CATEGORY = {
+    "krb5asrep": Category.KERBEROS,
+    "krb5tgs": Category.KERBEROS,
+    "netntlmv2": Category.SMB,
+}
 
 
 @dataclass
@@ -170,7 +179,7 @@ def annotate(report: Report, cracked: list[Cred], tool: str = "") -> None:
             id="credential-cracked",
             title=f"Password recovered for {c.account}",
             severity=Severity.CRITICAL,
-            category=Category.KERBEROS,
+            category=HASH_CATEGORY.get(c.hash_type, Category.KERBEROS),
             description=f"The {c.hash_type} hash for '{c.account}' was cracked offline.",
             impact="A recovered password is a valid domain credential enabling authenticated "
                    "access and further compromise.",

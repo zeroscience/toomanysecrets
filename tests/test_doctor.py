@@ -34,6 +34,11 @@ def test_crackers_reported():
     assert names == {"hashcat", "john"}
 
 
+def test_responder_check_reported():
+    names = {c.name for c in doctor.check_poison()}
+    assert names == {"responder"}
+
+
 def test_cli_doctor_runs(capsys=None):
     # Exercise the CLI path end-to-end (exit code 0).
     rc = main(["doctor"])
