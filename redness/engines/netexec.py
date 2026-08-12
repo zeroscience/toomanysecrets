@@ -40,6 +40,8 @@ _DOMAIN = re.compile(r"\(domain:(?P<v>[^)]+)\)", re.I)
 _OS = re.compile(r"\[\*\]\s+(?P<os>.+?)\s+\(name:", re.I)
 # A successful auth line: "[+] domain\user:pass" optionally "(Pwn3d!)"
 _AUTH_OK = re.compile(r"\[\+\]\s+(?P<id>\S+?)\s*(?P<pwn>\(Pwn3d!\))?\s*$")
+# Newer nxc reports anonymous access as a banner field: "(Null Auth:True)".
+_NULLAUTH = re.compile(r"\(Null\s*Auth:(?P<v>True|False)\)", re.I)
 # Share table row: name, optional permissions (READ / WRITE / READ,WRITE), remark
 _SHARE_ROW = re.compile(
     r"^(?P<share>\S+)\s+(?P<perms>(?:READ|WRITE)(?:,(?:READ|WRITE))*)?\s*(?P<remark>.*)$"
@@ -129,37 +131,45 @@ def parse_banner_findings(raw: str, credentialed: bool = False) -> list[Finding]
 
 
 def parse_null_session(raw: str) -> list[Finding]:
-    """Detect successful null/guest auth ([+] with an empty password)."""
-    findings: list[Finding] = []
-    hits: list[str] = []
+    """Detect anonymous SMB access from two nxc signals, keyed by host (deduped).
+
+    1. An auth-success line with an empty password: ``[+] domain\\:`` / ``[+] domain\\guest:``
+    2. The banner field newer nxc prints: ``(Null Auth:True)``
+    Either one on a host counts once; the banner + --shares runs repeat lines, so we key
+    on host to avoid the double-count seen in the field.
+    """
+    hosts: dict[str, str] = {}                  # host -> short detail (first signal seen)
     for host, _port, _name, body in _iter_lines(raw):
         m = _AUTH_OK.match(body)
-        if not m:
-            continue
-        ident = m.group("id")               # e.g. "acme.local\guest:" or "acme.local\:"
-        # empty password => ends with ':' and nothing after
-        user = ident.split("\\")[-1]
-        if user.endswith(":") or user in (":", "guest:") or user.lower().startswith("guest:"):
-            hits.append(f"{host} ({ident})")
-    hits = list(dict.fromkeys(hits))            # de-dupe: banner+shares runs repeat the line
-    if hits:
-        findings.append(Finding(
-            id="smb-null-or-guest-auth",
-            title="SMB null / guest session allowed",
-            severity=Severity.MEDIUM,
-            category=Category.SMB,
-            description="Hosts accept unauthenticated (null) or guest SMB sessions.",
-            impact="Allows unauthenticated attackers to enumerate shares, users, and policies — "
-                   "a common first foothold.",
-            remediation="Restrict anonymous access: set 'RestrictNullSessAccess', disable the Guest "
-                        "account, and enforce 'Network access: Restrict anonymous access to Named "
-                        "Pipes and Shares'.",
-            affected=hits,
-            evidence=[Evidence(source="netexec", detail="null/guest auth succeeded")],
-            references=["https://attack.mitre.org/techniques/T1135/"],
-            credentialed=False,
-        ))
-    return findings
+        if m:
+            ident = m.group("id")               # e.g. "acme.local\guest:" or "acme.local\:"
+            user = ident.split("\\")[-1]         # empty password => ends with ':' and nothing after
+            if user.endswith(":") or user in (":", "guest:") or user.lower().startswith("guest:"):
+                hosts.setdefault(host, ident)
+        nm = _NULLAUTH.search(body)
+        if nm and nm.group("v").lower() == "true":
+            hosts.setdefault(host, "Null Auth:True")
+
+    if not hosts:
+        return []
+    affected = sorted(hosts)
+    detail = "; ".join(f"{h} ({hosts[h]})" for h in affected)
+    return [Finding(
+        id="smb-null-or-guest-auth",
+        title="SMB null / guest session allowed",
+        severity=Severity.MEDIUM,
+        category=Category.SMB,
+        description="Hosts accept unauthenticated (null) or guest SMB sessions.",
+        impact="Allows unauthenticated attackers to enumerate shares, users, and policies — "
+               "a common first foothold.",
+        remediation="Restrict anonymous access: set 'RestrictNullSessAccess', disable the Guest "
+                    "account, and enforce 'Network access: Restrict anonymous access to Named "
+                    "Pipes and Shares'.",
+        affected=affected,
+        evidence=[Evidence(source="netexec", detail=f"anonymous SMB access: {detail}")],
+        references=["https://attack.mitre.org/techniques/T1135/"],
+        credentialed=False,
+    )]
 
 
 def parse_shares(raw: str, credentialed: bool = False) -> list[Finding]:
