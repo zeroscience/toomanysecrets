@@ -52,10 +52,15 @@ _ESC: dict[int, tuple[Severity, str]] = {
          "Enforce IF_ENFORCEENCRYPTICERTREQUEST on the CA to require RPC encryption (block relay to ICPR)."),
     13: (Severity.HIGH,
          "Review templates whose issuance policy links to a privileged group via OID group-link."),
+    14: (Severity.HIGH,
+         "Fix weak explicit certificate mappings (altSecurityIdentities); use strong mapping "
+         "and enforce StrongCertificateBindingEnforcement."),
     15: (Severity.HIGH,
          "Restrict enrollment on schema-v1 templates that allow application-policy injection (CVE-2024-49019)."),
     16: (Severity.HIGH,
          "Enable the security extension (szOID_NTDS_CA_SECURITY_EXT) on the CA."),
+    17: (Severity.HIGH,
+         "Restrict enrollment-agent / application-policy abuse on the flagged template per Certipy guidance."),
 }
 
 _VULN_KEY = re.compile(r"vulnerab", re.I)     # matches "[!] Vulnerabilities"
