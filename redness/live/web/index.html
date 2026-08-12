@@ -77,6 +77,17 @@
   .modal .x { float:right; cursor:pointer; color:#8a93a2; font-size:16px; line-height:1; }
   .modal .x:hover { color:#ff5252; }
   .modal .foot { margin-top:16px; color:#4b5563; font-size:10.5px; letter-spacing:.05em; }
+  /* right-click node action menu */
+  #ctxmenu { position:fixed; z-index:60; display:none; min-width:210px;
+    background:rgba(14,17,23,.97); border:1px solid #2a3140; border-radius:8px;
+    box-shadow:0 12px 34px rgba(0,0,0,.55); padding:5px; font:12px ui-monospace,monospace; }
+  #ctxmenu.show { display:block; }
+  #ctxmenu .ctxhead { color:#ff5252; padding:5px 9px 7px; font-size:11px; letter-spacing:.06em;
+    border-bottom:1px solid #232a36; margin-bottom:4px; max-width:280px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #ctxmenu .ctxitem { padding:6px 9px; border-radius:5px; cursor:pointer; color:#c9d1d9; }
+  #ctxmenu .ctxitem:hover { background:#1b2230; color:#fff; }
+  #ctxmenu .ctxnone { padding:6px 9px; color:#6b7280; }
 </style>
 </head>
 <body>
@@ -123,6 +134,7 @@
 </div>
 
 <div id="log" class="panel"></div>
+<div id="ctxmenu"></div>
 
 <div id="about" class="modal" onclick="if(event.target===this)hideModal('about')">
   <div class="card">
@@ -290,6 +302,41 @@ if (SCAN_ENABLED) {
     } catch (err) { log('scan request failed: '+err, 'sev-high'); }
     finally { btn.disabled = false; btn.textContent = 'Start scan'; panel.classList.remove('show'); }
   };
+}
+
+// ---- Right-click node actions (Phase 2: read-only enum) ----
+let ACTIONS_CATALOG = [];
+fetch('/actions').then(r => r.json()).then(a => ACTIONS_CATALOG = a || []).catch(()=>{});
+const ctx = el('ctxmenu');
+el('graph').addEventListener('contextmenu', e => e.preventDefault());
+function showNodeMenu(node, event){
+  const acts = ACTIONS_CATALOG.filter(a => (a.node_types||[]).includes(node.type));
+  let html = `<div class="ctxhead">${node.label||node.id}</div>`;
+  html += acts.length
+    ? acts.map(a => `<div class="ctxitem" data-a="${a.id}">${a.label}</div>`).join('')
+    : `<div class="ctxnone">no actions for this node yet</div>`;
+  ctx.innerHTML = html;
+  ctx.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
+  ctx.style.top  = Math.min(event.clientY, window.innerHeight - 44*(acts.length+1)) + 'px';
+  ctx.classList.add('show');
+  ctx.querySelectorAll('.ctxitem').forEach(it =>
+    it.onclick = () => { runAction(it.dataset.a, node); ctx.classList.remove('show'); });
+}
+Graph.onNodeRightClick((node, event) => showNodeMenu(node, event));
+document.addEventListener('click', e => { if (!ctx.contains(e.target)) ctx.classList.remove('show'); });
+
+async function runAction(actionId, node) {
+  log(`action: ${actionId} → ${node.id}`, 'sev-low');
+  const body = { action: actionId, target: node.id,
+    username: el('s_user') && el('s_user').value || null,
+    password: el('s_pass') && el('s_pass').value || null,
+    domain:   el('s_domain') && el('s_domain').value || null };
+  try {
+    const res = await fetch('/action', { method:'POST',
+      headers: { 'Content-Type':'application/json', 'X-REDNESS-Token': CSRF },
+      body: JSON.stringify(body) });
+    if (!res.ok) log(`action rejected (${res.status})`, 'sev-high');
+  } catch (err) { log('action request failed: '+err, 'sev-high'); }
 }
 
 // ---- About / Usage modals ----

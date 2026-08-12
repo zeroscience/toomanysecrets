@@ -150,3 +150,12 @@ Known caveat / follow-up: crack.py's `annotate()` hardcodes `Category.KERBEROS` 
 report. Pre-existing; left as-is (a fix also touches the AS-REP/Kerberoast path). Follow-up:
 derive that finding's category from the source hash_type. Also still open: stream crack
 results to the live graph; ntlmrelayx *relay* mode (NETNTLM.md Phase 2).
+
+## 2026-08-13 — GUI Phase 2: token-gated action channel
+redness/actions.py = an Action registry (id/label/node_types/engine, offensive flag) + run_action()
+that runs one engine against one target and streams to the bus like a scan (reuses scan's
+_emit_finding_graph). Bridge gained GET /actions (serves the catalog) and POST /action (same CSRF
+token gate + off-thread dispatch as /scan). Front-end: Graph.onNodeRightClick -> per-node-type
+menu -> POST /action; results stream to the graph/log. Phase 2 is READ-ONLY enum (SMB/LDAP/ADCS/
+TLS on host/domain nodes); Phase 3 offensive actions register here with offensive=True + gating
+(anjaiv's engines). Verified end-to-end in-browser (menu renders, POST 202, action streams back).

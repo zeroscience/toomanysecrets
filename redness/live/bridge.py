@@ -51,12 +51,18 @@ _CTYPES = {
 class LiveServer:
     def __init__(self, bus: EventBus, host: str = "127.0.0.1", port: int = 8765,
                  buffer_cap: int = 5000,
-                 on_scan: Optional[Callable[[dict], None]] = None):
+                 on_scan: Optional[Callable[[dict], None]] = None,
+                 on_action: Optional[Callable[[dict], None]] = None,
+                 action_catalog: Optional[list] = None):
         self.bus = bus
         self.host = host
         self.port = port
-        # Called with the posted params when the GUI starts a scan. None => /scan disabled.
+        # Called with posted params for a GUI-initiated scan / right-click action.
+        # None => that endpoint is disabled (403).
         self.on_scan = on_scan
+        self.on_action = on_action
+        # Serializable action list (GET /actions) so the GUI builds context menus.
+        self.action_catalog = action_catalog or []
         # CSRF token injected into the page and required by POST /scan. A cross-origin
         # site can't read it (same-origin policy), so it can't forge a scan request.
         self.token = secrets.token_urlsafe(18)
@@ -148,8 +154,18 @@ def _make_handler(live: LiveServer):
                 self._serve_index()
             elif path == "/events":
                 self._serve_events()
+            elif path == "/actions":
+                self._serve_json(live.action_catalog if live.on_action else [])
             else:
                 self._serve_static(path.lstrip("/"))   # vendor/, css, logo, etc.
+
+        def _serve_json(self, obj):
+            body = json.dumps(obj).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def _serve_index(self):
             path = os.path.join(_WEB_DIR, "index.html")
@@ -169,14 +185,16 @@ def _make_handler(live: LiveServer):
             self.wfile.write(body)
 
         def do_POST(self):
-            if self.path.split("?", 1)[0] != "/scan":
+            path = self.path.split("?", 1)[0]
+            handler = {"/scan": live.on_scan, "/action": live.on_action}.get(path)
+            if path not in ("/scan", "/action"):
                 self.send_error(404)
                 return
-            if live.on_scan is None:
-                self.send_error(403, "scanning disabled")
+            if handler is None:
+                self.send_error(403, "endpoint disabled")
                 return
             if self.headers.get("X-REDNESS-Token", "") != live.token:
-                self.send_error(403, "bad token")
+                self.send_error(403, "bad token")           # cross-origin can't read the token
                 return
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -184,8 +202,8 @@ def _make_handler(live: LiveServer):
             except (ValueError, json.JSONDecodeError):
                 self.send_error(400, "bad json")
                 return
-            # Run the scan off the request thread so the POST returns immediately.
-            threading.Thread(target=live.on_scan, args=(params,), daemon=True).start()
+            # Run off the request thread so the POST returns immediately.
+            threading.Thread(target=handler, args=(params,), daemon=True).start()
             self.send_response(202)
             self.send_header("Content-Type", "application/json")
             self.end_headers()

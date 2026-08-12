@@ -123,28 +123,12 @@ def cmd_live(args) -> int:
     import webbrowser
 
     from .events import default_bus
-    from .live import LiveServer
     from .live import demo as live_demo
-    from .scan import run_scan
 
-    # Scan handler invoked when the GUI's "Start scan" button POSTs targets.
-    def on_scan(params: dict) -> None:
-        targets = [t.strip() for t in (params.get("targets") or []) if t and t.strip()]
-        if not targets:
-            return
-        run_scan(
-            targets,
-            username=params.get("username") or None,
-            password=params.get("password") or None,
-            domain=params.get("domain") or None,
-            bus=default_bus,
-            engagement="REDNESS live scan",
-        )
-
-    server = LiveServer(default_bus, host=args.host, port=args.port, on_scan=on_scan)
+    server = _live_server(default_bus, args.host, args.port)
     url = server.start()
     print(f"[+] Live graph at {url}")
-    print("[*] Use the browser's 'New scan' panel to run against targets.")
+    print("[*] Use the 'New scan' panel, or right-click a node for enum actions.")
     if not args.no_open:
         webbrowser.open(url)
 
@@ -190,15 +174,38 @@ def _live_scan_handler(bus):
     return on_scan
 
 
+def _live_action_handler(bus):
+    """Right-click action handler (POST /action) — runs one engine against one target."""
+    from .actions import run_action
+
+    def on_action(params: dict) -> None:
+        action = params.get("action")
+        target = (params.get("target") or "").strip()
+        if not action or not target:
+            return
+        run_action(action, target, username=params.get("username") or None,
+                   password=params.get("password") or None,
+                   domain=params.get("domain") or None, bus=bus)
+    return on_action
+
+
+def _live_server(bus, host, port):
+    """LiveServer wired with the scan + action handlers and the action catalog."""
+    from .actions import catalog
+    from .live import LiveServer
+    return LiveServer(bus, host=host, port=port,
+                      on_scan=_live_scan_handler(bus),
+                      on_action=_live_action_handler(bus),
+                      action_catalog=catalog())
+
+
 def cmd_gui(args) -> int:
     """Native desktop window (pywebview) around the live GUI; falls back to a browser."""
     import time
 
     from .events import default_bus
-    from .live import LiveServer
 
-    server = LiveServer(default_bus, host=args.host, port=args.port,
-                        on_scan=_live_scan_handler(default_bus))
+    server = _live_server(default_bus, args.host, args.port)
     url = server.start()
     print(f"[+] REDNESS GUI at {url}")
     try:
