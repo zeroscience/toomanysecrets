@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .findings import Category, Evidence, Finding, Report, Severity
+from .wordlists import write_basic_wordlist
 
 # hashcat -m mode per hash type; john --format per hash type.
 HASHCAT_MODE = {"krb5asrep": "18200", "krb5tgs": "13100", "netntlmv2": "5600"}
@@ -50,6 +51,7 @@ class CrackResult:
     creds: list[Cred] = field(default_factory=list)
     loot_files: list[str] = field(default_factory=list)
     tool: Optional[str] = None
+    used_builtin: bool = False        # cracked with the built-in wordlist (no --wordlist given)
 
     @property
     def cracked(self) -> list[Cred]:
@@ -194,14 +196,27 @@ def annotate(report: Report, cracked: list[Cred], tool: str = "") -> None:
 
 
 def run_cracking(report: Report, *, loot_dir: str = "loot",
-                 wordlist: Optional[str] = None) -> CrackResult:
-    """End-to-end: collect hashes -> write loot -> (optionally) crack -> annotate report."""
+                 wordlist: Optional[str] = None, builtin: bool = True) -> CrackResult:
+    """End-to-end: collect hashes -> write loot -> (optionally) crack -> annotate report.
+
+    Cracking uses `wordlist` if given. Otherwise, when `builtin` is True and a cracker
+    (hashcat/john) is on PATH, it falls back to the small built-in weak-password list
+    (redness.wordlists.BASIC_WORDLIST) so egregiously weak creds are caught automatically.
+    Pass builtin=False (the `--no-crack` flag) to skip cracking entirely; loot is always
+    written regardless.
+    """
     creds = collect_hashes(report)
     result = CrackResult(creds=creds)
     if not creds:
         return result
     result.loot_files = write_loot(creds, loot_dir)
-    if wordlist:
-        result.tool = crack(creds, wordlist, workdir=loot_dir) or None
+
+    effective = wordlist
+    if effective is None and builtin and available_tool() is not None:
+        effective = write_basic_wordlist(loot_dir)
+        result.used_builtin = True
+
+    if effective:
+        result.tool = crack(creds, effective, workdir=loot_dir) or None
         annotate(report, result.cracked, tool=result.tool or "")
     return result
