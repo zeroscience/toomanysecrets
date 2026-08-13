@@ -159,3 +159,21 @@ token gate + off-thread dispatch as /scan). Front-end: Graph.onNodeRightClick ->
 menu -> POST /action; results stream to the graph/log. Phase 2 is READ-ONLY enum (SMB/LDAP/ADCS/
 TLS on host/domain nodes); Phase 3 offensive actions register here with offensive=True + gating
 (anjaiv's engines). Verified end-to-end in-browser (menu renders, POST 202, action streams back).
+
+## 2026-08-13 — NetNTLMv2 Phase 2: `trigger` link generator (relay dropped)
+Phase 2 of docs/NETNTLM.md shipped as `redness trigger`, NOT the ntlmrelayx relay originally
+sketched. Rationale: live relay is heavy and far more intrusive (direct access to a
+third-party service, AD-mutating attack modes like RBCD/add-computer/ADCS ESC8); we wanted
+the simplest useful thing — a forced-authentication lure. `redness/trigger.py` is pure stdlib
+string generation: `unc_path()` + html/scf/url builders (lnk deferred — binary) + a FORMATS
+registry; `redness trigger --host <us> [--format] [--out]` prints the artifact to stdout or
+writes `--out`, with the banner/hints on **stderr** so `> lure.html` redirects cleanly.
+
+It's a helper, not an Engine: it produces an artifact, not Findings — no scan/default_engines
+involvement, no doctor check, no network/subprocess. Capture reuses Phase 1 wholesale: the
+victim's coerced SMB auth lands in the same Responder listener (run `redness poison` normally)
+→ parse_responder_log → build_findings (`netntlm-captured`) → crack (`netntlmv2`). So
+**findings.py and crack.py are untouched** and no new findings are defined. "Flag if signing
+isn't enforced" reuses the existing `smb-signing-not-required` finding via `scan`. Deferred: a
+poisoning-off `--capture-only` listen mode on `poison` (needs Kali validation that Responder
+captures incoming SMB auth with poisoning disabled).

