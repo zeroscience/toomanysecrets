@@ -139,6 +139,7 @@ def run_poison(
     engagement: str = "REDNESS NetNTLMv2 capture",
     loot_dir: str = "loot",
     wordlist: Optional[str] = None,
+    builtin: bool = True,
     lines: Optional[Iterable[str]] = None,
     popen=subprocess.Popen,
 ) -> tuple[Report, CrackResult]:
@@ -183,6 +184,6 @@ def run_poison(
         _emit(bus, EventKind.FINDING, finding=f.to_dict())
 
     # Loot + optional cracking — netntlmv2 is already mapped in crack.py (step 2).
-    result = run_cracking(report, loot_dir=loot_dir, wordlist=wordlist)
+    result = run_cracking(report, loot_dir=loot_dir, wordlist=wordlist, builtin=builtin)
     _emit(bus, EventKind.DONE, engine="poison")
     return report, result
