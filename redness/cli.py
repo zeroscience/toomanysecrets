@@ -29,6 +29,23 @@ def _print_summary(report: Report) -> None:
             print(f"    [{f.severity.value.upper()}] {f.title} -> {', '.join(f.affected) or '-'}")
 
 
+def _report_crack(crackres, *, wordlist) -> None:
+    """Print captured-hash + cracking results for scan/poison (shared, kept in sync)."""
+    if not crackres.creds:
+        return
+    print(f"[+] Captured {len(crackres.creds)} hash(es) -> {', '.join(crackres.loot_files)}")
+    if crackres.cracked:
+        src = "built-in wordlist" if crackres.used_builtin else (wordlist or "wordlist")
+        print(f"[+] Cracked {len(crackres.cracked)} credential(s) via {crackres.tool} ({src}):")
+        for c in crackres.cracked:
+            print(f"    {c.account}:{c.password}")
+    elif crackres.tool or crackres.used_builtin:
+        which = "built-in wordlist" if crackres.used_builtin else "this wordlist"
+        print(f"[*] {crackres.tool or 'cracker'} ran but cracked nothing with {which}.")
+    elif wordlist:
+        print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
+
+
 def _sample_report() -> Report:
     """Realistic sample findings so the report pipeline runs without a live DC."""
     r = Report(engagement="ACME Internal AD Review", target="acme.local / 10.10.0.0/24")
@@ -264,20 +281,13 @@ def cmd_scan(args) -> int:
         engagement=args.engagement,
     )
 
-    # Hash loot + optional cracking (AS-REP / Kerberoast).
+    # Hash loot + optional cracking (AS-REP / Kerberoast). --no-crack hard-disables all
+    # cracking (forces no wordlist AND no built-in fallback); otherwise the built-in list
+    # auto-cracks when no --wordlist is given and a cracker is on PATH.
     from .crack import run_cracking
-    crackres = run_cracking(report, loot_dir=args.loot_dir, wordlist=args.wordlist)
-    if crackres.creds:
-        print(f"[+] Captured {len(crackres.creds)} hash(es) -> {', '.join(crackres.loot_files)}")
-        if args.wordlist:
-            if not crackres.tool:
-                print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
-            elif crackres.cracked:
-                print(f"[+] Cracked {len(crackres.cracked)} credential(s) via {crackres.tool}:")
-                for c in crackres.cracked:
-                    print(f"    {c.account}:{c.password}")
-            else:
-                print(f"[*] {crackres.tool} ran but cracked nothing with this wordlist.")
+    wl = None if args.no_crack else args.wordlist
+    crackres = run_cracking(report, loot_dir=args.loot_dir, wordlist=wl, builtin=not args.no_crack)
+    _report_crack(crackres, wordlist=wl)
 
     _print_summary(report)
 
@@ -350,23 +360,15 @@ def cmd_poison(args) -> int:
         time.sleep(1.2)                       # let the browser connect before streaming
 
     print(f"[*] Running Responder on {args.iface} for {args.duration}s (Ctrl+C to stop early)...")
+    wl = None if args.no_crack else args.wordlist
     report, crackres = run_poison(
         args.iface, duration=args.duration, analyze=args.analyze, bus=bus,
-        engagement=args.engagement, loot_dir=args.loot_dir, wordlist=args.wordlist,
+        engagement=args.engagement, loot_dir=args.loot_dir, wordlist=wl,
+        builtin=not args.no_crack,
     )
 
-    if crackres.creds:
-        print(f"[+] Captured {len(crackres.creds)} hash(es) -> {', '.join(crackres.loot_files)}")
-        if args.wordlist:
-            if not crackres.tool:
-                print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
-            elif crackres.cracked:
-                print(f"[+] Cracked {len(crackres.cracked)} credential(s) via {crackres.tool}:")
-                for c in crackres.cracked:
-                    print(f"    {c.account}:{c.password}")
-            else:
-                print(f"[*] {crackres.tool} ran but cracked nothing with this wordlist.")
-    else:
+    _report_crack(crackres, wordlist=wl)
+    if not crackres.creds:
         print("[*] No NetNTLMv2 hashes captured in this window.")
 
     _print_summary(report)
@@ -461,6 +463,8 @@ def main(argv=None) -> int:
     sc.add_argument("-k", "--kerberos", action="store_true", help="use Kerberos auth")
     sc.add_argument("--engagement", default="REDNESS assessment")
     sc.add_argument("--wordlist", help="crack captured AS-REP/Kerberoast hashes (needs hashcat/john)")
+    sc.add_argument("--no-crack", action="store_true",
+                    help="skip cracking entirely (just write loot); overrides --wordlist and the built-in list")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")
@@ -479,6 +483,8 @@ def main(argv=None) -> int:
     po.add_argument("--yes", action="store_true", help="skip the confirmation prompt (scripted use)")
     po.add_argument("--engagement", default="REDNESS NetNTLMv2 capture")
     po.add_argument("--wordlist", help="crack captured NetNTLMv2 hashes (needs hashcat/john)")
+    po.add_argument("--no-crack", action="store_true",
+                    help="skip cracking entirely (just write loot); overrides --wordlist and the built-in list")
     po.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     po.add_argument("--out", help="write a .docx report to this path")
     po.add_argument("--json", help="write findings JSON to this path")

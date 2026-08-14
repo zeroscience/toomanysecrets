@@ -103,6 +103,27 @@ def test_run_poison_no_captures_is_clean():
     assert crackres.creds == []
 
 
+def test_run_poison_forwards_builtin_flag():
+    # run_poison must pass `builtin` through to run_cracking (so --no-crack works).
+    from redness.crack import CrackResult
+    seen = {}
+    orig = poison.run_cracking
+
+    def fake_run_cracking(report, **kw):
+        seen["builtin"] = kw.get("builtin")
+        return CrackResult()
+
+    try:
+        poison.run_cracking = fake_run_cracking
+        with tempfile.TemporaryDirectory() as td:
+            poison.run_poison("eth0", loot_dir=td, lines=list(LINES), builtin=False)
+            assert seen["builtin"] is False
+            poison.run_poison("eth0", loot_dir=td, lines=list(LINES))   # default
+            assert seen["builtin"] is True
+    finally:
+        poison.run_cracking = orig
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

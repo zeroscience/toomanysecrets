@@ -166,6 +166,94 @@ def test_annotate_category_by_hash_type():
     assert by_acct["ACME\\jdoe"] is Category.SMB      # NetNTLMv2 -> SMB, not mislabeled Kerberos
 
 
+class _patch_crack:
+    """Save/restore crack.available_tool + crack.crack so run_cracking hits our fakes."""
+    def __init__(self, *, tool, fake_crack):
+        self._tool = tool
+        self._fake = fake_crack
+
+    def __enter__(self):
+        self._orig_avail = crack.available_tool
+        self._orig_crack = crack.crack
+        crack.available_tool = lambda: self._tool
+        crack.crack = self._fake
+        return self
+
+    def __exit__(self, *exc):
+        crack.available_tool = self._orig_avail
+        crack.crack = self._orig_crack
+
+
+def test_run_cracking_uses_builtin_when_no_wordlist():
+    report = _report_with_hashes()
+    seen = {}
+
+    def fake_crack(creds, wordlist, **kw):
+        seen["wordlist"] = wordlist
+        seen["ncreds"] = len(creds)
+        return "hashcat"
+
+    with _patch_crack(tool="hashcat", fake_crack=fake_crack):
+        with tempfile.TemporaryDirectory() as td:
+            res = crack.run_cracking(report, loot_dir=td, wordlist=None, builtin=True)
+            assert res.used_builtin is True
+            assert res.tool == "hashcat"
+            assert seen["wordlist"].endswith("_basic_wordlist.txt")
+            assert os.path.isfile(seen["wordlist"])
+            assert seen["ncreds"] == len(res.creds)
+
+
+def test_run_cracking_no_builtin_when_disabled():
+    report = _report_with_hashes()
+    calls = {"n": 0}
+
+    def fake_crack(*a, **k):
+        calls["n"] += 1
+        return "hashcat"
+
+    with _patch_crack(tool="hashcat", fake_crack=fake_crack):
+        with tempfile.TemporaryDirectory() as td:
+            res = crack.run_cracking(report, loot_dir=td, wordlist=None, builtin=False)
+            assert res.used_builtin is False
+            assert calls["n"] == 0                       # crack never invoked
+            assert not os.path.isfile(os.path.join(td, "_basic_wordlist.txt"))
+            assert res.loot_files                         # loot still written
+
+
+def test_run_cracking_explicit_wordlist_beats_builtin():
+    report = _report_with_hashes()
+    seen = {}
+
+    def fake_crack(creds, wordlist, **kw):
+        seen["wordlist"] = wordlist
+        return "hashcat"
+
+    with _patch_crack(tool="hashcat", fake_crack=fake_crack):
+        with tempfile.TemporaryDirectory() as td:
+            wl = os.path.join(td, "mylist.txt")
+            open(wl, "w").write("Password1\n")
+            res = crack.run_cracking(report, loot_dir=td, wordlist=wl, builtin=True)
+            assert res.used_builtin is False
+            assert seen["wordlist"] == wl                 # explicit list used
+            assert not os.path.isfile(os.path.join(td, "_basic_wordlist.txt"))
+
+
+def test_run_cracking_no_tool_skips_builtin():
+    report = _report_with_hashes()
+    calls = {"n": 0}
+
+    def fake_crack(*a, **k):
+        calls["n"] += 1
+        return "hashcat"
+
+    with _patch_crack(tool=None, fake_crack=fake_crack):     # no hashcat/john on PATH
+        with tempfile.TemporaryDirectory() as td:
+            res = crack.run_cracking(report, loot_dir=td, wordlist=None, builtin=True)
+            assert res.used_builtin is False
+            assert calls["n"] == 0
+            assert res.loot_files                          # loot still written
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (89 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (100 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -83,8 +83,10 @@ python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
-`--wordlist` cracks them if hashcat/john is on PATH; otherwise the loot files remain
-for offline cracking. NetNTLMv2 *capture* is the opt-in, gated `redness poison` command
+Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list, else a small
+built-in weak-password list (redness/wordlists.py) auto-cracks egregiously weak creds;
+`--no-crack` disables cracking entirely (loot still written). NetNTLMv2 *capture* is the
+opt-in, gated `redness poison` command
 (LLMNR/NBT-NS poisoning via Responder — intrusive); captured hashes feed the same crack pipeline.
 `redness trigger` generates a UNC forced-authentication lure (html/scf/url) that coerces a
 specific victim to authenticate; run `poison` to capture it (same pipeline). See docs/NETNTLM.md.
@@ -129,8 +131,9 @@ Stream crack results to the live graph; replace web/logo.svg with the real lab l
 ntlmrelayx *relay* was considered and dropped as too heavy/intrusive — see docs/NETNTLM.md.)
 Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
 the GUI (logo + scope-file loader + token-gated POST /scan that runs real engines),
-NetNTLMv2 capture via `redness poison`, and the `redness trigger` forced-authentication
-link generator (Phase 2, same capture pipeline).
+NetNTLMv2 capture via `redness poison`, the `redness trigger` forced-authentication link
+generator (Phase 2, same capture pipeline), and an auto-crack fallback (built-in weak-password
+wordlist when no --wordlist + a cracker on PATH; `--no-crack` to disable).
 
 ## Legal / ethics
 Authorized assessments only. Assume written scope exists before running against any target.

@@ -177,3 +177,17 @@ victim's coerced SMB auth lands in the same Responder listener (run `redness poi
 isn't enforced" reuses the existing `smb-signing-not-required` finding via `scan`. Deferred: a
 poisoning-off `--capture-only` listen mode on `poison` (needs Kali validation that Responder
 captures incoming SMB auth with poisoning disabled).
+
+## 2026-08-13 — Built-in wordlist: auto-crack weak creds by default (opt-out)
+Added redness/wordlists.py (BASIC_WORDLIST — ~370 hand-curated weak/default/seasonal
+candidates, NOT derived from rockyou or any leaked/licensed list, so no provenance concern).
+crack.run_cracking() falls back to it (materialized to loot/_basic_wordlist.txt) when no
+--wordlist is given AND a cracker (hashcat/john) is on PATH, so scan/poison auto-crack
+egregiously weak passwords with no operator wordlist. This is a **default behavior change**
+(cracking was previously off without --wordlist) — but it only fires when a cracker is
+installed, so CI/test boxes (no hashcat/john) are unaffected, and it is sub-second (a few
+hundred candidates). Explicit --wordlist is unchanged (the built-in is never consulted).
+New --no-crack flag on scan+poison hard-disables ALL cracking (forces no wordlist AND
+builtin=False), even overriding --wordlist — clearest semantics for a flag named "no crack".
+CrackResult.used_builtin drives honest messaging ("via hashcat (built-in wordlist)").
+findings.py untouched; poison threads `builtin` through run_poison to run_cracking.
