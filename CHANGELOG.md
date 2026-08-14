@@ -5,14 +5,23 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
-- **Right-click node actions (Phase 2, read-only):** `redness/actions.py` registry +
+- **Right-click node actions (GUI Phase 2, read-only):** `redness/actions.py` registry +
   token-gated `POST /action` + `GET /actions`; right-click a host/domain node in the graph
   to run Enumerate SMB / LDAP / AD CS / TLS against it, streamed back live. The channel every
   future action plugs into.
+- **`trigger` command** — generate a forced-authentication UNC lure (`html` / `scf` / `url`)
+  that coerces a victim to authenticate to us; the capture rides the existing `poison`/
+  Responder pipeline (NetNTLM design Phase 2). Pure string generation, gated banner.
+- **Built-in weak-password auto-crack** — when no `--wordlist` is given and hashcat/john is
+  on PATH, `scan`/`poison` auto-try a small hand-curated weak-password list
+  (`redness/wordlists.py`, ~370 entries, sub-second) across all hash types
+  (AS-REP / Kerberoast / NetNTLMv2). `--no-crack` disables all cracking; explicit
+  `--wordlist` is unchanged.
 ### Planned
-- Phase 3 offensive actions (Kerberoast / secretsdump / pass-the-hash / DCSync / ADCS abuse),
-  gated like `poison`. NetNTLM relay mode (ntlmrelayx). Stream cracked creds to the graph.
-  See [docs/GUI.md](docs/GUI.md).
+- GUI Phase 3 offensive actions (Kerberoast / secretsdump / pass-the-hash / DCSync / ADCS
+  abuse), gated like `poison`. Stream cracked creds to the graph. See [docs/GUI.md](docs/GUI.md).
+  (ntlmrelayx live relay was considered and deliberately dropped as too heavy/intrusive —
+  see [docs/NETNTLM.md](docs/NETNTLM.md).)
 
 ## [1.33.7] — 2026-08-13
 
