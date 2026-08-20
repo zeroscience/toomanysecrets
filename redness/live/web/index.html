@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>REDNESS — live enumeration</title>
+<title>REDNESS - live enumeration</title>
 <!-- live 3D graph: domain -> hosts/users/shares/CA, colored by finding severity -->
 
 <meta name="csrf" content="__CSRF_TOKEN__">
 <meta name="scan-enabled" content="__SCAN_ENABLED__">
-<!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) — works fully offline. -->
+<!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) - works fully offline. -->
 <script src="/vendor/3d-force-graph.min.js"></script>
 <style>
   :root { color-scheme: dark; }
@@ -57,7 +57,7 @@
   .hbtn { background:#151a22; color:#c9d1d9; border:1px solid #232a36; border-radius:5px;
     padding:4px 10px; cursor:pointer; font:11px ui-monospace,monospace; letter-spacing:.06em; }
   .hbtn:hover { border-color:#ff5252; color:#fff; }
-  /* modal overlay — retro-futuristic card */
+  /* modal overlay - retro-futuristic card */
   .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(4,6,10,.72); backdrop-filter:blur(3px); z-index:50; }
   .modal.show { display:flex; }
@@ -117,12 +117,15 @@
   <div class="row"><span class="dot" style="background:#e08a55"></span>share</div>
   <div class="row"><span class="dot" style="background:#f4d06a"></span>CA / template</div>
   <div class="row"><span class="dot" style="background:#ff4d4d"></span>finding (by severity)</div>
+  <div class="row"><span class="dot" style="background:#ff2d2d"></span>owned (compromised)</div>
+  <div class="row"><span class="dot" style="background:#ffcf33"></span>Domain Admin (goal)</div>
+  <div class="row"><span class="dot" style="background:#ff3737"></span>attack path</div>
 </div>
 
 <button id="scantoggle" class="hidden">＋ New scan</button>
 <div id="scanpanel" class="panel">
   <h2>NEW SCAN</h2>
-  <textarea id="targets" placeholder="targets — one IP / hostname / CIDR per line&#10;10.10.0.15&#10;dc01.acme.local"></textarea>
+  <textarea id="targets" placeholder="targets - one IP / hostname / CIDR per line&#10;10.10.0.15&#10;dc01.acme.local"></textarea>
   <input type="file" id="scopefile" accept=".txt" title="Load a scope .txt">
   <div class="row2">
     <input id="s_user" placeholder="username (optional)">
@@ -142,11 +145,11 @@
     <h2>REDNESS</h2>
     <div class="brandline">v1.33.7 · Zero Science Lab · powered by Silly Security Inc.</div>
     <p>REDNESS is a red-team orchestrator for Active Directory &amp; Windows assessments. It
-    drives NetExec, Impacket and Certipy — it does not reimplement them — normalizes every
+    drives NetExec, Impacket and Certipy - it does not reimplement them - normalizes every
     result into one findings model, and renders it as a live 3D graph and a Word report.</p>
     <p>Capabilities: SMB / LDAP / Kerberos / AD CS enumeration (with and without credentials),
     shares, users, certificate (ESC) issues, TLS weaknesses, AS-REP &amp; Kerberoast hash
-    capture with offline cracking, and NetNTLMv2 capture via LLMNR/NBT-NS poisoning — all
+    capture with offline cracking, and NetNTLMv2 capture via LLMNR/NBT-NS poisoning - all
     fed into loot, the report, and the graph.</p>
     <div class="grid">
       <span class="k">Developed by</span><span>Anja Ivanovska &amp; Gjoko Krstic</span>
@@ -161,24 +164,25 @@
   <div class="card">
     <span class="x" onclick="hideModal('usage')">✕</span>
     <h2>USAGE</h2>
-    <div class="brandline">command reference — full docs on the wiki (coming soon)</div>
-    <p><code>redness doctor</code> — check which engines/tools are installed.</p>
-    <p><code>redness gui</code> — this native window · <code>redness live</code> — browser graph.</p>
+    <div class="brandline">command reference - full docs on the wiki (coming soon)</div>
+    <p><code>redness doctor</code> - check which engines/tools are installed.</p>
+    <p><code>redness gui</code> - this native window · <code>redness live</code> - browser graph.</p>
     <p><code>redness scan --targets scope.txt -u USER -p PASS -d DOMAIN --wordlist rockyou.txt --out report.docx --live</code><br>
        run the engines against one or many targets (scope file = one IP/host/CIDR per line),
        capture &amp; crack hashes, write the report, stream the graph.</p>
-    <p><code>redness scan --target 10.0.0.10</code> — a single target, no creds (SMB/TLS/AS-REP).</p>
-    <p><code>redness poison --iface eth0 --duration 600</code> — LLMNR/NBT-NS poisoning to capture
+    <p><code>redness scan --target 10.0.0.10</code> - a single target, no creds (SMB/TLS/AS-REP).</p>
+    <p><code>redness poison --iface eth0 --duration 600</code> - LLMNR/NBT-NS poisoning to capture
        NetNTLMv2 (intrusive; opt-in; <code>--analyze</code> to observe only).</p>
-    <p><code>redness report findings.json --out report.docx</code> — re-render a saved report.</p>
+    <p><code>redness report findings.json --out report.docx</code> - re-render a saved report.</p>
     <div class="foot">In the graph: nodes are domain / hosts / users / shares / CAs, colored by
-      finding severity. (Right-click actions — Kerberoast, secretsdump, pass-the-hash — coming.)</div>
+      finding severity. (Right-click actions - Kerberoast, secretsdump, pass-the-hash - coming.)</div>
   </div>
 </div>
 
 <script>
 const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
-  share:'#e08a55', ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a' };
+  share:'#e08a55', ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a',
+  owned:'#ff2d2d', goal:'#ffcf33' };   // owned = compromised account, goal = Domain Admin
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
 const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
@@ -196,13 +200,17 @@ function refreshCounts(){ el('nnodes').textContent=nodes.length;
 
 const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(el('graph'))
   .backgroundColor('#0b0d12')
-  .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' — '+worstSev.get(n.id).toUpperCase():''}`)
-  .nodeColor(n => worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
-  .nodeVal(n => n.__val || (n.type==='domain'?8:3))
-  .linkColor(() => 'rgba(120,130,150,.35)')
-  .linkDirectionalParticles(2)
-  .linkDirectionalParticleWidth(1.6)
-  .linkDirectionalParticleSpeed(0.012);
+  .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' - '+worstSev.get(n.id).toUpperCase():''}`)
+  .nodeColor(n => (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
+                  : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
+  .nodeVal(n => n.__val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3))
+  // Attack-path edges are red and busy; potential (roastable, uncracked) leads are dimmer.
+  .linkColor(l => l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
+                           : 'rgba(120,130,150,.35)')
+  .linkWidth(l => (l.attack && !l.potential) ? 2.2 : 0)
+  .linkDirectionalParticles(l => l.attack ? (l.potential?2:5) : 2)
+  .linkDirectionalParticleWidth(l => l.attack ? 2.6 : 1.6)
+  .linkDirectionalParticleSpeed(l => l.attack ? 0.02 : 0.012);
 
 let fitTimer = null;
 function bump(){
@@ -213,7 +221,12 @@ function bump(){
 }
 
 function addNode(d){
-  if(nodeById.has(d.id)) return;
+  const existing = nodeById.get(d.id);
+  if(existing){
+    // a node can be "upgraded" to a compromise/goal state (owned/goal win over its type)
+    if((d.type==='owned'||d.type==='goal') && existing.type!==d.type){ existing.type=d.type; bump(); }
+    return;
+  }
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
   nodeById.set(d.id, n); nodes.push(n); bump();
 }
@@ -223,7 +236,8 @@ function addEdge(d){
   linkKeys.add(key);
   if(!nodeById.has(d.src)) addNode({id:d.src,label:d.src,type:'node'});
   if(!nodeById.has(d.dst)) addNode({id:d.dst,label:d.dst,type:'node'});
-  links.push({ source:d.src, target:d.dst, label:d.label||'' }); bump();
+  links.push({ source:d.src, target:d.dst, label:d.label||'',
+    attack:!!d.attack, potential:!!d.potential, technique:d.technique||'' }); bump();
 }
 function applyFinding(f){
   const key = (f.id||f.title||'') + '|' + (f.affected||[]).join(',');
