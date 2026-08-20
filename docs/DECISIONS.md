@@ -191,3 +191,26 @@ New --no-crack flag on scan+poison hard-disables ALL cracking (forces no wordlis
 builtin=False), even overriding --wordlist - clearest semantics for a flag named "no crack".
 CrackResult.used_builtin drives honest messaging ("via hashcat (built-in wordlist)").
 findings.py untouched; poison threads `builtin` through run_poison to run_cracking.
+
+## 2026-08-21 - Category.SECRET for share secret-hunting (SCHEMA_VERSION 1.1.0)
+Share secret-hunting (docs/SHAREHUNT.md, ROADMAP Tier 1 #3) emits a new finding class:
+`Category.SECRET` = credential material found on readable SMB shares. Bumped
+**SCHEMA_VERSION 1.0.0 -> 1.1.0** (additive; a consumer predating it must tolerate an
+unknown category - report/graph should default-handle). `scan.py:_node_type` maps
+`secret` -> a new `"secret"` graph node type; **GUI coloring/shape for it is Gjoko's
+front-end follow-up** (web/), default styling until then.
+
+Because findings.py is the engine<->reporting/graph contract, **this change needs Gjoko's
+review before merge**, and must stay compatible with the attack-path graph
+(redness/paths.py, PR #33, not yet in main). Findings use a single id `share-secret`
+(severity per rule) + `meta["kind"]`; secrets ride in `meta["secrets"]`, mirroring
+`meta["hashes"]`: {host, share, path, unc, rule, kind, size, match} - `match` is ALWAYS
+masked/truncated (full secrets never enter the report/findings.json; raw files stay in
+git-ignored loot/ only).
+
+OPEN (for Gjoko): should a *recovered credential* extracted from a secret get a
+distinct shape so paths.py can build attack-path edges - a per-secret `entry["credential"]`
+{username, kind, secret_masked} sub-field, or a separate top-level `meta["credentials"]`
+list (parallel to meta["hashes"], which crack.py already consumes)? Phase 1 emits only
+file-match secrets (no credential field); the shape is forward-compatible either way, so
+this does not block the engine.
