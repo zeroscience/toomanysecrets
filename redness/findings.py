@@ -39,6 +39,7 @@ class Category(str, Enum):
     PASSWORD = "password"
     TLS = "tls"
     CONFIG = "config"
+    SECRET = "secret"      # credential material found on shares (share secret-hunting)
     ENUM = "enum"          # informational enumeration (users, shares, hosts)
 
 
