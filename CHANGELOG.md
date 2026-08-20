@@ -5,6 +5,9 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Report upgrades:** the `.docx` now includes an **Attack Paths** section (owned accounts,
+  roastable leads, AD CS ESCn to Domain Admin, derived via `redness.paths`) and a
+  **MITRE ATT&CK** technique on each finding (`redness/report/mappings.py`).
 - **Attack-path edges (the graph becomes an attack map):** `redness/paths.py` derives the
   relationships that matter from a scan's findings - cracked accounts become `owned` (red),
   roastable-but-uncracked become potential leads, and AD CS ESC1/2/3/6/8 point at a
