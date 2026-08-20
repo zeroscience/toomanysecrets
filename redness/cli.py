@@ -265,7 +265,7 @@ def cmd_scan(args) -> int:
     import webbrowser
 
     from .events import default_bus
-    from .scan import run_scan
+    from .scan import default_engines, run_scan
     from .scope import merge_targets
 
     try:
@@ -289,11 +289,16 @@ def cmd_scan(args) -> int:
             webbrowser.open(url)
         time.sleep(1.2)                       # let the browser connect before streaming
 
+    engines = default_engines()
+    if args.hunt_secrets:                     # opt-in: spider shares for secrets (needs nxc)
+        from .engines.sharehunt import SecretHuntEngine
+        engines.append(SecretHuntEngine())
+
     report = run_scan(
         targets,
         username=args.username, password=args.password, nthash=args.hash,
         domain=args.domain, kerberos=args.kerberos, bus=bus,
-        engagement=args.engagement,
+        engagement=args.engagement, engines=engines,
     )
 
     # Hash loot + optional cracking (AS-REP / Kerberoast). --no-crack hard-disables all
@@ -480,6 +485,8 @@ def main(argv=None) -> int:
     sc.add_argument("--wordlist", help="crack captured AS-REP/Kerberoast hashes (needs hashcat/john)")
     sc.add_argument("--no-crack", action="store_true",
                     help="skip cracking entirely (just write loot); overrides --wordlist and the built-in list")
+    sc.add_argument("--hunt-secrets", action="store_true",
+                    help="spider readable SMB shares for secrets (Snaffler-style; needs nxc; opt-in)")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")

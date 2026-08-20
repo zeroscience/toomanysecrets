@@ -108,6 +108,47 @@ def test_empty_inventory_only_aggregate():
     assert [f.id for f in findings] == ["enum-share-spider"]
 
 
+# --- SecretHuntEngine.run wiring (override the impure _spider seam; no nxc/DC) --- #
+def _fake_engine(raw):
+    class _F(sh.SecretHuntEngine):
+        def is_available(self):
+            return True
+
+        def _spider(self, target):
+            return raw
+    return _F()
+
+
+def test_run_wiring_produces_findings():
+    import json
+    from redness.engines.base import Target
+    findings = _fake_engine(json.dumps(SAMPLE)).run(Target(host=HOST))
+    assert len([f for f in findings if f.id == "share-secret"]) == 6
+    assert any(f.id == "enum-share-spider" for f in findings)
+    # host threaded into the UNCs
+    assert any(r"\\10.10.0.15\backups\keys\id_rsa" in f.affected for f in findings)
+    # raw inventory attached to the first finding for the report appendix
+    assert findings[0].evidence and findings[0].evidence[0].raw
+
+
+def test_run_empty_when_spider_returns_none():
+    from redness.engines.base import Target
+    assert _fake_engine(None).run(Target(host=HOST)) == []
+
+
+def test_run_short_circuits_when_unavailable():
+    from redness.engines.base import Target
+
+    class _Unavail(sh.SecretHuntEngine):
+        def is_available(self):
+            return False
+
+        def _spider(self, target):
+            raise AssertionError("must not spider when the tool is unavailable")
+
+    assert _Unavail().run(Target(host=HOST)) == []
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

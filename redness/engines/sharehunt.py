@@ -14,13 +14,18 @@ truncated (Phase 1 is filename-only, so it is empty) - never a full secret value
 """
 from __future__ import annotations
 
+import glob
 import json as _json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 from ..findings import Category, Evidence, Finding, Severity
+from .base import Engine, Target
 
 
 # --------------------------------------------------------------------------- #
@@ -207,3 +212,85 @@ def build_findings(inventory: list[FileRec], *, host: str) -> list[Finding]:
         credentialed=True,
     ))
     return findings
+
+
+# --------------------------------------------------------------------------- #
+# Execution (impure) - orchestrate nxc's spider_plus module                    #
+# --------------------------------------------------------------------------- #
+class SecretHuntEngine(Engine):
+    """Spider readable SMB shares via nxc `-M spider_plus`, classify the inventory.
+
+    Opt-in (not in default_engines(); wired to `scan --hunt-secrets`). Phase 1 is
+    filename/path classification only (DOWNLOAD_FLAG=False) - no file content is read.
+    The only impure method is `_spider`; `run` delegates to the pure parser/classifier,
+    so it unit-tests by overriding `_spider` (no nxc/DC needed).
+    """
+    name = "sharehunt"
+
+    def __init__(self, timeout: int = 600, runner=subprocess.run):
+        self.timeout = timeout
+        self.runner = runner            # injectable for tests
+
+    def _bin(self) -> Optional[str]:
+        return shutil.which("nxc") or shutil.which("netexec")
+
+    def is_available(self) -> bool:
+        return self._bin() is not None
+
+    def _auth_args(self, target: Target) -> list[str]:
+        user = target.username if target.username is not None else ""
+        args = ["-u", user]
+        if target.nthash:
+            args += ["-H", target.nthash]
+        else:
+            args += ["-p", target.password if target.password is not None else ""]
+        if target.kerberos:
+            args += ["-k"]
+        if target.domain:
+            args += ["-d", target.domain]
+        return args
+
+    def _spider(self, target: Target) -> Optional[str]:
+        """Run `nxc smb -M spider_plus`; return the JSON inventory text, or None.
+
+        Impure seam (subprocess + locate/read the JSON file); overridden in tests.
+        """
+        exe = self._bin()
+        if not exe:
+            return None
+        outdir = tempfile.mkdtemp(prefix="redness_spider_")
+        try:
+            cmd = ([exe, "smb", target.host] + self._auth_args(target)
+                   + ["-M", "spider_plus", "-o", "DOWNLOAD_FLAG=False", f"OUTPUT_FOLDER={outdir}"])
+            try:
+                self.runner(cmd, capture_output=True, text=True, timeout=self.timeout)
+            except (subprocess.TimeoutExpired, OSError):
+                return None
+            # spider_plus names the file by target; tolerate scheme differences + a build
+            # that ignores OUTPUT_FOLDER (default ~/.nxc location).
+            candidates = [os.path.join(outdir, f"{target.host}.json")]
+            candidates += sorted(glob.glob(os.path.join(outdir, "*.json")),
+                                 key=os.path.getmtime, reverse=True)
+            candidates.append(os.path.expanduser(
+                f"~/.nxc/modules/nxc_spider_plus/{target.host}.json"))
+            for path in candidates:
+                if path and os.path.isfile(path):
+                    try:
+                        return open(path, encoding="utf-8").read()
+                    except OSError:
+                        continue
+            return None
+        finally:
+            shutil.rmtree(outdir, ignore_errors=True)
+
+    def run(self, target: Target) -> list[Finding]:
+        if not self.is_available():
+            return []
+        raw = self._spider(target)
+        if not raw:
+            return []
+        findings = build_findings(parse_spider_json(raw), host=target.host)
+        # Attach the raw inventory to the first finding for the report appendix (like netexec).
+        if findings and findings[0].evidence:
+            findings[0].evidence[0].raw = raw.strip()[:4000]
+        return findings
