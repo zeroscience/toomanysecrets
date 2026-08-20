@@ -15,6 +15,8 @@ from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from ..findings import Category, Report, Severity
+from .. import paths
+from .mappings import mitre_for
 
 _SEV_COLOR = {
     Severity.CRITICAL: RGBColor(0x8B, 0x00, 0x00),
@@ -70,6 +72,31 @@ def build(report: Report, out_path: str) -> str:
         run.font.color.rgb = _SEV_COLOR[s]
         row[1].text = str(counts[s])
 
+    # ---- Attack paths ------------------------------------------------------
+    edges = paths.derive_attack_edges(report, "the domain")
+    if edges:
+        doc.add_heading("Attack Paths", level=1)
+        doc.add_paragraph(
+            "Relationships derived from the findings that show how an attacker could "
+            "progress toward Domain Admin. Compromised accounts are already owned; "
+            "roastable accounts yield offline-crackable hashes; AD CS templates flagged "
+            "here escalate a low-privileged user directly to Domain Admin."
+        )
+        owned = sorted(paths.compromised_accounts(report))
+        leads = sorted(paths.roastable_accounts(report) - set(owned))
+        if owned:
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run("Compromised (owned) accounts: ").bold = True
+            p.add_run(", ".join(owned))
+        if leads:
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run("Crackable credentials (roastable): ").bold = True
+            p.add_run(", ".join(leads))
+        for target, esc in paths.adcs_da_targets(report):
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run("Direct path to Domain Admin: ").bold = True
+            p.add_run(f"{target} via AD CS ESC{esc}")
+
     # ---- Findings ----------------------------------------------------------
     doc.add_heading("Findings", level=1)
     ordered = [f for f in report.sorted_findings() if f.category != Category.ENUM]
@@ -83,12 +110,16 @@ def build(report: Report, out_path: str) -> str:
         # metadata mini-table
         mt = doc.add_table(rows=0, cols=2)
         mt.style = "Light List Accent 1"
-        for label, value in [
+        meta_rows = [
             ("Severity", _SEV_LABEL[f.severity]),
             ("Category", f.category.value.upper()),
             ("Access", "Credentialed" if f.credentialed else "Unauthenticated"),
             ("Affected", ", ".join(f.affected) if f.affected else "-"),
-        ]:
+        ]
+        mitre = mitre_for(f.id)
+        if mitre:
+            meta_rows.append(("MITRE ATT&CK", f"{mitre[0]} - {mitre[1]}"))
+        for label, value in meta_rows:
             r = mt.add_row().cells
             r[0].paragraphs[0].add_run(label).bold = True
             r[1].text = value
