@@ -1,8 +1,8 @@
 """Simulated enumeration that drives the EventBus so the live graph animates.
 
-No DC/tools needed — this replays a realistic AD sweep (hosts, users, shares, ADCS)
-as a timed stream of events, exactly the shape real engines emit. Lets you *see* the
-3D graph build and light up before any GUI phase is committed.
+No DC/tools needed: this replays a realistic AD sweep (hosts, users, shares, ADCS,
+attack paths) as a timed stream of events, exactly the shape real engines emit. Lets you
+see the 3D graph build and light up before any GUI phase is committed.
 """
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def run(bus: EventBus, step: float = 0.45) -> None:
         _emit(bus, EventKind.EDGE, src=domain, dst=u, label="user")
         _emit(bus, EventKind.PROBE, target=u, test="kerberos")
         pause()
-    _finding(bus, id="krb-asrep", title="AS-REP roastable accounts",
+    _finding(bus, id="krb-asrep-roastable", title="AS-REP roastable accounts",
              severity=Severity.HIGH, category=Category.KERBEROS,
              affected=["svc-backup", "jdoe"], credentialed=False)
     _emit(bus, EventKind.STATUS, message="[HIGH] AS-REP roastable: svc-backup, jdoe")
@@ -83,12 +83,36 @@ def run(bus: EventBus, step: float = 0.45) -> None:
     _emit(bus, EventKind.EDGE, src="ACME-CA", dst="UserAuth", label="template")
     _emit(bus, EventKind.PROBE, target="UserAuth", test="adcs-esc")
     pause()
-    _finding(bus, id="adcs-esc1", title="AD CS ESC1 — enrollee-supplied SAN",
+    _finding(bus, id="adcs-esc1", title="AD CS ESC1: enrollee-supplied SAN",
              severity=Severity.CRITICAL, category=Category.ADCS,
-             affected=["UserAuth"], credentialed=True,
+             affected=["UserAuth"], credentialed=True, meta={"esc": 1},
              impact="Any user can obtain a cert impersonating Domain Admin.")
-    _emit(bus, EventKind.STATUS, message="[CRITICAL] AD CS ESC1 on UserAuth — domain compromise")
+    _emit(bus, EventKind.STATUS, message="[CRITICAL] AD CS ESC1 on UserAuth: domain compromise")
+    pause()
+
+    # svc-backup's roasted hash cracks with a weak password, so we now own it.
+    _finding(bus, id="credential-cracked", title="Password recovered for svc-backup",
+             severity=Severity.CRITICAL, category=Category.KERBEROS,
+             affected=["svc-backup"], credentialed=True,
+             meta={"account": "svc-backup", "password": "Summer2024!"})
+    _emit(bus, EventKind.STATUS, message="[CRITICAL] Cracked svc-backup:Summer2024!")
+    pause()
+
+    # Derive and light up the attack paths implied by those findings.
+    from ..findings import Report
+    from ..paths import emit_attack_paths
+    report = Report(engagement="demo", target=domain)
+    report.findings = [
+        Finding(id="krb-asrep-roastable", title="AS-REP roastable", severity=Severity.HIGH,
+                category=Category.KERBEROS, affected=["svc-backup", "jdoe"]),
+        Finding(id="credential-cracked", title="cracked", severity=Severity.CRITICAL,
+                category=Category.KERBEROS, affected=["svc-backup"],
+                meta={"account": "svc-backup"}),
+        Finding(id="adcs-esc1", title="ESC1", severity=Severity.CRITICAL,
+                category=Category.ADCS, affected=["UserAuth"], meta={"esc": 1}),
+    ]
+    emit_attack_paths(bus, report, domain)
     pause()
 
     _emit(bus, EventKind.DONE, engine="demo")
-    _emit(bus, EventKind.STATUS, message="Assessment complete — 5 findings")
+    _emit(bus, EventKind.STATUS, message="Assessment complete: 6 findings, attack paths mapped")

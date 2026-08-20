@@ -1,11 +1,11 @@
-"""Scan orchestrator — run engines against targets, aggregate findings, feed the graph.
+"""Scan orchestrator - run engines against targets, aggregate findings, feed the graph.
 
 Ties the pieces together: for each target, run each available engine, collect the
 normalized Findings into one Report, and (optionally) stream graph events onto an
 EventBus so the live 3D view builds in real time.
 
 The orchestrator owns *all* graph emission (nodes/edges/findings) so the picture is
-consistent no matter which engine produced a finding — engines run headless here.
+consistent no matter which engine produced a finding - engines run headless here.
 Reusable by the CLI today and the GUI later.
 """
 from __future__ import annotations
@@ -95,7 +95,7 @@ def run_scan(
         for eng in engines:
             if not eng.is_available():
                 _emit(bus, EventKind.STATUS, engine=eng.name,
-                      message=f"{eng.name}: not installed — skipping")
+                      message=f"{eng.name}: not installed, skipping")
                 continue
             _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{eng.name}: scanning {host}")
             _emit(bus, EventKind.PROBE, engine=eng.name, target=host, test=eng.name)
@@ -109,7 +109,11 @@ def run_scan(
                 report.findings.append(f)
                 _emit_finding_graph(bus, domain_label, host, f)
 
+    # Derive attack-path edges from what we found and light them up in the graph.
+    from .paths import emit_attack_paths
+    emit_attack_paths(bus, report, domain=domain_label)
+
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
-    _emit(bus, EventKind.STATUS, message=f"Scan complete — {crit} finding(s)")
+    _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")
     _emit(bus, EventKind.DONE, engine="scan")
     return report
