@@ -5,6 +5,11 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Attack-path edges (the graph becomes an attack map):** `redness/paths.py` derives the
+  relationships that matter from a scan's findings - cracked accounts become `owned` (red),
+  roastable-but-uncracked become potential leads, and AD CS ESC1/2/3/6/8 point at a
+  `Domain Admin` goal node. Streamed as distinct red/animated attack edges, wired into
+  `run_scan`; each carries a MITRE technique id for the report.
 - **Right-click node actions (GUI Phase 2, read-only):** `redness/actions.py` registry +
   token-gated `POST /action` + `GET /actions`; right-click a host/domain node in the graph
   to run Enumerate SMB / LDAP / AD CS / TLS against it, streamed back live. The channel every
