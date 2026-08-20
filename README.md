@@ -1,12 +1,12 @@
 # REDNESS
 
-**v1.33.7** — Zero Science Lab · powered by Silly Security Inc.
-Developed by **Anja Ivanovska** & **Gjoko Krstic** — anja@zeroscience.mk · gjoko@zeroscience.mk
+**v1.33.7** - Zero Science Lab · powered by Silly Security Inc.
+Developed by **Anja Ivanovska** & **Gjoko Krstic** - anja@zeroscience.mk · gjoko@zeroscience.mk
 
-> Working codename — the tool may be renamed later.
+> Working codename - the tool may be renamed later.
 
 Red-team **orchestrator + normalizer + reporter** for Active Directory / Windows
-network assessments. REDNESS does **not** reimplement protocol tooling — it drives
+network assessments. REDNESS does **not** reimplement protocol tooling - it drives
 existing, battle-tested engines (NetExec, Impacket, Certipy), normalizes their output
 into a single **findings model**, and renders it as a clean **.docx report** and a
 **live 3D graph** (native window or browser).
@@ -16,9 +16,9 @@ into a single **findings model**, and renders it as a clean **.docx report** and
 The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What is
 *not* solved cleanly:
 
-1. **Deployment** — a single self-contained `.exe` you can drop on a locked-down jump box.
-2. **The deliverable** — a client-ready report with severity tables and remediation.
-3. **Orchestration & de-duplication** — run the credentialed *and* uncredentialed sweep,
+1. **Deployment** - a single self-contained `.exe` you can drop on a locked-down jump box.
+2. **The deliverable** - a client-ready report with severity tables and remediation.
+3. **Orchestration & de-duplication** - run the credentialed *and* uncredentialed sweep,
    merge results from several tools into one normalized findings set, watch it live.
 
 ## Scope of assessment
@@ -46,7 +46,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 
 ## Install (git clone → one command → `redness`)
 
-**Linux / Kali** (recommended operator box — `nxc` runs natively here):
+**Linux / Kali** (recommended operator box - `nxc` runs natively here):
 ```bash
 git clone https://github.com/zeroscience/toomanysecrets.git
 cd toomanysecrets
@@ -66,7 +66,7 @@ cd toomanysecrets
 Under the hood that's `pip install ".[engines]"` (certipy + impacket) plus the `redness`
 command. **NetExec has no Python 3.12 wheel**, so the installer adds it via `pipx`; if you
 already have `nxc` on PATH (e.g. a Kali box) it's used as-is. For the native window:
-`pip install ".[gui]"` (pywebview) — without it, `redness gui` falls back to the browser.
+`pip install ".[gui]"` (pywebview) - without it, `redness gui` falls back to the browser.
 TLS + reporting + the GUI need no external tools.
 
 ## Usage
@@ -89,7 +89,7 @@ redness poison --iface eth0 --duration 600 --wordlist rockyou.txt --live
 Auth: `-u/--username`, `-p/--password`, `-H/--hash` (pass-the-hash), `-d/--domain`,
 `-k/--kerberos`. Output: `--out report.docx`, `--json findings.json`, loot to `loot/`.
 `--wordlist` cracks captured AS-REP/Kerberoast/NetNTLMv2 hashes (needs hashcat/john).
-Engines whose tool isn't installed are skipped and noted — a scan never hard-fails.
+Engines whose tool isn't installed are skipped and noted - a scan never hard-fails.
 Run `redness <command> -h` for all flags; the GUI has **About** and **Usage** panels.
 
 ## Layout
@@ -97,7 +97,7 @@ Run `redness <command> -h` for all flags; the GUI has **About** and **Usage** pa
 ```
 redness/
   findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.0.0)
-  events.py       # EventBus — live-graph stream seam
+  events.py       # EventBus - live-graph stream seam
   scan.py         # run_scan(): engines x targets -> Report
   scope.py        # --targets scope-file parsing
   crack.py        # hash loot + offline cracking (hashcat/john)
@@ -118,4 +118,4 @@ See [CHANGELOG.md](CHANGELOG.md) for what's new and [docs/](docs/) for design no
 
 For **authorized** security assessments only. Use requires written permission
 (engagement contract / scope) from the owner of the target environment. The `poison`
-command actively affects other hosts on the segment — in-scope engagements only.
+command actively affects other hosts on the segment - in-scope engagements only.

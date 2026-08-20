@@ -1,4 +1,4 @@
-"""Certipy parser tests against captured `find -json` output — no certipy/DC needed.
+"""Certipy parser tests against captured `find -json` output - no certipy/DC needed.
 
 Run:  python tests/test_certipy_parse.py    (or)   python -m pytest -q
 """

@@ -1,4 +1,4 @@
-"""Node-action registry + run_action — no external tools/DC needed.
+"""Node-action registry + run_action - no external tools/DC needed.
 
 Run:  python tests/test_actions.py    (or)   python -m pytest -q
 """

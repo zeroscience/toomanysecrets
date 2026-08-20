@@ -1,7 +1,7 @@
-"""LDAP / Kerberos engine (nxc ldap) — user enum + AS-REP and Kerberoast hash capture.
+"""LDAP / Kerberos engine (nxc ldap) - user enum + AS-REP and Kerberoast hash capture.
 
 This is the engine that *produces crackable hashes* during normal enumeration
-(the non-intrusive subset of "detect a hash and crack it" — no LLMNR/NBT-NS
+(the non-intrusive subset of "detect a hash and crack it" - no LLMNR/NBT-NS
 poisoning). Captured hashes ride along in each finding's `meta["hashes"]` so the
 crack module (redness/crack.py) can loot/crack them.
 
@@ -31,7 +31,7 @@ _TGS = re.compile(r"\$krb5tgs\$\S+")
 # nxc ldap line: LDAP  <host>  <port>  <name>  <body>
 _LDAP_LINE = re.compile(r"^LDAP\s+\S+\s+\d+\s+\S+\s+(?P<body>.*?)\s*$")
 # `--users` prints columns: sAMAccountName | pwdLastSet | badPwdCount | description
-# (nxc/protocols/ldap.py). The 2nd column is always a date or "<never>" — a reliable
+# (nxc/protocols/ldap.py). The 2nd column is always a date or "<never>" - a reliable
 # positive signal that a line is a real user row, so we don't rely on a noise blocklist
 # (which missed nxc's "Enumerated N domain users" summary, "No entries found!", etc.).
 _PWD_LAST_SET = re.compile(r"^(?:\d{4}-\d\d-\d\d|<never>)", re.I)
@@ -84,7 +84,7 @@ def parse_users(raw: str) -> list[str]:
     A real row is `sAMAccountName  <pwdLastSet>  <badPwdCount>  <description>`; we accept a
     line only when its 2nd column is a date or ``<never>`` (pwdLastSet). That positively
     excludes the ``-Username-`` header, the ``Enumerated N domain users`` summary, status
-    lines (``No entries found!``, ``Skipping...``), and interleaved krb5 hash lines — no
+    lines (``No entries found!``, ``Skipping...``), and interleaved krb5 hash lines - no
     fragile keyword blocklist. Verified against NetExec nxc/protocols/ldap.py.
     """
     users: list[str] = []

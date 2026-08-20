@@ -1,4 +1,4 @@
-"""LDAP hash-capture parsers + crack orchestration — no nxc/hashcat/DC needed.
+"""LDAP hash-capture parsers + crack orchestration - no nxc/hashcat/DC needed.
 
 Run:  python tests/test_ldap_and_crack.py   (or)   python -m pytest -q
 """

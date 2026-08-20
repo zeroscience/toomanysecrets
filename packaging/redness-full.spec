@@ -1,4 +1,4 @@
-# PyInstaller spec — SELF-CONTAINED redness.exe with the engines bundled in.
+# PyInstaller spec - SELF-CONTAINED redness.exe with the engines bundled in.
 #
 # This produces a large (~100MB+) exe that embeds NetExec/Impacket/Certipy so the
 # tool works with NOTHING pre-installed on the target box. The default packaging/
@@ -10,13 +10,13 @@
 #
 # STATUS (validated 2026-08-10 on Windows/py3.12, after a Defender folder exclusion):
 #   * WORKS for certipy: dist/redness-full.exe (~29MB) bundles impacket + certipy + ldap3
-#     (impacket examples excluded — Defender locks those). CertipyEngine now runs certipy
+#     (impacket examples excluded - Defender locks those). CertipyEngine now runs certipy
 #     IN-PROCESS via certipy.entry:main when no `certipy` binary is on PATH, so the frozen
-#     exe actually executes it — verified: `redness-full.exe doctor` shows certipy [OK] and
+#     exe actually executes it - verified: `redness-full.exe doctor` shows certipy [OK] and
 #     a scan prints certipy's banner + attempts the real LDAP connection from inside the exe.
 #   * PREREQ: Windows Defender quarantines core impacket files (impacket/krb5/constants.py)
 #     + all examples; add the project/venv folder to Defender exclusions before installing
-#     requirements-engines.txt (a user action — we don't modify AV/security settings).
+#     requirements-engines.txt (a user action - we don't modify AV/security settings).
 #   * netexec: no PyPI release for py3.12 (install via pipx/git). Once installed, give
 #     LdapEngine/NetExecEngine the same in-process treatment (nxc entrypoint) and add any
 #     hidden imports its dynamic module loading needs.

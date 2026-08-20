@@ -1,11 +1,11 @@
-# CLAUDE.md — context for AI agents working on REDNESS
+# CLAUDE.md - context for AI agents working on REDNESS
 
 This file is how *both* researchers' Claude instances stay in sync. Read it first,
 then `docs/DECISIONS.md` (the why) and `docs/LIVE_GRAPH.md` (the GUI plan).
 
 ## What this is
 Red-team **orchestrator + normalizer + reporter** for AD/Windows assessments.
-It does NOT reimplement protocols — it drives NetExec, Impacket, Certipy, normalizes
+It does NOT reimplement protocols - it drives NetExec, Impacket, Certipy, normalizes
 their output into one findings model, renders a `.docx` report, and can stream a live
 3D graph of the enumeration. Codename REDNESS; will be renamed later.
 
@@ -25,7 +25,7 @@ PRs #1–#4 all merged to `main`. Working, tested (100 tests), builds to a singl
 ```
 redness/
   findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.0.0)
-  events.py       # EventBus (status/finding/node/edge/probe/done) — live-graph seam
+  events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
@@ -47,9 +47,9 @@ examples/scope.txt
 ```
 
 ## Ownership seams (work in parallel, avoid merge conflicts)
-- **Person A — `redness/engines/`** : tool wrappers that emit `Finding`s. Keep parsing
+- **Person A - `redness/engines/`** : tool wrappers that emit `Finding`s. Keep parsing
   pure and separate from subprocess exec (see netexec.py/certipy.py) so it unit-tests.
-- **Person B — `redness/report/` + `redness/live/` + packaging.**
+- **Person B - `redness/report/` + `redness/live/` + packaging.**
 Touch the other's directory only via a PR they review.
 
 ## Install (git clone -> one command -> `redness`)
@@ -66,7 +66,7 @@ redness doctor              # shows which engines/tools are ready
 ```
 TLS is stdlib (always ready). hashcat/john are separate native installs for `--wordlist`.
 Self-contained build (bundles the engines into one exe): `packaging/redness-full.spec`
-(scaffold — validate on a box with requirements-engines.txt installed).
+(scaffold - validate on a box with requirements-engines.txt installed).
 
 ## Run it
 ```bash
@@ -87,7 +87,7 @@ Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list,
 built-in weak-password list (redness/wordlists.py) auto-cracks egregiously weak creds;
 `--no-crack` disables cracking entirely (loot still written). NetNTLMv2 *capture* is the
 opt-in, gated `redness poison` command
-(LLMNR/NBT-NS poisoning via Responder — intrusive); captured hashes feed the same crack pipeline.
+(LLMNR/NBT-NS poisoning via Responder - intrusive); captured hashes feed the same crack pipeline.
 `redness trigger` generates a UNC forced-authentication lure (html/scf/url) that coerces a
 specific victim to authenticate; run `poison` to capture it (same pipeline). See docs/NETNTLM.md.
 Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.spec`
@@ -107,31 +107,31 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
   `*.docx`, `findings*.json`, loot, hashes, ccache).
 
 ## Conventions
-- Every finding carries **remediation** — this is a *report* tool, not just a scanner.
+- Every finding carries **remediation** - this is a *report* tool, not just a scanner.
 - The EventBus swallows subscriber errors: a broken UI can never break a scan.
 - Commit a fresh `docs/screenshots/live-graph.jpg` when the GUI changes meaningfully.
 
-## First real-DC validation (THE priority — nothing has run against a live DC yet)
+## First real-DC validation (THE priority - nothing has run against a live DC yet)
 Everything is unit-tested offline. Prove it in the field from Kali: `docs/VALIDATION.md`
 (checklist + lab options) and `scripts/smoke.sh` (DC=... ./scripts/smoke.sh → doctor/scan/
 passive-poison). Real tool output is the source of truth; if a parser misses a line format,
 add a captured sample to the matching tests/ file.
 
-## GUI vision & roadmap — docs/GUI.md
+## GUI vision & roadmap - docs/GUI.md
 Native window via `redness gui` (pywebview, browser fallback) reusing the web UI; branded
 REDNESS v1.33.7 / Zero Science Lab / Silly Security Inc. (Anja Ivanovska & Gjoko Krstic);
 About + Usage modals shipped. NEXT big piece: right-click node actions ("further attacks in
-one place" — Kerberoast/secretsdump/PtH/DCSync/ADCS) via a token-gated POST /action + engines
+one place" - Kerberoast/secretsdump/PtH/DCSync/ADCS) via a token-gated POST /action + engines
 (anjaiv). Phased plan + action catalog in docs/GUI.md. Bump version in web/index.html +
 pyproject.toml together.
 
-## Next up — see docs/ROADMAP.md (the prioritized plan)
+## Next up - see docs/ROADMAP.md (the prioritized plan)
 Tier-1 differentiators: attack-path edges in the graph (Gjoko), Phase-3 right-click offensive
 actions (Anja+Gjoko), share secret-hunting/Snaffler (Anja), report upgrades (Gjoko). Tier-2
 parity: password spraying, GPP cpassword, delegation/MAQ/gMSA, coercion, MSSQL (Anja). Ownership
 + contracts in ROADMAP.md. Smaller: stream crack results to the graph; real lab logo;
 "download report" button in the GUI. (NetNTLMv2 Phase 2 shipped as `redness trigger`;
-ntlmrelayx *relay* was considered and dropped as too heavy/intrusive — see docs/NETNTLM.md.)
+ntlmrelayx *relay* was considered and dropped as too heavy/intrusive - see docs/NETNTLM.md.)
 Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
 the GUI (logo + scope-file loader + token-gated POST /scan that runs real engines),
 NetNTLMv2 capture via `redness poison`, the `redness trigger` forced-authentication link

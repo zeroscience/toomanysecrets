@@ -1,15 +1,15 @@
-"""Offline cracking of captured hashes — the adscan-style "detect a hash, crack it" loop.
+"""Offline cracking of captured hashes - the adscan-style "detect a hash, crack it" loop.
 
-Scope: the crackable material REDNESS obtains — AS-REP (`krb5asrep`) and Kerberoast
+Scope: the crackable material REDNESS obtains - AS-REP (`krb5asrep`) and Kerberoast
 (`krb5tgs`) hashes captured during enumeration (see engines/ldap.py), plus NetNTLMv2
 (`netntlmv2`) hashes from the opt-in poisoner (see poison.py). The *capture* of NetNTLMv2
 (active LLMNR/NBT-NS poisoning) lives in poison.py, not here; this module only cracks
 whatever hashes arrive via finding.meta["hashes"].
 
 Two independent capabilities:
-  1. write_loot()  — always available: dump hashes to hashcat-ready files so they can be
+  1. write_loot()  - always available: dump hashes to hashcat-ready files so they can be
      cracked elsewhere. This is the baseline "hash detected" deliverable.
-  2. crack()       — if hashcat or john is on PATH and a wordlist is given, run it and map
+  2. crack()       - if hashcat or john is on PATH and a wordlist is given, run it and map
      recovered passwords back to accounts.
 
 Cracking recovered credentials from an authorized engagement is standard practice; only

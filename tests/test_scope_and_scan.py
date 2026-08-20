@@ -1,4 +1,4 @@
-"""Scope parsing + scan orchestration tests — no nxc/certipy/DC required.
+"""Scope parsing + scan orchestration tests - no nxc/certipy/DC required.
 
 Run:  python tests/test_scope_and_scan.py    (or)   python -m pytest -q
 """

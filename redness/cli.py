@@ -52,16 +52,16 @@ def _sample_report() -> Report:
     r.findings = [
         Finding(
             id="adcs-esc1",
-            title="ADCS ESC1 — enrollee-supplied SAN on client-auth template",
+            title="ADCS ESC1 - enrollee-supplied SAN on client-auth template",
             severity=Severity.CRITICAL,
             category=Category.ADCS,
             description="A certificate template permits low-privileged users to enroll and "
                         "supply an arbitrary Subject Alternative Name for a client-auth EKU.",
             impact="Any domain user can request a certificate impersonating Domain Admin and "
-                   "authenticate as them — full domain compromise.",
+                   "authenticate as them - full domain compromise.",
             remediation="Remove ENROLLEE_SUPPLIES_SUBJECT from the template, restrict enrollment "
                         "permissions, and enable manager approval. Review with Certipy 'find'.",
-            affected=["CA01.acme.local\\ACME-CA — Template: UserAuth"],
+            affected=["CA01.acme.local\\ACME-CA - Template: UserAuth"],
             evidence=[Evidence(source="certipy", detail="ESC1 vulnerable; EnrolleeSuppliesSubject=True")],
             references=["https://github.com/ly4k/Certipy"],
             credentialed=True,
@@ -193,7 +193,7 @@ def _live_scan_handler(bus):
 
 
 def _live_action_handler(bus):
-    """Right-click action handler (POST /action) — runs one engine against one target."""
+    """Right-click action handler (POST /action) - runs one engine against one target."""
     from .actions import run_action
 
     def on_action(params: dict) -> None:
@@ -232,7 +232,7 @@ def cmd_gui(args) -> int:
         webview.start()                                   # blocks until the window closes
     except ImportError:
         import webbrowser
-        print("[!] pywebview not installed — opening in your browser instead.")
+        print("[!] pywebview not installed - opening in your browser instead.")
         print('    For a native window:  pip install ".[gui]"   (or: pip install pywebview)')
         webbrowser.open(url)
         print("[*] Ctrl+C to stop.")
@@ -259,7 +259,7 @@ def cmd_scan(args) -> int:
         print(f"[!] could not read scope file: {e}")
         return 2
     if not targets:
-        print("[!] no targets — pass --target HOST and/or --targets scope.txt")
+        print("[!] no targets - pass --target HOST and/or --targets scope.txt")
         return 2
     print(f"[*] {len(targets)} target(s): {', '.join(targets)}")
 
@@ -312,9 +312,9 @@ def cmd_scan(args) -> int:
 
 _POISON_BANNER = (
     "\n=====================================================================\n"
-    " REDNESS poison — LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
+    " REDNESS poison - LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
     " INTRUSIVE: affects OTHER hosts on the local segment. Authorized,\n"
-    " in-scope engagements only — assume written authorization exists.\n"
+    " in-scope engagements only - assume written authorization exists.\n"
     "=====================================================================\n"
 )
 
@@ -328,7 +328,7 @@ def cmd_poison(args) -> int:
 
     print(_POISON_BANNER)
     if args.analyze:
-        print(f"[*] Analyze mode: passively observing '{args.iface}' — no poisoning.")
+        print(f"[*] Analyze mode: passively observing '{args.iface}' - no poisoning.")
     else:
         print(f"[!] This ACTIVELY POISONS name resolution on '{args.iface}' and coerces")
         print("    authentication from other hosts on this segment.")
@@ -394,9 +394,9 @@ def cmd_poison(args) -> int:
 
 _TRIGGER_BANNER = (
     "\n=====================================================================\n"
-    " REDNESS trigger — forced-authentication UNC link (NetNTLMv2 capture)\n"
+    " REDNESS trigger - forced-authentication UNC link (NetNTLMv2 capture)\n"
     " The artifact coerces a victim's credentials when opened. Authorized,\n"
-    " in-scope engagements only — assume written authorization exists.\n"
+    " in-scope engagements only - assume written authorization exists.\n"
     "=====================================================================\n"
 )
 

@@ -1,4 +1,4 @@
-"""Live bridge — EventBus -> browser, over Server-Sent Events (SSE).
+"""Live bridge - EventBus -> browser, over Server-Sent Events (SSE).
 
 Stdlib only (http.server), so it adds no dependency and bundles cleanly into the
 frozen .exe. SSE (not WebSocket) because the stream is one-directional: engine -> UI.
@@ -6,7 +6,7 @@ frozen .exe. SSE (not WebSocket) because the stream is one-directional: engine -
 - Subscribes to an EventBus; every published Event is fanned out to connected
   browsers as `data: {json}\n\n`.
 - Keeps a capped replay buffer, so a browser that connects (or refreshes) mid-scan
-  rebuilds the full graph — SSE has no built-in replay.
+  rebuilds the full graph - SSE has no built-in replay.
 - Binds 127.0.0.1 only: engagement data never leaves the host.
 
 Note: the front-end (web/index.html) currently loads 3d-force-graph from a CDN. For

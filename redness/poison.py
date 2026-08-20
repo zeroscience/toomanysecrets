@@ -1,8 +1,8 @@
-"""NetNTLMv2 capture via Responder — the intrusive, opt-in poisoning feature.
+"""NetNTLMv2 capture via Responder - the intrusive, opt-in poisoning feature.
 
 This is *not* part of `scan` and never runs by default. It drives **Responder**
 (LLMNR/NBT-NS/mDNS poisoning) as a long-running listener on one interface, captures
-NetNTLMv2 hashes from coerced hosts, and normalizes them into `Finding`s — then hands
+NetNTLMv2 hashes from coerced hosts, and normalizes them into `Finding`s - then hands
 them to the existing loot/crack pipeline (`crack.py`, which maps `netntlmv2` -> hashcat
 5600 / john netntlmv2). See docs/NETNTLM.md.
 
@@ -12,7 +12,7 @@ touches a subprocess, and it takes an injectable line source / `popen` so tests 
 need Responder, root, or a LAN.
 
 Legal/ethics: poisoning coerces authentication from *other machines* on the segment.
-Authorized, in-scope engagements only — the CLI gates this behind a confirmation prompt.
+Authorized, in-scope engagements only - the CLI gates this behind a confirmation prompt.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def build_findings(pairs: list[tuple[str, str]], *, poisoned: bool) -> list[Find
     """Turn captured (account, netntlmv2_hash) pairs into normalized Findings.
 
     `poisoned` = poisoning was active (not analyze mode) and at least one host took
-    the bait — i.e. LLMNR/NBT-NS poisoning is demonstrably possible on this segment.
+    the bait - i.e. LLMNR/NBT-NS poisoning is demonstrably possible on this segment.
     Captured hashes ride in `meta["hashes"]` (type ``netntlmv2``) so crack.py's
     collect/loot/crack pipeline picks them up with no further changes.
     """
@@ -87,7 +87,7 @@ def build_findings(pairs: list[tuple[str, str]], *, poisoned: bool) -> list[Find
 
 
 # --------------------------------------------------------------------------- #
-# Subprocess streaming (impure — time-boxed Responder stdout)                  #
+# Subprocess streaming (impure - time-boxed Responder stdout)                  #
 # --------------------------------------------------------------------------- #
 def _terminate(proc) -> None:
     try:
@@ -160,7 +160,7 @@ def run_poison(
         try:
             lines = _stream_responder(argv, duration, popen=popen)
         except FileNotFoundError:
-            _emit(bus, EventKind.STATUS, message="responder not found on PATH — nothing captured")
+            _emit(bus, EventKind.STATUS, message="responder not found on PATH - nothing captured")
             return report, CrackResult()
 
     seen: set[str] = set()
@@ -176,14 +176,14 @@ def run_poison(
                 _emit(bus, EventKind.EDGE, src=root, dst=account, label="poisoned")
                 _emit(bus, EventKind.STATUS, message=f"captured NetNTLMv2 for {account}")
     except KeyboardInterrupt:
-        _emit(bus, EventKind.STATUS, message="interrupted — finalizing captures")
+        _emit(bus, EventKind.STATUS, message="interrupted - finalizing captures")
 
     poisoned = (not analyze) and bool(pairs)
     report.findings = build_findings(pairs, poisoned=poisoned)
     for f in report.findings:
         _emit(bus, EventKind.FINDING, finding=f.to_dict())
 
-    # Loot + optional cracking — netntlmv2 is already mapped in crack.py (step 2).
+    # Loot + optional cracking - netntlmv2 is already mapped in crack.py (step 2).
     result = run_cracking(report, loot_dir=loot_dir, wordlist=wordlist, builtin=builtin)
     _emit(bus, EventKind.DONE, engine="poison")
     return report, result

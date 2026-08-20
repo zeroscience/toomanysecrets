@@ -1,4 +1,4 @@
-"""Parser tests against a captured Responder session log — no Responder/root/LAN.
+"""Parser tests against a captured Responder session log - no Responder/root/LAN.
 
 Run:  python -m pytest -q      (or)     python tests/test_responder_parse.py
 """

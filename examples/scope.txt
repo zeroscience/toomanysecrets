@@ -1,4 +1,4 @@
-# REDNESS scope file — one target per line: IP, hostname, or CIDR.
+# REDNESS scope file - one target per line: IP, hostname, or CIDR.
 # '#' starts a comment (whole-line or inline). Blank lines are ignored.
 
 10.10.0.15        # DC01

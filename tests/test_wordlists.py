@@ -1,4 +1,4 @@
-"""Built-in wordlist tests — pure, no cracker/network needed.
+"""Built-in wordlist tests - pure, no cracker/network needed.
 
 Run:  python tests/test_wordlists.py    (or)   python -m pytest -q
 """
@@ -12,7 +12,7 @@ from redness import wordlists  # noqa: E402
 
 
 def test_basic_wordlist_is_substantial():
-    # small but not trivial — a few hundred high-signal candidates
+    # small but not trivial - a few hundred high-signal candidates
     assert len(wordlists.BASIC_WORDLIST) >= 200
 
 

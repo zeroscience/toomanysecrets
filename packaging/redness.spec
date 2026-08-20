@@ -1,4 +1,4 @@
-# PyInstaller spec — single-file redness.exe
+# PyInstaller spec - single-file redness.exe
 #
 #   pip install pyinstaller
 #   pyinstaller packaging/redness.spec        (run from repo root)

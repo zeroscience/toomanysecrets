@@ -1,4 +1,4 @@
-"""LiveServer tests — pub/sub, replay buffer, and a real SSE round-trip.
+"""LiveServer tests - pub/sub, replay buffer, and a real SSE round-trip.
 
 Run:  python tests/test_live_bridge.py    (or)   python -m pytest -q
 """

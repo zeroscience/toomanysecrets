@@ -2,7 +2,7 @@
 
 An Engine wraps an external tool (netexec, impacket, certipy), runs it against a
 target, and returns normalized `Finding` objects. The reporter never sees the raw
-tool — only the findings.
+tool - only the findings.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class Target:
 class Engine(abc.ABC):
     name: str = "engine"
 
-    # Optional live-event sink. Left None means "don't stream" — engines still
+    # Optional live-event sink. Left None means "don't stream" - engines still
     # return their findings normally, so nothing breaks when no bus is attached.
     bus: Optional[EventBus] = None
 

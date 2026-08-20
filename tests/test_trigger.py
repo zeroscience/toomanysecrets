@@ -1,4 +1,4 @@
-"""Trigger-link generator tests — pure string generation, nothing installed needed.
+"""Trigger-link generator tests - pure string generation, nothing installed needed.
 
 Run:  python tests/test_trigger.py    (or)   python -m pytest -q
 """

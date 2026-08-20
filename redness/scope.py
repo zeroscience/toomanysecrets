@@ -1,4 +1,4 @@
-"""Scope parsing — shared by the CLI (`--targets`) and, later, the GUI file picker.
+"""Scope parsing - shared by the CLI (`--targets`) and, later, the GUI file picker.
 
 A scope file is one target per line: an IP, hostname, or CIDR. Blank lines are
 ignored; `#` starts a comment (whole-line or inline). Order is preserved and

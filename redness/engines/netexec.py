@@ -1,4 +1,4 @@
-r"""NetExec (nxc) engine — SMB.
+r"""NetExec (nxc) engine - SMB.
 
 Design: parsing is pure and separate from execution, so parsers are unit-testable
 against captured `nxc` output without a live DC or nxc installed (see tests/).
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from ..findings import Category, Evidence, Finding, Severity
 from .base import Engine, Target
 
-# Shares present on virtually every Windows host — not findings on their own.
+# Shares present on virtually every Windows host - not findings on their own.
 DEFAULT_SHARES = {"ADMIN$", "C$", "IPC$", "PRINT$", "NETLOGON", "SYSVOL", "FAX$"}
 
 # SMB  <host>  <port>  <netbios>  <body>
@@ -115,8 +115,8 @@ def parse_banner_findings(raw: str, credentialed: bool = False) -> list[Finding]
             description="One or more hosts do not require SMB signing.",
             impact="Enables SMB/NTLM relay attacks: an attacker on the network path can relay "
                    "authentication to other services and act as the victim.",
-            remediation="Enforce SMB signing via GPO — 'Microsoft network server: Digitally sign "
-                        "communications (always)' = Enabled — on all hosts, especially DCs.",
+            remediation="Enforce SMB signing via GPO - 'Microsoft network server: Digitally sign "
+                        "communications (always)' = Enabled - on all hosts, especially DCs.",
             affected=signing_off,
             evidence=[Evidence(source="netexec", detail=f"(signing:False) on {len(signing_off)} host(s)")],
             references=["https://attack.mitre.org/techniques/T1557/001/"],
@@ -173,7 +173,7 @@ def parse_null_session(raw: str) -> list[Finding]:
         severity=Severity.MEDIUM,
         category=Category.SMB,
         description="Hosts accept unauthenticated (null) or guest SMB sessions.",
-        impact="Allows unauthenticated attackers to enumerate shares, users, and policies — "
+        impact="Allows unauthenticated attackers to enumerate shares, users, and policies - "
                "a common first foothold.",
         remediation="Restrict anonymous access: set 'RestrictNullSessAccess', disable the Guest "
                     "account, and enforce 'Network access: Restrict anonymous access to Named "
@@ -293,7 +293,7 @@ class NetExecEngine(Engine):
             )
         except (subprocess.TimeoutExpired, OSError):
             return ""
-        # nxc prints results to stdout; some builds mix into stderr — take both.
+        # nxc prints results to stdout; some builds mix into stderr - take both.
         return (proc.stdout or "") + "\n" + (proc.stderr or "")
 
     def run(self, target: Target) -> list[Finding]:

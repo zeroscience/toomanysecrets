@@ -1,4 +1,4 @@
-"""On-demand actions — run a single engine against one target (right-click in the GUI).
+"""On-demand actions - run a single engine against one target (right-click in the GUI).
 
 Phase 2: **read-only enumeration** actions only. Each action reuses an existing engine
 against the clicked node's target and streams results to the live graph via the EventBus,
@@ -6,7 +6,7 @@ exactly like a scan does. The plumbing (token-gated POST /action -> here) is the
 channel every future action uses.
 
 Phase 3 (offensive: Kerberoast / secretsdump / pass-the-hash / DCSync / ADCS abuse) will
-register here with `offensive=True` and its own confirmation gating — see docs/GUI.md.
+register here with `offensive=True` and its own confirmation gating - see docs/GUI.md.
 Those engines are anjaiv's area; agree each action's params + Finding first.
 """
 from __future__ import annotations
@@ -69,7 +69,7 @@ def run_action(action_id: str, target: str, *, username: Optional[str] = None,
     _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{a.label} on {target}")
     _emit(bus, EventKind.PROBE, engine=eng.name, target=target, test=action_id)
     if not eng.is_available():
-        _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{eng.name}: not installed — skipping")
+        _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{eng.name}: not installed - skipping")
         _emit(bus, EventKind.DONE, engine=eng.name)
         return report
 

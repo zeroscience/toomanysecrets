@@ -14,14 +14,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# `pip install ".[engines]"` — the engines that DO ship a Python 3.12 wheel.
+# `pip install ".[engines]"` - the engines that DO ship a Python 3.12 wheel.
 # NetExec is deliberately NOT here: it has no py3.12 wheel; install it with pipx
 # (`pipx install netexec`) so it runs under a compatible Python with `nxc` on PATH.
 engines = [
     "certipy-ad>=5.1.0",
     "impacket>=0.12.0",
 ]
-# `pip install ".[gui]"` — native desktop window for `redness gui` (Windows + Linux).
+# `pip install ".[gui]"` - native desktop window for `redness gui` (Windows + Linux).
 # Without it, `redness gui` falls back to opening the UI in your browser.
 gui = [
     "pywebview>=5.0",

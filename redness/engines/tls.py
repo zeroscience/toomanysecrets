@@ -1,6 +1,6 @@
-"""TLS engine — weak protocols, ciphers, and certificate issues on AD TLS services.
+"""TLS engine - weak protocols, ciphers, and certificate issues on AD TLS services.
 
-Pure-Python (stdlib `ssl`), so it needs no external tool and runs anywhere — the
+Pure-Python (stdlib `ssl`), so it needs no external tool and runs anywhere - the
 one engine that produces findings on a box with neither nxc nor certipy installed.
 
 Scans AD-relevant TLS ports (LDAPS 636, Global-Catalog-SSL 3269, ADCS web 443) and flags:
