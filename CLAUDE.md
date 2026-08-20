@@ -125,8 +125,11 @@ one place" — Kerberoast/secretsdump/PtH/DCSync/ADCS) via a token-gated POST /a
 (anjaiv). Phased plan + action catalog in docs/GUI.md. Bump version in web/index.html +
 pyproject.toml together.
 
-## Next up (not started)
-Stream crack results to the live graph; replace web/logo.svg with the real lab logo;
+## Next up — see docs/ROADMAP.md (the prioritized plan)
+Tier-1 differentiators: attack-path edges in the graph (Gjoko), Phase-3 right-click offensive
+actions (Anja+Gjoko), share secret-hunting/Snaffler (Anja), report upgrades (Gjoko). Tier-2
+parity: password spraying, GPP cpassword, delegation/MAQ/gMSA, coercion, MSSQL (Anja). Ownership
++ contracts in ROADMAP.md. Smaller: stream crack results to the graph; real lab logo;
 "download report" button in the GUI. (NetNTLMv2 Phase 2 shipped as `redness trigger`;
 ntlmrelayx *relay* was considered and dropped as too heavy/intrusive — see docs/NETNTLM.md.)
 Done recently: TLS scanner, LDAP/Kerberos hash capture + offline cracking (crack.py),
