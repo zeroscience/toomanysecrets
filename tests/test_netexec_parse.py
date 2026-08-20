@@ -1,4 +1,4 @@
-"""Parser tests against captured NetExec SMB output — no nxc or DC required.
+"""Parser tests against captured NetExec SMB output - no nxc or DC required.
 
 Run:  python -m pytest -q      (or)     python tests/test_netexec_parse.py
 """

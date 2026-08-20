@@ -16,10 +16,10 @@ python -m pip install ".[engines]"
 
 # NetExec has no py3.12 wheel -> install via pipx (its own compatible Python).
 if command -v nxc >/dev/null 2>&1 || command -v netexec >/dev/null 2>&1; then
-    echo "[+] NetExec already on PATH — SMB/LDAP engines ready."
+    echo "[+] NetExec already on PATH - SMB/LDAP engines ready."
 elif command -v pipx >/dev/null 2>&1; then
     echo "[*] Installing NetExec via pipx"
-    pipx install netexec || echo "[!] pipx install netexec failed — install it manually."
+    pipx install netexec || echo "[!] pipx install netexec failed - install it manually."
 else
     echo "[!] NetExec not found and pipx missing. For SMB/LDAP + hash capture:"
     echo "      sudo apt install pipx && pipx install netexec"

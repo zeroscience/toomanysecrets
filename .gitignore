@@ -7,7 +7,7 @@ venv/
 build/
 dist/
 
-# Reports / engagement data — NEVER commit client output
+# Reports / engagement data - NEVER commit client output
 *.docx
 findings*.json
 loot/

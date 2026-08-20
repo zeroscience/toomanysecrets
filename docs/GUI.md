@@ -1,13 +1,13 @@
-# REDNESS GUI — design & roadmap
+# REDNESS GUI - design & roadmap
 
-> The vision: **everything in one place** — a branded, retro-futuristic control surface
+> The vision: **everything in one place** - a branded, retro-futuristic control surface
 > where you scan, watch the 3D graph, click a result, and right-click a target to launch
 > further enumeration or attacks (Kerberoast, secretsdump, pass-the-hash, DCSync, …).
 > Native window on Windows/Linux, or browser. This note is the north star; build it in
 > phases. Branding/authors are fixed (see below); don't rename without the owners' say.
 
 ## Native window vs browser (decided)
-One UI, two front ends — **no rewrite**:
+One UI, two front ends - **no rewrite**:
 - **`redness gui`** → a **native desktop window** via **pywebview** (Windows: Edge WebView2,
   already present on Win10/11; Linux/Kali: WebKitGTK). Same HTML/JS/3D-graph we already have.
   `pip install ".[gui]"` adds pywebview; without it, `gui` falls back to the browser.
@@ -20,15 +20,15 @@ Electron/Tauri (Node toolchain, heavy). pywebview reuses everything.
 ## Branding (fixed)
 - Name/version: **REDNESS v1.33.7**
 - Line: **Zero Science Lab · powered by Silly Security Inc.**
-- Authors: **Anja Ivanovska & Gjoko Krstic** — anja@zeroscience.mk · gjoko@zeroscience.mk
+- Authors: **Anja Ivanovska & Gjoko Krstic** - anja@zeroscience.mk · gjoko@zeroscience.mk
 - Logo: `web/logo.svg` (swap the placeholder for the real ZeroScience mark).
 - **About** and **Usage** modals live in the HUD (shipped). Bump the version string in
   `web/index.html` (`#ver`, the About card) and `pyproject.toml` together on release.
 
 ## Look & feel
-Dark, neon-accent, monospace, "not hackerish" — modern/retro-futuristic. Nodes colored by
+Dark, neon-accent, monospace, "not hackerish" - modern/retro-futuristic. Nodes colored by
 finding severity. Future: OS-adaptive, more organic/smooth animations & node shapes
-(different per platform) — deferred, we'll iterate.
+(different per platform) - deferred, we'll iterate.
 
 ## The big one: right-click actions ("further attacks in one place")
 The graph already emits node events and the bridge already accepts an authenticated POST
@@ -47,7 +47,7 @@ right-click a node ─▶ context menu (per node type) ─▶ POST /action {toke
 - **Engines:** each action maps to an existing tool capability (anjaiv's area). Keep the
   pure-parser + injectable-subprocess pattern; add a `Finding` (+ loot) like everything else.
 
-### Action catalog (adscan-style parity — build incrementally)
+### Action catalog (adscan-style parity - build incrementally)
 | Node | Action | Backed by |
 |------|--------|-----------|
 | host | enumerate shares / sessions / loggedon | nxc smb |
@@ -62,26 +62,26 @@ right-click a node ─▶ context menu (per node type) ─▶ POST /action {toke
 | any | add to scope / re-scan / open in report | internal |
 
 ## Phased roadmap
-1. **Done** — branded GUI (logo, version, tagline), About + Usage modals, `redness gui`
+1. **Done** - branded GUI (logo, version, tagline), About + Usage modals, `redness gui`
    native window (pywebview + browser fallback), in-tool Usage reference.
-2. **Done** — read-only right-click enum. `redness/actions.py` registry + token-gated
+2. **Done** - read-only right-click enum. `redness/actions.py` registry + token-gated
    `POST /action` + `GET /actions`; the graph's `onNodeRightClick` builds a per-node-type
    menu (host/domain → Enumerate SMB / LDAP / AD CS / TLS) that runs the matching engine
    against that target and streams results back. This is the channel every Phase 3 action
-   plugs into — add an `Action(..., offensive=True)` with its gating.
-3. **Offensive actions** — Kerberoast/AS-REP/secretsdump/PtH/DCSync, each **gated** like
+   plugs into - add an `Action(..., offensive=True)` with its gating.
+3. **Offensive actions** - Kerberoast/AS-REP/secretsdump/PtH/DCSync, each **gated** like
    `poison` (confirmation, authorization banner) and streamed to loot/report/graph.
-4. **Parity & polish** — RBCD, gMSA, shadow creds, NTLM relay/coercion (Phase 2 of NETNTLM),
+4. **Parity & polish** - RBCD, gMSA, shadow creds, NTLM relay/coercion (Phase 2 of NETNTLM),
    result detail panels, click-through evidence, export.
-5. **Future** — OS-adaptive animations/forms, wiki docs (usage/examples), themes.
+5. **Future** - OS-adaptive animations/forms, wiki docs (usage/examples), themes.
 
 ## Docs
-- In-tool **Usage** modal (shipped) — quick command reference.
+- In-tool **Usage** modal (shipped) - quick command reference.
 - Future: a GitHub **wiki** (usage, examples, per-action walkthroughs) linked from About/Usage.
 - CLI `-h` on every command stays the source of truth for flags.
 
 ## Safety
-Offensive right-click actions are intrusive — gate each exactly like `poison`
+Offensive right-click actions are intrusive - gate each exactly like `poison`
 (confirmation + authorization banner), bind the bridge to `127.0.0.1`, keep the CSRF token.
 Authorized, in-scope engagements only. Never auto-run an attack from a node click without
 an explicit confirm.

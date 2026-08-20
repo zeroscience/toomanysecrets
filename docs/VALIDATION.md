@@ -1,15 +1,15 @@
-# REDNESS — first real-DC validation checklist
+# REDNESS - first real-DC validation checklist
 
 > Everything in REDNESS is unit-tested **offline** (pure parsers vs captured tool output).
-> This is the step that proves it **in the field** against a live Domain Controller —
+> This is the step that proves it **in the field** against a live Domain Controller -
 > where real tool output, versions, and network behavior surface gaps the offline tests
 > can't. Do this on a **lab DC you own / are authorized to test**, from the Kali operator box.
 
 ## 0. Stand up a lab (pick one)
-- **[GOAD — Game of Active Directory](https://github.com/Orange-Cyberdefense/GOAD)** — a
+- **[GOAD - Game of Active Directory](https://github.com/Orange-Cyberdefense/GOAD)** - a
   ready-made vulnerable AD forest (ESC templates, roastable accounts, no SMB signing…).
   Best coverage for exercising every engine. Heavier to deploy.
-- **A throwaway Windows Server DC VM** — `Install-ADDSForest`, add a couple users, mark one
+- **A throwaway Windows Server DC VM** - `Install-ADDSForest`, add a couple users, mark one
   `Do not require Kerberos preauth` (AS-REP), give one an SPN (Kerberoast), stand up AD CS
   with a vulnerable template if you want ADCS findings. Lighter, quicker.
 
@@ -48,7 +48,7 @@ Run credentialed **and** uncredentialed (drop `-u/-p`) to see both surfaces.
 | Poison (Responder) | `poison --iface eth0` (in lab!) | `netntlm-captured`, `llmnr-nbtns-poisoning-possible` | |
 
 **Poison note:** run `--analyze` first (observe only). Active poison affects **other hosts**
-on the segment — only in the isolated lab, `--iface` pinned, time-boxed, after the YES prompt.
+on the segment - only in the isolated lab, `--iface` pinned, time-boxed, after the YES prompt.
 
 ## 4. Cross-check the outputs
 - **Report** (`--out report.docx`): opens cleanly; exec-summary counts match; each finding has
@@ -62,13 +62,13 @@ on the segment — only in the isolated lab, `--iface` pinned, time-boxed, after
 
 ## 5. Record results
 Note tool versions (`nxc --version`, `certipy version`, Responder), the lab, and anything
-that **didn't** parse as expected — those are the follow-up issues. File them (or drop them in
+that **didn't** parse as expected - those are the follow-up issues. File them (or drop them in
 `docs/DECISIONS.md`) so the parser fixes are captured. Real DC output is the source of truth;
 if a parser misses a line format, add a captured sample to the matching `tests/` file.
 
 ## Likely first-run gaps to watch for
-- **nxc output format drift** — the SMB/LDAP parsers key off nxc's line format; a newer nxc may
+- **nxc output format drift** - the SMB/LDAP parsers key off nxc's line format; a newer nxc may
   differ. Capture the raw line and adjust the regex + add a test.
-- **certipy version** — parsing keys off `find -json`'s `[!] Vulnerabilities`; verify the
+- **certipy version** - parsing keys off `find -json`'s `[!] Vulnerabilities`; verify the
   installed certipy still emits that shape.
-- **Responder log line** — confirm the real `NTLMv2-SSP Hash :` line matches the parser.
+- **Responder log line** - confirm the real `NTLMv2-SSP Hash :` line matches the parser.

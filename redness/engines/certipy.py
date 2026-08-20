@@ -1,11 +1,11 @@
-"""Certipy engine — AD CS (certificate services) misconfigurations, ESC1–ESC16.
+"""Certipy engine - AD CS (certificate services) misconfigurations, ESC1–ESC16.
 
 Certipy's `find` command emits structured JSON with a per-object
 `"[!] Vulnerabilities"` map ({"ESC1": "<why>"}). We parse that into normalized
 Findings, which is far more robust than scraping the text report.
 
 Parsing is pure (parse_certipy_json) and separate from execution (CertipyEngine.run),
-so it unit-tests against captured JSON with no certipy / DC / CA — see tests/.
+so it unit-tests against captured JSON with no certipy / DC / CA - see tests/.
 
 Reference: https://github.com/ly4k/Certipy
 """
@@ -120,7 +120,7 @@ def parse_certipy_json(data: "dict | str", credentialed: bool = False) -> list[F
             sev, fix = _sev_and_fix(n)
             findings.append(Finding(
                 id=f"adcs-esc{n}",
-                title=f"AD CS ESC{n} — vulnerable certificate {kind}",
+                title=f"AD CS ESC{n} - vulnerable certificate {kind}",
                 severity=sev,
                 category=Category.ADCS,
                 description=f"Certipy flagged {kind} '{name}' as ESC{n} vulnerable.",
@@ -170,7 +170,7 @@ class CertipyEngine(Engine):
             return False
 
     def is_available(self) -> bool:
-        # Prefer a CLI binary on PATH, but a bundled/importable module works too — that's
+        # Prefer a CLI binary on PATH, but a bundled/importable module works too - that's
         # what lets the self-contained exe run certipy without certipy.exe on PATH.
         return self._bin() is not None or self._module_available()
 

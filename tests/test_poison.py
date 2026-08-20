@@ -1,4 +1,4 @@
-"""NetNTLMv2 poison orchestration — no Responder, root, or LAN required.
+"""NetNTLMv2 poison orchestration - no Responder, root, or LAN required.
 
 `run_poison` is driven by an injected `lines` source (fake Responder stdout), so the
 whole path is exercised cross-platform. Run:

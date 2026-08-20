@@ -1,4 +1,4 @@
-"""doctor command tests — engine/tool availability reporting. No external tools needed.
+"""doctor command tests - engine/tool availability reporting. No external tools needed.
 
 Run:  python tests/test_doctor.py    (or)   python -m pytest -q
 """

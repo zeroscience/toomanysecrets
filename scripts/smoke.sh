@@ -47,10 +47,10 @@ print(f"  hashes captured: {hashes}   cracked creds: {len(cracked)}")
 print("  report .docx:", "written" if True else "")
 PY
 else
-  echo "  [!] no $JSON produced — check the scan output above"
+  echo "  [!] no $JSON produced - check the scan output above"
 fi
 
-say "4/4  poison PASSIVE analyze (30s, non-intrusive) — needs Responder + root"
+say "4/4  poison PASSIVE analyze (30s, non-intrusive) - needs Responder + root"
 if [ -z "$IFACE" ]; then
   echo "  [skip] set IFACE=eth0 to exercise the poison path (analyze mode only here)."
 else

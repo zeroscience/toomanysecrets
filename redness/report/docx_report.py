@@ -1,6 +1,6 @@
 """findings.json / Report  ->  minimal, classic network-pentest .docx.
 
-Person B's domain. No corporate template — plain, table-driven, readable:
+Person B's domain. No corporate template - plain, table-driven, readable:
   - Title + engagement meta
   - Executive summary (severity counts table)
   - Findings, most-severe first, each with impact / remediation / evidence / affected
@@ -87,7 +87,7 @@ def build(report: Report, out_path: str) -> str:
             ("Severity", _SEV_LABEL[f.severity]),
             ("Category", f.category.value.upper()),
             ("Access", "Credentialed" if f.credentialed else "Unauthenticated"),
-            ("Affected", ", ".join(f.affected) if f.affected else "—"),
+            ("Affected", ", ".join(f.affected) if f.affected else "-"),
         ]:
             r = mt.add_row().cells
             r[0].paragraphs[0].add_run(label).bold = True
@@ -122,7 +122,7 @@ def build(report: Report, out_path: str) -> str:
     # ---- Appendix: enumeration --------------------------------------------
     enum = [f for f in report.sorted_findings() if f.category == Category.ENUM]
     if enum:
-        doc.add_heading("Appendix A — Enumeration", level=1)
+        doc.add_heading("Appendix A - Enumeration", level=1)
         for f in enum:
             doc.add_heading(f.title, level=2)
             if f.affected:

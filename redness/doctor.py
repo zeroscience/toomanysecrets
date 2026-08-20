@@ -1,4 +1,4 @@
-"""Environment doctor — what's installed, what each engine needs, how to enable it.
+"""Environment doctor - what's installed, what each engine needs, how to enable it.
 
 Answers the #1 question ("why 0 findings?"): the external tools aren't on PATH.
 REDNESS orchestrates NetExec / Certipy / Impacket + hashcat/john rather than
@@ -20,7 +20,7 @@ INSTALL_HINTS = {
     "netexec": "pipx install netexec       (no py3.12 wheel; pipx picks a compatible Python)",
     "netexec-ldap": "pipx install netexec  (LDAP: users + AS-REP/Kerberoast capture)",
     "certipy": "pip install certipy-ad     (or bundle it; REDNESS runs it in-process)",
-    "tls": "built-in (Python stdlib) — always available",
+    "tls": "built-in (Python stdlib) - always available",
     "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
 }
 
@@ -45,12 +45,12 @@ def check_crackers() -> list[Check]:
     for tool, hint in (("hashcat", "https://hashcat.net/hashcat/"),
                        ("john", "John the Ripper (jumbo)")):
         checks.append(Check(tool, shutil.which(tool) is not None,
-                            f"install for --wordlist cracking — {hint}"))
+                            f"install for --wordlist cracking - {hint}"))
     return checks
 
 
 def check_poison() -> list[Check]:
-    """Responder — the poisoner behind the opt-in `poison` command (not a scan engine)."""
+    """Responder - the poisoner behind the opt-in `poison` command (not a scan engine)."""
     from .engines.responder import is_available as responder_available
     return [Check("responder", responder_available(), INSTALL_HINTS["responder"])]
 
@@ -77,5 +77,5 @@ def report_text() -> str:
         lines += ["Install the missing tools (see requirements-engines.txt) for full coverage:",
                   "  pip install -r requirements-engines.txt"]
     else:
-        lines.append("All engines ready — real findings will flow.")
+        lines.append("All engines ready - real findings will flow.")
     return "\n".join(lines)

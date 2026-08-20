@@ -1,4 +1,4 @@
-"""In-process certipy invocation — the path a self-contained exe takes.
+"""In-process certipy invocation - the path a self-contained exe takes.
 
 Injects a fake `certipy.entry` module so we can prove CertipyEngine invokes the
 entrypoint (patched sys.argv) and parses its -output JSON, with no real certipy and

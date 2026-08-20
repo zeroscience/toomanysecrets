@@ -1,4 +1,4 @@
-"""TLS analysis tests — pure eval functions, no network/server needed.
+"""TLS analysis tests - pure eval functions, no network/server needed.
 
 Run:  python tests/test_tls_eval.py    (or)   python -m pytest -q
 """

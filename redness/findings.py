@@ -1,4 +1,4 @@
-"""Normalized findings model — THE CONTRACT between engines and reporting.
+"""Normalized findings model - THE CONTRACT between engines and reporting.
 
 Engines (netexec/impacket/certipy wrappers) produce `Finding` objects.
 The reporter consumes them. Neither side needs to know the other's internals;

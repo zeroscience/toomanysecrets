@@ -1,4 +1,4 @@
-# Engine dependencies — install these so REDNESS produces REAL findings.
+# Engine dependencies - install these so REDNESS produces REAL findings.
 # REDNESS orchestrates these tools (it does not reimplement them); with them on
 # PATH the scan engines light up. Check status any time with:  redness doctor
 #
@@ -8,12 +8,12 @@
 # virtualenv is recommended.
 
 # NOTE: NetExec has NO wheel for Python 3.12 (versions require <3.12) and its git
-# build also fails on 3.12 — install it with pipx instead (isolated compatible Python):
+# build also fails on 3.12 - install it with pipx instead (isolated compatible Python):
 #     pipx install netexec        # provides `nxc` on PATH
 #
 # certipy + impacket DO install on 3.12 and can be bundled into the self-contained exe
-# (packaging/redness-full.spec) — CertipyEngine runs certipy in-process there.
-certipy-ad>=5.1.0     # provides `certipy` — AD CS ESC1-ESC16 (bundlable, in-process capable)
+# (packaging/redness-full.spec) - CertipyEngine runs certipy in-process there.
+certipy-ad>=5.1.0     # provides `certipy` - AD CS ESC1-ESC16 (bundlable, in-process capable)
 impacket>=0.12.0      # protocol library (certipy dependency)
 
 # Cracking (optional) is a separate native install, not pip:

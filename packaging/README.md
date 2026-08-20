@@ -1,4 +1,4 @@
-# Packaging — single-file `redness.exe`
+# Packaging - single-file `redness.exe`
 
 ```powershell
 # from repo root
@@ -17,7 +17,7 @@ pyinstaller --clean --noconfirm packaging/redness.spec
 
 - **Python ≥ 3.10.1** (3.11 / 3.12 recommended). Python **3.10.0** has a bug in the
   standard-library `dis` module that makes PyInstaller's analysis crash with
-  `IndexError: tuple index out of range` in `_get_const_info`. Fixed in 3.10.1 —
+  `IndexError: tuple index out of range` in `_get_const_info`. Fixed in 3.10.1 -
   upgrade if you hit it (`python --version` to check).
 - `python-docx` bundles a default template (`docx/templates/default.docx`). The spec
   uses `collect_all("docx")` to pull that data into the frozen exe; without it the
@@ -28,7 +28,7 @@ pyinstaller --clean --noconfirm packaging/redness.spec
   GUI lands.
 
 ## Output
-`dist\redness.exe` is self-contained — copy it to a Windows jump box, no Python needed:
+`dist\redness.exe` is self-contained - copy it to a Windows jump box, no Python needed:
 
 ```
 redness.exe demo --out report.docx

@@ -1,4 +1,4 @@
-"""GUI bridge tests — CSRF token, POST /scan hook, token injection. No browser needed.
+"""GUI bridge tests - CSRF token, POST /scan hook, token injection. No browser needed.
 
 Run:  python tests/test_gui_scan.py    (or)   python -m pytest -q
 """

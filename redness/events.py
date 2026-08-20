@@ -1,8 +1,8 @@
-"""Event bus — the seam between enumeration and any live consumer (a 3D GUI later).
+"""Event bus - the seam between enumeration and any live consumer (a 3D GUI later).
 
 Engines already normalize everything into `Finding` objects. This bus lets them
 *stream* those (plus graph nodes/edges and status ticks) as they happen, so the same
-data drives both the batch `.docx` report and a future live visualization — without
+data drives both the batch `.docx` report and a future live visualization - without
 the engines knowing anything about the UI.
 
 Design goals:

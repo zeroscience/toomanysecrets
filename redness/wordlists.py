@@ -6,7 +6,7 @@ without the operator supplying rockyou. It is intentionally small and high-signa
 (a few hundred candidates, sub-second): for serious cracking, pass `--wordlist rockyou.txt`.
 
 Provenance: every entry below is **hand-curated from well-known weak / default / seasonal
-password patterns** — generic security knowledge. It is NOT derived from, and does not copy,
+password patterns** - generic security knowledge. It is NOT derived from, and does not copy,
 any leaked dump (e.g. rockyou) or third-party compiled list, so there is no unclear-provenance
 or licensing concern. Keep it that way: only add patterns that are common knowledge.
 """
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-# Literal core — classic weak, default, keyboard-walk, and corporate/service patterns.
+# Literal core - classic weak, default, keyboard-walk, and corporate/service patterns.
 _CORE: tuple[str, ...] = (
     # classic weak / most-common
     "password", "Password", "Password1", "Password1!", "Password12", "Password123",
@@ -48,7 +48,7 @@ _CORE: tuple[str, ...] = (
     "Money123", "Access123", "System123",
 )
 
-# Programmatic seasonal / year patterns — the single most common corporate-reset shape.
+# Programmatic seasonal / year patterns - the single most common corporate-reset shape.
 _SEASONS: tuple[str, ...] = ("Spring", "Summer", "Autumn", "Fall", "Winter")
 _YEARS: tuple[str, ...] = tuple(str(y) for y in range(2019, 2027))
 _SUFFIXES: tuple[str, ...] = ("", "!", "1", "1!", "123", "@")
