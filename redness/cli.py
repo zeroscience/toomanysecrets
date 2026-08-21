@@ -440,6 +440,46 @@ def cmd_trigger(args) -> int:
     return 0
 
 
+def cmd_bloodhound(args) -> int:
+    import time
+    import webbrowser
+
+    from .bloodhound import emit_bloodhound, load_collection
+    from .events import default_bus
+
+    try:
+        collection = load_collection(args.path)
+    except (OSError, ValueError) as e:
+        print(f"[!] could not load BloodHound collection: {e}")
+        return 2
+    total = sum(len(v) for v in collection.values())
+    summary = ", ".join(f"{k}={len(v)}" for k, v in collection.items()) or "none"
+    print(f"[*] Loaded {total} object(s): {summary}")
+
+    bus = server = None
+    if args.live:
+        from .live import LiveServer
+        bus = default_bus
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.2)
+
+    g = emit_bloodhound(bus, collection)
+    print(f"[+] {len(g.nodes)} node(s), {len(g.edges)} relationship(s)")
+
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            server.stop()
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -518,6 +558,15 @@ def main(argv=None) -> int:
     tr.add_argument("--filename", default="x.jpg", help="UNC file name (cosmetic; default: x.jpg)")
     tr.add_argument("--out", help="write artifact to this path (default: print to stdout)")
     tr.set_defaults(func=cmd_trigger)
+
+    bh = sub.add_parser("bloodhound",
+                        help="ingest a SharpHound/BloodHound collection into the graph")
+    bh.add_argument("path", help="BloodHound .zip, a directory of .json, or a single .json")
+    bh.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    bh.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    bh.add_argument("--port", type=int, default=8765, help="live graph port")
+    bh.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    bh.set_defaults(func=cmd_bloodhound)
 
     args = p.parse_args(argv)
     return args.func(args)

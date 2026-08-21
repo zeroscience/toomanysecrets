@@ -5,6 +5,10 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **BloodHound ingest (`bloodhound` command):** load a SharpHound / BloodHound-CE collection
+  (`.zip`, a directory of `.json`, or a single file) and stream real AD relationships
+  (MemberOf / AdminTo / HasSession) into the graph - `redness/bloodhound.py`. Adds the
+  structural context that turns findings into full paths to Domain Admin.
 - **Report upgrades:** the `.docx` now includes an **Attack Paths** section (owned accounts,
   roastable leads, AD CS ESCn to Domain Admin, derived via `redness.paths`), a
   **MITRE ATT&CK** technique on each finding, and a **Compliance Mapping** appendix
