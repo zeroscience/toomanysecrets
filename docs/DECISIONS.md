@@ -214,3 +214,22 @@ distinct shape so paths.py can build attack-path edges - a per-secret `entry["cr
 list (parallel to meta["hashes"], which crack.py already consumes)? Phase 1 emits only
 file-match secrets (no credential field); the shape is forward-compatible either way, so
 this does not block the engine.
+
+## 2026-08-21 - Share secret-hunting engine: orchestrate nxc spider_plus + pure classifier
+Built the share secret-hunting engine (docs/SHAREHUNT.md, ROADMAP Tier 1 #3) - opt-in, NOT
+in default_engines(). It orchestrates nxc's `-M spider_plus` module (NOT Snaffler, NOT our
+own SMB spider) for the share walk, then applies a pure Snaffler-style classifier:
+- Phase 1 (`scan --hunt-secrets`): filename/path/extension rules over the spider_plus JSON
+  inventory (DOWNLOAD_FLAG=False - no content read). One `share-secret` finding per hit
+  (severity per rule) + an `enum-share-spider` INFO; secrets ride in `meta["secrets"]`.
+- Phase 2 (`scan --hunt-content`, more intrusive): downloads candidate files (DOWNLOAD_FLAG=
+  True + PATTERN derived from the filename rules + MAX_FILE_SIZE cap) into git-ignored
+  `<loot_dir>/sharehunt/<host>/`, then regexes contents (private keys, GPP cpassword, DB
+  connection strings, password/api-key assignments, AWS keys).
+Redaction is a firm invariant (test-locked): the `match` field only ever holds a masked
+snippet (`password=<redacted:14>`), never the raw value - full secrets stay in the git-
+ignored loot files. The engine's only impure methods are `_spider` / `_spider_content`
+(subprocess + JSON/file walk, validated on Kali); the parser + classifiers + findings are
+pure and unit-tested (no nxc/DC). Findings use `Category.SECRET` -> a `secret` graph node
+(see the 2026-08-21 schema entry, which still needs Gjoko's review + resolves the open
+credential-field question).
