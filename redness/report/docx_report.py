@@ -16,7 +16,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from ..findings import Category, Report, Severity
 from .. import paths
-from .mappings import mitre_for
+from .mappings import compliance_for, mitre_for
 
 _SEV_COLOR = {
     Severity.CRITICAL: RGBColor(0x8B, 0x00, 0x00),
@@ -161,6 +161,34 @@ def build(report: Report, out_path: str) -> str:
                     doc.add_paragraph(a, style="List Bullet")
             if f.description:
                 doc.add_paragraph(f.description)
+
+    # ---- Appendix: compliance mapping -------------------------------------
+    mapped, seen_ids = [], set()
+    for f in report.sorted_findings():
+        if f.category is Category.ENUM or f.id in seen_ids:
+            continue
+        c = compliance_for(f.id)
+        if c:
+            seen_ids.add(f.id)
+            mapped.append((f.title, c))
+    if mapped:
+        doc.add_heading("Appendix B - Compliance Mapping", level=1)
+        doc.add_paragraph(
+            "Indicative mapping of findings to CIS Controls v8, ISO/IEC 27001:2022 Annex A, "
+            "and NIS2 Article 21(2) measures. Pointers for remediation planning, not a "
+            "certified assessment; confirm against your framework version."
+        )
+        ct = doc.add_table(rows=1, cols=4)
+        ct.style = "Light Grid Accent 1"
+        hdr = ct.rows[0].cells
+        hdr[0].text, hdr[1].text = "Finding", "CIS v8"
+        hdr[2].text, hdr[3].text = "ISO 27001:2022", "NIS2"
+        for title, c in mapped:
+            row = ct.add_row().cells
+            row[0].text = title
+            row[1].text = c.get("CIS", "")
+            row[2].text = c.get("ISO", "")
+            row[3].text = c.get("NIS2", "")
 
     doc.save(out_path)
     return out_path

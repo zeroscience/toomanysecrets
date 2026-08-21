@@ -30,3 +30,45 @@ def mitre_for(finding_id: str) -> Optional[tuple[str, str]]:
     if finding_id.startswith("adcs-esc"):
         return _ADCS
     return None
+
+
+# Indicative control mappings. Reviewed against CIS Controls v8, ISO/IEC 27001:2022
+# Annex A, and NIS2 Article 21(2) measures. These are pointers for the report, not a
+# certified assessment - always confirm against your framework version.
+COMPLIANCE: dict[str, dict[str, str]] = {
+    "smb-signing-not-required": {"CIS": "4.1 Secure Configuration", "ISO": "A.8.20 Network security",
+                                 "NIS2": "Art.21(2)(i) access control"},
+    "smbv1-enabled": {"CIS": "4.1 Secure Configuration", "ISO": "A.8.9 Configuration management",
+                      "NIS2": "Art.21(2)(g) cyber hygiene"},
+    "smb-null-or-guest-auth": {"CIS": "6.1 Access Granting", "ISO": "A.8.3 Information access restriction",
+                               "NIS2": "Art.21(2)(i) access control"},
+    "smb-writable-share": {"CIS": "3.3 Data Access Control", "ISO": "A.8.3 Information access restriction",
+                           "NIS2": "Art.21(2)(i) access control"},
+    "krb-asrep-roastable": {"CIS": "4.7 Manage Default Accounts", "ISO": "A.8.5 Secure authentication",
+                            "NIS2": "Art.21(2)(i) access control"},
+    "krb-kerberoastable": {"CIS": "5.2 Use Unique Passwords", "ISO": "A.8.5 Secure authentication",
+                           "NIS2": "Art.21(2)(i) access control"},
+    "credential-cracked": {"CIS": "5.2 Use Unique Passwords", "ISO": "A.8.5 Secure authentication",
+                           "NIS2": "Art.21(2)(i) access control"},
+    "netntlm-captured": {"CIS": "4.1 Secure Configuration", "ISO": "A.8.20 Network security",
+                         "NIS2": "Art.21(2)(i) access control"},
+    "llmnr-nbtns-poisoning-possible": {"CIS": "4.1 Secure Configuration", "ISO": "A.8.20 Network security",
+                                       "NIS2": "Art.21(2)(i) access control"},
+}
+_C_TLS = {"CIS": "3.10 Encrypt Data in Transit", "ISO": "A.8.24 Use of cryptography",
+          "NIS2": "Art.21(2)(h) cryptography"}
+_C_ADCS = {"CIS": "6.8 Role-Based Access Control", "ISO": "A.5.15 Access control",
+           "NIS2": "Art.21(2)(i) access control"}
+
+FRAMEWORKS = ("CIS", "ISO", "NIS2")
+
+
+def compliance_for(finding_id: str) -> Optional[dict[str, str]]:
+    """Return {CIS, ISO, NIS2} control pointers for a finding id, or None if unmapped."""
+    if finding_id in COMPLIANCE:
+        return COMPLIANCE[finding_id]
+    if finding_id.startswith("adcs-esc"):
+        return _C_ADCS
+    if finding_id.startswith("tls-"):
+        return _C_TLS
+    return None
