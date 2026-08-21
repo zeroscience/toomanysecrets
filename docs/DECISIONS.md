@@ -202,7 +202,7 @@ front-end follow-up** (web/), default styling until then.
 
 Because findings.py is the engine<->reporting/graph contract, **this change needs Gjoko's
 review before merge**, and must stay compatible with the attack-path graph
-(redness/paths.py, PR #33, not yet in main). Findings use a single id `share-secret`
+(redness/paths.py, PR #33, merged). Findings use a single id `share-secret`
 (severity per rule) + `meta["kind"]`; secrets ride in `meta["secrets"]`, mirroring
 `meta["hashes"]`: {host, share, path, unc, rule, kind, size, match} - `match` is ALWAYS
 masked/truncated (full secrets never enter the report/findings.json; raw files stay in
@@ -214,6 +214,12 @@ distinct shape so paths.py can build attack-path edges - a per-secret `entry["cr
 list (parallel to meta["hashes"], which crack.py already consumes)? Phase 1 emits only
 file-match secrets (no credential field); the shape is forward-compatible either way, so
 this does not block the engine.
+
+Update (paths.py now merged): recommended shape is a top-level `meta["credentials"]` list
+mirroring `meta["hashes"]` (entries {account, username, domain?, kind, secret_masked,
+source}); paths.py consumes it by extending compromised_accounts() to also union those
+accounts (a ~3-line change) so a share-recovered credential becomes an `owned` node with a
+`valid credential -> domain` edge, exactly like a cracked hash. Still Gjoko's call.
 
 ## 2026-08-21 - Share secret-hunting engine: orchestrate nxc spider_plus + pure classifier
 Built the share secret-hunting engine (docs/SHAREHUNT.md, ROADMAP Tier 1 #3) - opt-in, NOT

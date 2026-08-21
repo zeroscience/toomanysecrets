@@ -8,7 +8,7 @@
 > `scan.py:_node_type`). `findings.py` is the contract between engines (anjaiv) and
 > reporting/graph (Gjoko) - **the schema change and the `meta["secrets"]` shape need
 > Gjoko's review before merge**, and must stay compatible with the attack-path graph
-> (`redness/paths.py`, PR #33, not yet in main).
+> (`redness/paths.py`, PR #33, now merged).
 
 ## What it is (and why it's separate)
 Everything REDNESS finds today comes from *asking a service* (SMB banner, LDAP, AD CS).
