@@ -290,9 +290,9 @@ def cmd_scan(args) -> int:
         time.sleep(1.2)                       # let the browser connect before streaming
 
     engines = default_engines()
-    if args.hunt_secrets:                     # opt-in: spider shares for secrets (needs nxc)
+    if args.hunt_secrets or args.hunt_content:   # opt-in: spider shares for secrets (needs nxc)
         from .engines.sharehunt import SecretHuntEngine
-        engines.append(SecretHuntEngine())
+        engines.append(SecretHuntEngine(content=args.hunt_content, loot_dir=args.loot_dir))
 
     report = run_scan(
         targets,
@@ -487,6 +487,8 @@ def main(argv=None) -> int:
                     help="skip cracking entirely (just write loot); overrides --wordlist and the built-in list")
     sc.add_argument("--hunt-secrets", action="store_true",
                     help="spider readable SMB shares for secrets (Snaffler-style; needs nxc; opt-in)")
+    sc.add_argument("--hunt-content", action="store_true",
+                    help="also download candidates and scan file contents (Phase 2; more intrusive; implies --hunt-secrets)")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")

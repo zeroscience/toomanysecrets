@@ -149,6 +149,64 @@ def test_run_short_circuits_when_unavailable():
     assert _Unavail().run(Target(host=HOST)) == []
 
 
+# --- Phase 2: content classifier + content findings (pure) --- #
+_CPASS = "edBSHOwhZLTjt/QS9FeIcJ83mjWA98gw9guKOhJOdcqh+ZGMeXOsQbCpZ3xUjTLfCuNH"
+CONTENT_SAMPLE = (
+    'conn = "Server=sql01;Database=app;User ID=sa;Password=S3cr3tP@ss;"\n'
+    "password = hunter2\n"
+    f'<Groups><User cpassword="{_CPASS}" /></Groups>\n'
+    "AWS_KEY=AKIAIOSFODNN7EXAMPLE\n"
+    'api_key = "abcd1234efgh5678ijkl9012"\n'
+    "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1234\n-----END RSA PRIVATE KEY-----\n"
+)
+# every real secret value that must NEVER appear in a match snippet
+_SECRETS = ["S3cr3tP@ss", "hunter2", _CPASS, "AKIAIOSFODNN7EXAMPLE",
+            "abcd1234efgh5678ijkl9012", "MIIEpAIBAAKCAQEA1234"]
+
+
+def test_classify_content_detects_all_kinds():
+    rules = {m.rule for m in sh.classify_content(CONTENT_SAMPLE)}
+    assert {"content-private-key", "content-gpp-cpassword", "content-connection-string",
+            "content-password", "content-aws-key", "content-api-key"} <= rules
+
+
+def test_content_match_redaction_invariant():
+    joined = " ".join(m.match for m in sh.classify_content(CONTENT_SAMPLE))
+    assert "<redacted" in joined
+    for s in _SECRETS:
+        assert s not in joined, f"secret leaked into match: {s}"
+
+
+def test_build_content_findings_one_per_file():
+    files = [("IT", "app/web.config", CONTENT_SAMPLE), ("IT", "readme.txt", "nothing here")]
+    findings = sh.build_content_findings(files, host=HOST)
+    assert len(findings) == 1                         # only the file with matches
+    f = findings[0]
+    assert f.id == "share-secret" and f.category is Category.SECRET
+    assert f.severity is Severity.CRITICAL            # private key / cpassword present
+    assert f.affected == [r"\\10.10.0.15\IT\app\web.config"]
+    entry = f.meta["secrets"][0]
+    assert entry["rule"] == "content"
+    for s in _SECRETS:
+        assert s not in entry["match"]                # redacted end-to-end into the finding
+
+
+def test_run_content_wiring_filename_plus_content():
+    import json
+    from redness.engines.base import Target
+
+    class _F(sh.SecretHuntEngine):
+        def is_available(self):
+            return True
+
+        def _spider_content(self, target):
+            return json.dumps(SAMPLE), [("IT", "web.config", CONTENT_SAMPLE)]
+
+    findings = _F(content=True).run(Target(host=HOST))
+    assert [f.id for f in findings].count("share-secret") >= 7   # 6 filename + >=1 content
+    assert any(f.meta.get("secrets", [{}])[0].get("rule") == "content" for f in findings)
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

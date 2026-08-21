@@ -215,21 +215,159 @@ def build_findings(inventory: list[FileRec], *, host: str) -> list[Finding]:
 
 
 # --------------------------------------------------------------------------- #
+# Content classifier (pure, Phase 2: regex over downloaded file text)          #
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class ContentMatch:
+    rule: str
+    kind: str
+    severity: Severity
+    match: str          # REDACTED - never the raw secret value
+
+
+# (compiled regex, rule id, kind, severity, secret_group)
+# secret_group: the capture group holding the sensitive value (0 = unkeyed -> fixed label).
+# Ordered CRITICAL -> HIGH so the per-file cap keeps the strongest hits.
+_CONTENT_RULES: list[tuple["re.Pattern[str]", str, str, Severity, int]] = [
+    (re.compile(r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----"),
+     "content-private-key", "private key", Severity.CRITICAL, 0),
+    (re.compile(r'(?i)cpassword\s*=\s*"([^"]+)"'),
+     "content-gpp-cpassword", "GPP cpassword", Severity.CRITICAL, 1),
+    (re.compile(r"""(?i)(?:Server|Data Source)\s*=[^;]+;[^\n]*?Password\s*=\s*([^;"'\s]+)"""),
+     "content-connection-string", "DB connection string", Severity.HIGH, 1),
+    (re.compile(r"""(?i)\b(?:password|passwd|pwd)\s*[=:]\s*["']?([^"'\s,;]{3,})"""),
+     "content-password", "password assignment", Severity.HIGH, 1),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+     "content-aws-key", "AWS access key", Severity.HIGH, 0),
+    (re.compile(r"""(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|client[_-]?secret)\s*[=:]\s*["']?([A-Za-z0-9_\-]{16,})"""),
+     "content-api-key", "API key/token", Severity.HIGH, 1),
+]
+
+# Fixed labels so the redacted snippet shows context (never the value).
+_LABELS = {
+    "content-private-key": "-----BEGIN PRIVATE KEY----- <redacted>",
+    "content-aws-key": "AWS access key <redacted>",
+    "content-gpp-cpassword": "cpassword",
+    "content-connection-string": "Password",
+    "content-password": "password",
+    "content-api-key": "api_key",
+}
+
+
+def classify_content(text: str, *, max_matches: int = 20) -> list[ContentMatch]:
+    """Regex file text for secrets. Returns REDACTED ContentMatches (no raw values).
+
+    De-duped by (rule, redacted snippet) and capped so one file cannot flood the report.
+    """
+    out: list[ContentMatch] = []
+    seen: set[tuple[str, str]] = set()
+    for rx, rule, kind, sev, grp in _CONTENT_RULES:
+        for m in rx.finditer(text):
+            if grp == 0:                        # unkeyed: fixed label, value never shown
+                snippet = _LABELS[rule]
+            else:
+                value = m.group(grp) or ""
+                snippet = f"{_LABELS[rule]}=<redacted:{len(value)}>"
+            snippet = snippet[:80]
+            key = (rule, snippet)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(ContentMatch(rule=rule, kind=kind, severity=sev, match=snippet))
+            if len(out) >= max_matches:
+                return out
+    return out
+
+
+def build_content_findings(files: list[tuple[str, str, str]], *, host: str) -> list[Finding]:
+    """One `share-secret` finding per downloaded file that contains >=1 content match.
+
+    `files` is (share, share-relative path, text). `match` is the joined redacted snippets.
+    """
+    findings: list[Finding] = []
+    for share, path, text in files:
+        matches = classify_content(text)
+        if not matches:
+            continue
+        sev = max((m.severity for m in matches), key=lambda s: s.rank)
+        kinds = sorted({m.kind for m in matches})
+        snippet = "; ".join(m.match for m in matches)[:200]
+        unc = _unc(host, share, path)
+        findings.append(Finding(
+            id="share-secret",
+            title=f"Share secret (content): {', '.join(kinds)}",
+            severity=sev,
+            category=Category.SECRET,
+            description=f"Secret material was found in the contents of {unc}.",
+            impact="Plaintext credentials/keys in files on readable shares are directly usable "
+                   "for privilege escalation / Domain Admin.",
+            remediation="Remove the secret from the share; rotate it immediately; restrict share "
+                        "and NTFS permissions to least privilege; store secrets in a vault.",
+            affected=[unc],
+            evidence=[Evidence(source="sharehunt", detail=f"content: {snippet}")],
+            references=_REFS,
+            credentialed=True,
+            meta={"secrets": [{
+                "host": host, "share": share, "path": path, "unc": unc,
+                "rule": "content", "kind": ", ".join(kinds), "size": len(text),
+                "match": snippet,
+            }]},
+        ))
+    return findings
+
+
+# --------------------------------------------------------------------------- #
 # Execution (impure) - orchestrate nxc's spider_plus module                    #
 # --------------------------------------------------------------------------- #
+# spider_plus PATTERN tokens (substrings) for Phase-2 downloads - derived from the
+# filename rules so we pull the same candidate set we would flag by name.
+_DOWNLOAD_PATTERNS = ["passw", "config", ".env", "unattend", "web.config", ".kdbx",
+                      "id_rsa", "Groups.xml", ".git-credentials", ".ps1", ".bak",
+                      "appsettings", ".pfx", ".p12"]
+
+
+def _read_text(path: str, cap: int) -> Optional[str]:
+    """Read a downloaded file as text, skipping anything that looks binary."""
+    try:
+        with open(path, "rb") as fh:
+            blob = fh.read(cap + 1)
+    except OSError:
+        return None
+    if b"\x00" in blob:                 # binary (kdbx/pfx/...) - content regex won't help
+        return None
+    return blob.decode("utf-8", errors="replace")
+
+
+def _split_download_path(outdir: str, filepath: str) -> tuple[str, str]:
+    """Best-effort (share, share-relative path) from a spider_plus download path."""
+    rel = os.path.relpath(filepath, outdir).replace("\\", "/")
+    parts = [p for p in rel.split("/") if p]
+    if len(parts) >= 3:                 # <host>/<share>/<relpath...>
+        return parts[1], "/".join(parts[2:])
+    if len(parts) == 2:                 # <share>/<file>
+        return parts[0], parts[1]
+    return "?", rel
+
+
 class SecretHuntEngine(Engine):
     """Spider readable SMB shares via nxc `-M spider_plus`, classify the inventory.
 
-    Opt-in (not in default_engines(); wired to `scan --hunt-secrets`). Phase 1 is
-    filename/path classification only (DOWNLOAD_FLAG=False) - no file content is read.
-    The only impure method is `_spider`; `run` delegates to the pure parser/classifier,
-    so it unit-tests by overriding `_spider` (no nxc/DC needed).
+    Opt-in (not in default_engines(); wired to `scan --hunt-secrets` / `--hunt-content`).
+    Phase 1 (content=False) is filename/path classification only (DOWNLOAD_FLAG=False) -
+    no file content is read. Phase 2 (content=True) additionally downloads candidate files
+    (into git-ignored `<loot_dir>/sharehunt/<host>/`) and regexes their contents for secrets.
+    The impure methods are `_spider` / `_spider_content`; `run` delegates to the pure
+    parser/classifiers, so it unit-tests by overriding those seams (no nxc/DC needed).
     """
     name = "sharehunt"
 
-    def __init__(self, timeout: int = 600, runner=subprocess.run):
+    def __init__(self, timeout: int = 600, content: bool = False, loot_dir: str = "loot",
+                 max_file_size: int = 262144, runner=subprocess.run):
         self.timeout = timeout
-        self.runner = runner            # injectable for tests
+        self.content = content              # Phase 2: download + content inspection
+        self.loot_dir = loot_dir            # downloads land under <loot_dir>/sharehunt/<host>/
+        self.max_file_size = max_file_size  # cap downloaded/read file size (bytes)
+        self.runner = runner                # injectable for tests
 
     def _bin(self) -> Optional[str]:
         return shutil.which("nxc") or shutil.which("netexec")
@@ -283,14 +421,62 @@ class SecretHuntEngine(Engine):
         finally:
             shutil.rmtree(outdir, ignore_errors=True)
 
+    def _spider_content(self, target: Target) -> tuple[Optional[str], list[tuple[str, str, str]]]:
+        """Phase 2: download candidates + inventory; return (json_text, [(share, path, text)]).
+
+        Impure seam (subprocess + walk/read downloads); overridden in tests. Downloads persist
+        in `<loot_dir>/sharehunt/<host>/` (git-ignored); only redacted matches leave this method.
+        """
+        exe = self._bin()
+        if not exe:
+            return None, []
+        outdir = os.path.join(self.loot_dir, "sharehunt", target.host)
+        os.makedirs(outdir, exist_ok=True)
+        cmd = ([exe, "smb", target.host] + self._auth_args(target)
+               + ["-M", "spider_plus", "-o", "DOWNLOAD_FLAG=True",
+                  f"PATTERN={' '.join(_DOWNLOAD_PATTERNS)}",
+                  f"MAX_FILE_SIZE={self.max_file_size}", f"OUTPUT_FOLDER={outdir}"])
+        try:
+            self.runner(cmd, capture_output=True, text=True, timeout=self.timeout)
+        except (subprocess.TimeoutExpired, OSError):
+            return None, []
+
+        raw = None
+        for path in ([os.path.join(outdir, f"{target.host}.json")]
+                     + sorted(glob.glob(os.path.join(outdir, "*.json")),
+                              key=os.path.getmtime, reverse=True)):
+            if os.path.isfile(path):
+                try:
+                    raw = open(path, encoding="utf-8").read()
+                    break
+                except OSError:
+                    continue
+
+        files: list[tuple[str, str, str]] = []
+        for root, _dirs, names in os.walk(outdir):
+            for n in names:
+                if n.endswith(".json"):                  # skip the inventory itself
+                    continue
+                fp = os.path.join(root, n)
+                text = _read_text(fp, self.max_file_size)
+                if text is None:
+                    continue
+                share, relpath = _split_download_path(outdir, fp)
+                files.append((share, relpath, text))
+        return raw, files
+
     def run(self, target: Target) -> list[Finding]:
         if not self.is_available():
             return []
-        raw = self._spider(target)
-        if not raw:
-            return []
-        findings = build_findings(parse_spider_json(raw), host=target.host)
+        if self.content:
+            raw, files = self._spider_content(target)
+        else:
+            raw, files = self._spider(target), []
+        findings: list[Finding] = []
+        if raw:
+            findings += build_findings(parse_spider_json(raw), host=target.host)
+        findings += build_content_findings(files, host=target.host)
         # Attach the raw inventory to the first finding for the report appendix (like netexec).
-        if findings and findings[0].evidence:
+        if raw and findings and findings[0].evidence:
             findings[0].evidence[0].raw = raw.strip()[:4000]
         return findings
