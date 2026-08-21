@@ -26,7 +26,9 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
 3. **Share secret-hunting (Snaffler-style)** *(Anja)* - spider readable shares for passwords,
    keys, connection strings, `web.config`, `unattend.xml`, `*.kdbx`, scripts. Surface each
    secret as a **graph node + finding**. Almost no orchestrator does this well; it's often the
-   fastest path to DA and it reads *great* in a report.
+   fastest path to DA and it reads *great* in a report. **BUILT** - `scan --hunt-secrets`
+   (filename rules) / `--hunt-content` (content inspection, redacted) via engines/sharehunt.py
+   + `Category.SECRET`; on `feat/sharehunt`, pending Gjoko's schema review. See docs/SHAREHUNT.md.
 4. **Report upgrades** *(Gjoko)* - attack-path narrative ("how we'd reach DA"), **MITRE ATT&CK**
    technique IDs per finding (we already store some), and a **compliance map** (NIS2 / ISO 27001
    / CIS) like adscan. Optional self-contained **HTML report** mirroring the graph.

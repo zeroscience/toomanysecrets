@@ -105,6 +105,14 @@ def test_run_scan_engine_error_is_contained():
     assert len(report.findings) == 2
 
 
+def test_node_type_secret():
+    # Category.SECRET findings render as a distinct "secret" graph node (share secret-hunting).
+    from redness.scan import _node_type
+    f = Finding(id="share-secret", title="t", severity=Severity.HIGH, category=Category.SECRET,
+                affected=[r"\\10.0.0.5\backups\web.config"])
+    assert _node_type(f, f.affected[0], "10.0.0.5") == "secret"
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

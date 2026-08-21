@@ -46,6 +46,8 @@ def _node_type(f: Finding, affected: str, host: str) -> Optional[str]:
         return "share"
     if c == "enum":
         return "user"
+    if c == "secret":
+        return "secret"
     return "host"
 
 

@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (100 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (124 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -36,6 +36,7 @@ redness/
     ldap.py       #   nxc LDAP: users + AS-REP/Kerberoast hash capture (meta["hashes"])
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
+    sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)
   report/         # List[Finding] -> .docx  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
@@ -79,6 +80,7 @@ python -m redness.cli live --demo                        # streaming simulated d
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
+python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider shares for secrets (--hunt-content = read file contents)
 python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (intrusive; prompts)
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 ```

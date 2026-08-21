@@ -191,3 +191,51 @@ New --no-crack flag on scan+poison hard-disables ALL cracking (forces no wordlis
 builtin=False), even overriding --wordlist - clearest semantics for a flag named "no crack".
 CrackResult.used_builtin drives honest messaging ("via hashcat (built-in wordlist)").
 findings.py untouched; poison threads `builtin` through run_poison to run_cracking.
+
+## 2026-08-21 - Category.SECRET for share secret-hunting (SCHEMA_VERSION 1.1.0)
+Share secret-hunting (docs/SHAREHUNT.md, ROADMAP Tier 1 #3) emits a new finding class:
+`Category.SECRET` = credential material found on readable SMB shares. Bumped
+**SCHEMA_VERSION 1.0.0 -> 1.1.0** (additive; a consumer predating it must tolerate an
+unknown category - report/graph should default-handle). `scan.py:_node_type` maps
+`secret` -> a new `"secret"` graph node type; **GUI coloring/shape for it is Gjoko's
+front-end follow-up** (web/), default styling until then.
+
+Because findings.py is the engine<->reporting/graph contract, **this change needs Gjoko's
+review before merge**, and must stay compatible with the attack-path graph
+(redness/paths.py, PR #33, merged). Findings use a single id `share-secret`
+(severity per rule) + `meta["kind"]`; secrets ride in `meta["secrets"]`, mirroring
+`meta["hashes"]`: {host, share, path, unc, rule, kind, size, match} - `match` is ALWAYS
+masked/truncated (full secrets never enter the report/findings.json; raw files stay in
+git-ignored loot/ only).
+
+OPEN (for Gjoko): should a *recovered credential* extracted from a secret get a
+distinct shape so paths.py can build attack-path edges - a per-secret `entry["credential"]`
+{username, kind, secret_masked} sub-field, or a separate top-level `meta["credentials"]`
+list (parallel to meta["hashes"], which crack.py already consumes)? Phase 1 emits only
+file-match secrets (no credential field); the shape is forward-compatible either way, so
+this does not block the engine.
+
+Update (paths.py now merged): recommended shape is a top-level `meta["credentials"]` list
+mirroring `meta["hashes"]` (entries {account, username, domain?, kind, secret_masked,
+source}); paths.py consumes it by extending compromised_accounts() to also union those
+accounts (a ~3-line change) so a share-recovered credential becomes an `owned` node with a
+`valid credential -> domain` edge, exactly like a cracked hash. Still Gjoko's call.
+
+## 2026-08-21 - Share secret-hunting engine: orchestrate nxc spider_plus + pure classifier
+Built the share secret-hunting engine (docs/SHAREHUNT.md, ROADMAP Tier 1 #3) - opt-in, NOT
+in default_engines(). It orchestrates nxc's `-M spider_plus` module (NOT Snaffler, NOT our
+own SMB spider) for the share walk, then applies a pure Snaffler-style classifier:
+- Phase 1 (`scan --hunt-secrets`): filename/path/extension rules over the spider_plus JSON
+  inventory (DOWNLOAD_FLAG=False - no content read). One `share-secret` finding per hit
+  (severity per rule) + an `enum-share-spider` INFO; secrets ride in `meta["secrets"]`.
+- Phase 2 (`scan --hunt-content`, more intrusive): downloads candidate files (DOWNLOAD_FLAG=
+  True + PATTERN derived from the filename rules + MAX_FILE_SIZE cap) into git-ignored
+  `<loot_dir>/sharehunt/<host>/`, then regexes contents (private keys, GPP cpassword, DB
+  connection strings, password/api-key assignments, AWS keys).
+Redaction is a firm invariant (test-locked): the `match` field only ever holds a masked
+snippet (`password=<redacted:14>`), never the raw value - full secrets stay in the git-
+ignored loot files. The engine's only impure methods are `_spider` / `_spider_content`
+(subprocess + JSON/file walk, validated on Kali); the parser + classifiers + findings are
+pure and unit-tested (no nxc/DC). Findings use `Category.SECRET` -> a `secret` graph node
+(see the 2026-08-21 schema entry, which still needs Gjoko's review + resolves the open
+credential-field question).
