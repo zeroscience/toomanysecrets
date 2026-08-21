@@ -9,7 +9,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from redness.report import docx_report  # noqa: E402
-from redness.report.mappings import mitre_for  # noqa: E402
+from redness.report.mappings import compliance_for, mitre_for  # noqa: E402
 from redness.findings import Category, Finding, Report, Severity  # noqa: E402
 
 
@@ -56,6 +56,24 @@ def test_report_has_attack_paths_and_mitre():
     assert "Crackable credentials (roastable): jdoe" in text          # svc-sql owned, excluded
     assert "Direct path to Domain Admin: UserAuth via AD CS ESC1" in text
     assert "T1558.004" in text and "T1649" in text                    # MITRE surfaced
+
+
+def test_compliance_mapping():
+    c = compliance_for("krb-kerberoastable")
+    assert c and set(c) == {"CIS", "ISO", "NIS2"}
+    assert compliance_for("adcs-esc7")["ISO"].startswith("A.")      # ADCS prefix
+    assert compliance_for("tls-legacy-protocol")["CIS"].startswith("3.10")  # TLS prefix
+    assert compliance_for("enum-domain-users") is None              # unmapped is fine
+
+
+def test_report_has_compliance_appendix():
+    with tempfile.TemporaryDirectory() as td:
+        out = os.path.join(td, "r.docx")
+        docx_report.build(_report(), out)
+        text = _docx_text(out)
+    assert "Appendix B - Compliance Mapping" in text
+    assert "CIS v8" in text and "ISO 27001:2022" in text and "NIS2" in text
+    assert "A.8.5 Secure authentication" in text                    # from a mapped finding
 
 
 def test_no_attack_paths_section_without_paths():
