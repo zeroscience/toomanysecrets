@@ -28,8 +28,9 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | SMB: shares, sessions, signing, null/guest | NetExec | both |
 | LDAP: users, groups, policies | NetExec | both |
 | Kerberos: AS-REP roast, Kerberoast (+ crack) | NetExec / Impacket | cred |
-| ADCS: ESC1–ESC17 certificate issues | Certipy | cred |
+| ADCS: ESC1-ESC17 certificate issues | Certipy | cred |
 | TLS: weak protocols/ciphers, cert issues | (stdlib) | no-cred |
+| Shares: secret hunting (filenames + file content) | NetExec spider | cred |
 | NetNTLMv2 capture (LLMNR/NBT-NS poisoning) | Responder | intrusive, opt-in |
 
 ## Commands
@@ -80,6 +81,12 @@ redness scan --targets scope.txt -u user -p pass -d acme.local \
 # One target, no creds (SMB / TLS / AS-REP)
 redness scan --target 10.0.0.10 --out report.docx
 
+# Hunt shares for secrets (filenames; add --hunt-content to read file contents too)
+redness scan --target 10.0.0.10 -u user -p pass -d acme.local --hunt-secrets --out report.docx
+
+# Map real AD relationships (MemberOf / AdminTo / HasSession) into the graph
+redness bloodhound collection.zip --live
+
 # Native GUI window (drive scans from the '+ New scan' panel)
 redness gui
 
@@ -89,8 +96,15 @@ redness poison --iface eth0 --duration 600 --wordlist rockyou.txt --live
 
 Auth: `-u/--username`, `-p/--password`, `-H/--hash` (pass-the-hash), `-d/--domain`,
 `-k/--kerberos`. Output: `--out report.docx`, `--json findings.json`, loot to `loot/`.
-`--wordlist` cracks captured AS-REP/Kerberoast/NetNTLMv2 hashes (needs hashcat/john).
+Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list, otherwise a
+small built-in weak-password list catches egregiously weak creds; `--no-crack` disables it.
 Engines whose tool isn't installed are skipped and noted - a scan never hard-fails.
+
+**The deliverable.** The `.docx` includes an **Attack Paths** section (owned accounts,
+roastable leads, AD CS ESCn to Domain Admin), a **MITRE ATT&CK** technique per finding, and an
+indicative **compliance mapping** (CIS v8 / ISO 27001:2022 / NIS2). The live graph draws
+attack-path edges (red) toward a Domain Admin goal node; secret hits and BloodHound
+relationships appear alongside.
 Run `redness <command> -h` for all flags; the GUI has **About** and **Usage** panels.
 
 ## Layout
