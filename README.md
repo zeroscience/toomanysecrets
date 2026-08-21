@@ -41,6 +41,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | `redness gui` | **Native desktop window** (Windows/Linux) around the live 3D graph |
 | `redness live` | The same UI in a browser (`--demo` for simulated data) |
 | `redness poison` | LLMNR/NBT-NS poisoning to capture NetNTLMv2 (intrusive; opt-in) |
+| `redness bloodhound` | Ingest a SharpHound/BloodHound collection (MemberOf/AdminTo/HasSession) into the graph |
 | `redness report` | Re-render a `.docx` from a saved `findings.json` |
 | `redness demo` | Render a sample report, no DC needed |
 
