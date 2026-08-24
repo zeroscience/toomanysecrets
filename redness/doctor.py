@@ -20,6 +20,7 @@ INSTALL_HINTS = {
     "netexec": "pipx install netexec       (no py3.12 wheel; pipx picks a compatible Python)",
     "netexec-ldap": "pipx install netexec  (LDAP: users + AS-REP/Kerberoast capture)",
     "certipy": "pip install certipy-ad     (or bundle it; REDNESS runs it in-process)",
+    "gpp": "pipx install netexec          (nxc -M gpp_password; needs domain creds)",
     "tls": "built-in (Python stdlib) - always available",
     "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
 }

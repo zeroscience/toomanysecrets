@@ -19,9 +19,12 @@ graph (paths.py). Reuses `Category.SECRET` (no schema change).
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass
 
 from ..findings import Category, Evidence, Finding, Severity
+from .base import Engine, Target
 
 
 @dataclass
@@ -132,3 +135,60 @@ def build_findings(creds: list[GppCred], *, host: str = "") -> list[Finding]:
             }]},
         ))
     return findings
+
+
+# --------------------------------------------------------------------------- #
+# Execution (impure) - orchestrate `nxc smb -M gpp_password`                    #
+# --------------------------------------------------------------------------- #
+class GppEngine(Engine):
+    """Recover GPP cpasswords via `nxc smb <dc> -M gpp_password`, parse its stdout.
+
+    In default_engines() but no-ops without domain creds (GPP needs an authenticated
+    SYSVOL read) or without nxc. The pure parser/findings do the work; `_invoke` is the
+    only impure seam and takes an injectable `runner`, so `run` unit-tests with no nxc/DC.
+    """
+    name = "gpp"
+
+    def __init__(self, timeout: int = 300, runner=subprocess.run):
+        self.timeout = timeout
+        self.runner = runner            # injectable for tests
+
+    def _bin(self) -> "str | None":
+        return shutil.which("nxc") or shutil.which("netexec")
+
+    def is_available(self) -> bool:
+        return self._bin() is not None
+
+    def _auth_args(self, target: Target) -> list[str]:
+        user = target.username if target.username is not None else ""
+        args = ["-u", user]
+        if target.nthash:
+            args += ["-H", target.nthash]
+        else:
+            args += ["-p", target.password if target.password is not None else ""]
+        if target.kerberos:
+            args += ["-k"]
+        if target.domain:
+            args += ["-d", target.domain]
+        return args
+
+    def _invoke(self, target: Target) -> str:
+        exe = self._bin()
+        if not exe:
+            return ""
+        cmd = [exe, "smb", target.host] + self._auth_args(target) + ["-M", "gpp_password"]
+        try:
+            proc = self.runner(cmd, capture_output=True, text=True, timeout=self.timeout)
+        except (subprocess.TimeoutExpired, OSError):
+            return ""
+        return (getattr(proc, "stdout", "") or "") + "\n" + (getattr(proc, "stderr", "") or "")
+
+    def run(self, target: Target) -> list[Finding]:
+        if not self.is_available() or not target.credentialed:   # GPP needs an authed SYSVOL read
+            return []
+        raw = self._invoke(target)
+        findings = build_findings(parse_gpp_output(raw), host=target.host)
+        # Attach raw nxc output to the first finding for the report appendix (like netexec).
+        if findings and findings[0].evidence:
+            findings[0].evidence[0].raw = raw.strip()[:4000]
+        return findings

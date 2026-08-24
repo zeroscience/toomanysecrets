@@ -63,6 +63,61 @@ def test_empty_output():
     assert gpp.build_findings([]) == []
 
 
+# --- GppEngine.run wiring (inject the runner seam; no nxc/DC) --- #
+class _Proc:
+    def __init__(self, stdout="", stderr=""):
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def _fake_engine(stdout):
+    class _F(gpp.GppEngine):
+        def is_available(self):
+            return True
+
+        def _bin(self):
+            return "nxc"          # pretend nxc is on PATH so _invoke builds the command
+    return _F(runner=lambda cmd, **kw: _Proc(stdout))
+
+
+def test_run_wiring_produces_findings():
+    from redness.engines.base import Target
+    tgt = Target(host="10.10.0.10", domain="acme.local", username="u", password="p")
+    findings = _fake_engine(SAMPLE).run(tgt)
+    assert [f.id for f in findings] == ["gpp-cpassword"] * 3
+    assert findings[0].evidence[0].raw                 # raw nxc output attached
+
+
+def test_run_noop_without_credentials():
+    from redness.engines.base import Target
+    called = {"n": 0}
+
+    class _F(gpp.GppEngine):
+        def is_available(self):
+            return True
+
+        def _invoke(self, target):
+            called["n"] += 1
+            return SAMPLE
+
+    # username but no password/hash/kerberos -> not credentialed -> guard returns []
+    assert _F().run(Target(host="10.10.0.10", username="u")) == []
+    assert called["n"] == 0
+
+
+def test_run_short_circuits_when_unavailable():
+    from redness.engines.base import Target
+
+    class _Unavail(gpp.GppEngine):
+        def is_available(self):
+            return False
+
+        def _invoke(self, target):
+            raise AssertionError("must not invoke nxc when unavailable")
+
+    assert _Unavail().run(Target(host="10.10.0.10", username="u", password="p")) == []
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
