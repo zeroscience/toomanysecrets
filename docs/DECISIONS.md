@@ -239,3 +239,21 @@ ignored loot files. The engine's only impure methods are `_spider` / `_spider_co
 pure and unit-tested (no nxc/DC). Findings use `Category.SECRET` -> a `secret` graph node
 (see the 2026-08-21 schema entry, which still needs Gjoko's review + resolves the open
 credential-field question).
+
+## 2026-08-21 - GPP cpassword engine: wrap nxc -M gpp_password, first meta["credentials"] producer
+Built the GPP cpassword / SYSVOL-secrets engine (docs/GPP.md, ROADMAP Tier 2 parity).
+`redness/engines/gpp.py` `GppEngine` wraps `nxc smb <dc> -M gpp_password` (nxc walks SYSVOL and
+decrypts the cpasswords with the Microsoft-published key - decryption, not cracking, so no AES
+dependency on our side) and parses its stdout with a pure `parse_gpp_output`. In
+default_engines() alongside netexec/ldap/certipy; no-ops without domain creds (needs an authed
+SYSVOL read) or without nxc.
+
+Findings: one `gpp-cpassword` CRITICAL per recovered credential, `Category.SECRET` (reuse the
+merged secret node type - no schema bump). Unlike sharehunt's redaction, GPP creds are STORED
+(account:password in evidence, like `credential-cracked`) - they are discrete usable credentials,
+not raw file blobs. Each recovered cred also rides in `meta["credentials"]` - GppEngine is the
+FIRST producer of that shape (proposed 2026-08-21 for paths.py), so a recovered GPP cred becomes
+an `owned` attack-path node once paths.py's compromised_accounts() unions meta["credentials"]
+(Gjoko's ~3-line change). Username is used as-is (GPP creds are often LOCAL/fleet-wide - no
+fabricated DOMAIN\ prefix). References: MITRE T1552.006 + MS14-025. Complementary to sharehunt's
+`content-gpp-cpassword` rule (which only FLAGS the file; gpp RECOVERS the credential).

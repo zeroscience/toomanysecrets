@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (124 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (138 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -37,6 +37,7 @@ redness/
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
     sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)
+    gpp.py        #   GPP cpassword: nxc -M gpp_password -> recovered creds (meta["credentials"])
   report/         # List[Finding] -> .docx  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
@@ -85,6 +86,7 @@ python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
+GPP cpasswords are recovered automatically on a credentialed scan (GppEngine → `nxc -M gpp_password`).
 Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list, else a small
 built-in weak-password list (redness/wordlists.py) auto-cracks egregiously weak creds;
 `--no-crack` disables cracking entirely (loot still written). NetNTLMv2 *capture* is the
