@@ -330,6 +330,127 @@ def cmd_scan(args) -> int:
     return 0
 
 
+_SPRAY_BANNER = (
+    "\n=====================================================================\n"
+    " REDNESS spray - password spraying (INTRUSIVE)\n"
+    " Spraying CAN LOCK OUT ACCOUNTS (a denial of service against the\n"
+    " client) and is loud to a SOC. Lockout-aware, but authorized,\n"
+    " in-scope engagements ONLY - assume written authorization and client\n"
+    " awareness of the account-lockout policy.\n"
+    "=====================================================================\n"
+)
+
+
+def cmd_spray(args) -> int:
+    import shutil
+    import time
+    import webbrowser
+
+    from .spray import run_spray
+
+    # safeguard: the danger banner ALWAYS prints (to stderr), even in scripted --yes/--force mode.
+    print(_SPRAY_BANNER, file=sys.stderr)
+
+    if not (shutil.which("nxc") or shutil.which("netexec")):
+        print("[!] nxc (NetExec) is not installed / not on PATH.", file=sys.stderr)
+        print("    Install on the Kali/Linux operator box:  pipx install netexec", file=sys.stderr)
+        return 2
+
+    credentialed = bool(args.auth_user and (args.auth_pass or args.auth_hash or args.kerberos))
+    if not credentialed:
+        # The single most dangerous path: the lockout policy cannot be read.
+        print("[!!] ---------------------------------------------------------------", file=sys.stderr)
+        print("[!!] UNCREDENTIALED SPRAY: the domain account-lockout policy is UNKNOWN.", file=sys.stderr)
+        print("[!!] This CAN LOCK OUT EVERY ACCOUNT it touches (a DoS on the client).", file=sys.stderr)
+        print("[!!] Requires --user-file AND --force, AND a typed FORCE confirmation.", file=sys.stderr)
+        print("[!!] ---------------------------------------------------------------", file=sys.stderr)
+        if not args.user_file:
+            print("[*] Aborted: --user-file is required for an uncredentialed spray.", file=sys.stderr)
+            return 2
+        if not args.force:
+            print("[*] Aborted: --force is required for an uncredentialed spray.", file=sys.stderr)
+            return 2
+
+    where = f"--user-file {args.user_file}" if args.user_file else "auto-enumerated users"
+    print(f"[*] Target {args.target}; spraying 1 password across {where}.")
+
+    # Normal consent prompt (skipped only by --yes).
+    if not args.yes:
+        try:
+            if input(f"    Type YES to spray {args.target} with 1 password: ").strip() != "YES":
+                print("[*] Aborted.")
+                return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\n[*] Aborted.")
+            return 1
+
+    # safeguard: forcing past a safety refusal needs a SECOND, distinct FORCE confirmation that
+    # --yes never skips - so --force + --yes together can never silently bypass both checks.
+    def _force_prompt(reason: str) -> bool:
+        label = {"unknown-policy": "the account-lockout policy is UNKNOWN",
+                 "lockout-risk": "the lockout threshold is too low to spray safely"}.get(reason, reason)
+        print(f"\n[!!] SAFETY OVERRIDE: {label}.", file=sys.stderr)
+        print("[!!] Proceeding MAY LOCK OUT ACCOUNTS (a DoS against the client).", file=sys.stderr)
+        try:
+            return input("    Type FORCE to override and risk account lockout: ").strip() == "FORCE"
+        except (EOFError, KeyboardInterrupt):
+            return False
+
+    bus = None
+    server = None
+    if args.live:
+        from .events import default_bus
+        from .live import LiveServer
+        bus = default_bus
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.2)
+
+    report, res = run_spray(
+        args.target, args.password,
+        username=args.auth_user, auth_password=args.auth_pass, nthash=args.auth_hash,
+        domain=args.domain, kerberos=args.kerberos, user_file=args.user_file,
+        margin=args.margin, force=args.force, confirm_force=_force_prompt,
+        bus=bus, engagement=args.engagement, loot_dir=args.loot_dir,
+    )
+
+    if res.refused:
+        reasons = {
+            "unknown-policy": "lockout policy unknown (uncredentialed) and not force-confirmed",
+            "lockout-risk": "lockout threshold too low and not force-confirmed",
+            "no-users": "no user list to spray (need --user-file)",
+        }
+        print(f"[*] Spray refused: {reasons.get(res.reason, res.reason)}.", file=sys.stderr)
+    elif res.hits:
+        print(f"[+] {len(res.hits)} valid credential(s) from {res.tested} account(s):")
+        for h in res.hits:
+            print(f"    {h.username}:{h.password}" + ("  (Pwn3d!)" if h.admin else ""))
+    else:
+        print(f"[*] No valid credentials from {res.tested} account(s) with this password.")
+
+    _print_summary(report)
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[*] Stopping.")
+            server.stop()
+    return 0
+
+
 _POISON_BANNER = (
     "\n=====================================================================\n"
     " REDNESS poison - LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
@@ -557,6 +678,32 @@ def main(argv=None) -> int:
     po.add_argument("--port", type=int, default=8765, help="live graph port")
     po.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     po.set_defaults(func=cmd_poison)
+
+    sp = sub.add_parser("spray",
+                        help="lockout-aware password spraying (intrusive; opt-in, gated)")
+    sp.add_argument("--target", required=True, help="domain controller / host to spray against")
+    sp.add_argument("-p", "--password", required=True, help="the single password to spray")
+    sp.add_argument("--user-file", help="file of usernames to spray (required if uncredentialed; "
+                    "else auto-enumerated via nxc ldap --users)")
+    sp.add_argument("--auth-user", help="tester username to read pass-pol + enumerate users")
+    sp.add_argument("--auth-pass", help="tester password (for recon)")
+    sp.add_argument("--auth-hash", help="tester NT hash for pass-the-hash recon")
+    sp.add_argument("-d", "--domain", help="domain")
+    sp.add_argument("-k", "--kerberos", action="store_true", help="use Kerberos auth for recon")
+    sp.add_argument("--margin", type=int, default=1, help="lockout safety margin (default 1)")
+    sp.add_argument("--force", action="store_true",
+                    help="override a safety refusal (ALSO needs a typed FORCE confirmation)")
+    sp.add_argument("--yes", action="store_true",
+                    help="skip the initial YES prompt (scripted use; does NOT skip FORCE)")
+    sp.add_argument("--engagement", default="REDNESS password spray")
+    sp.add_argument("--loot-dir", default="loot", help="where to write user list / recovered creds")
+    sp.add_argument("--out", help="write a .docx report to this path")
+    sp.add_argument("--json", help="write findings JSON to this path")
+    sp.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    sp.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    sp.add_argument("--port", type=int, default=8765, help="live graph port")
+    sp.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    sp.set_defaults(func=cmd_spray)
 
     tr = sub.add_parser("trigger",
                         help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")

@@ -92,6 +92,85 @@ def test_no_lockout_policy_finding():
     assert findings[0].severity is Severity.MEDIUM
 
 
+# --- run_spray orchestration (inject the nxc boundary; no nxc/DC) --- #
+import tempfile  # noqa: E402
+
+from redness.spray import run_spray  # noqa: E402
+
+PASS_POL_T1 = "SMB  10.10.0.10  445  DC01  Account Lockout Threshold: 1\n"
+
+
+def _nxc_stub(passpol=PASS_POL, spray_out=SPRAY, *, forbid_spray=False):
+    """Fake nxc_run keyed on argv: --pass-pol / --users / (the spray call)."""
+    def _run(argv):
+        if "--pass-pol" in argv:
+            return passpol
+        if "--users" in argv:
+            return ""                       # user_file supplied in these tests
+        if forbid_spray:
+            raise AssertionError("spray must not run when refused")
+        return spray_out
+    return _run
+
+
+def test_run_spray_proceeds_and_hits():
+    report, res = run_spray(
+        "10.10.0.10", "Spring2024!", username="u", auth_password="p",
+        user_file="users.txt", loot_dir=tempfile.mkdtemp(), nxc_run=_nxc_stub())
+    assert res.refused is False
+    assert len(res.hits) == 2
+    assert [f.id for f in report.findings] == ["spray-hit", "spray-hit"]
+
+
+def test_run_spray_refuses_low_threshold():
+    report, res = run_spray(
+        "10.10.0.10", "Spring2024!", username="u", auth_password="p",
+        user_file="users.txt", nxc_run=_nxc_stub(passpol=PASS_POL_T1, forbid_spray=True))
+    assert res.refused and res.reason == "lockout-risk"     # threshold 1 -> budget 0
+    assert report.findings == []
+
+
+def test_run_spray_refuses_uncredentialed_without_force():
+    called = {"n": 0}
+
+    def _run(argv):
+        called["n"] += 1
+        return ""
+
+    report, res = run_spray("10.10.0.10", "Spring2024!", user_file="users.txt", nxc_run=_run)
+    assert res.refused and res.reason == "unknown-policy"
+    assert called["n"] == 0                                 # no recon/spray when refused blind
+
+
+def test_force_alone_insufficient_without_confirm():
+    # --force set but no positive FORCE confirmation -> still refused
+    _, res = run_spray("10.10.0.10", "Spring2024!", username="u", auth_password="p",
+                       user_file="users.txt", force=True, confirm_force=lambda r: False,
+                       nxc_run=_nxc_stub(passpol=PASS_POL_T1, forbid_spray=True))
+    assert res.refused and res.reason == "lockout-risk"
+
+
+def test_force_with_confirmation_overrides_and_sprays():
+    seen = {"reason": None}
+
+    def _confirm(reason):
+        seen["reason"] = reason
+        return True
+
+    _, res = run_spray("10.10.0.10", "Spring2024!", username="u", auth_password="p",
+                       user_file="users.txt", loot_dir=tempfile.mkdtemp(), force=True,
+                       confirm_force=_confirm, nxc_run=_nxc_stub(passpol=PASS_POL_T1))
+    assert res.refused is False and len(res.hits) == 2
+    assert seen["reason"] == "lockout-risk"                 # the FORCE gate was consulted
+
+
+def test_uncredentialed_force_without_user_file_refused_no_users():
+    # override the unknown-policy gate, but there is still nothing to spray
+    _, res = run_spray("10.10.0.10", "Spring2024!", force=True, confirm_force=lambda r: True,
+                       nxc_run=_nxc_stub(forbid_spray=True))
+    assert res.refused and res.reason == "no-users"
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
