@@ -1,6 +1,6 @@
 # Password spraying - design note
 
-> Status: **design; not built.** Lockout-aware password spraying (docs/ROADMAP.md Tier 2 -
+> Status: **BUILT** (feat/password-spray, steps 1-2). Lockout-aware password spraying (docs/ROADMAP.md Tier 2 -
 > parity). Owner: **anjaiv** (engines/CLI lane). Read `CLAUDE.md`, `docs/DECISIONS.md`,
 > `docs/GPP.md`, and `redness/poison.py` (the gated-command precedent) first, then this.
 
@@ -35,8 +35,9 @@ attempts-per-user-per-observation-window stays under the threshold. The command 
 - **v1 = one password per invocation** (1 attempt/user/window) - inherently safe when
   `threshold >= 2`. Multiple passwords (which need spacing >= the observation window) are
   **deferred**; v1 runs one round and prints when it is safe to run again.
-- **Skip risky accounts:** skip users whose `badPwdCount` is at/near `threshold - margin`, and
-  skip disabled accounts.
+- **Skip risky accounts (DEFERRED):** skipping users whose `badPwdCount` is near `threshold -
+  margin` needs `ldap.parse_users` to expose that column; not in v1. Primary safety is the budget
+  gate + one-password-per-run + the confirmation gates below.
 - **`lockoutThreshold == 0` (no lockout):** spray freely, but emit `password-policy-no-lockout`.
 - Knobs: `--delay` between attempts, `--yes` (skip the prompt), `--force` (override the budget
   refusal - loud warning).
@@ -90,6 +91,11 @@ standalone). No `findings.py` schema change.
    the confirmation/warning banners.
 3. Docs: DECISIONS entry, ROADMAP Tier-2 tick, CLAUDE.md; confirm the paths.py
    `meta["credentials"]` union with Gjoko.
+
+Status: steps 1-2 shipped (`engines/spray.py` pure parts; `redness/spray.py` `run_spray` +
+`cmd_spray`). Two safeguards added beyond the plan: overriding a safety refusal needs `--force`
+AND a second, distinct typed "FORCE" confirmation (`--yes` never skips it); and the danger
+banner always prints to stderr, even in scripted `--yes`/`--force` mode.
 
 ## Legal / ethics
 Authorized, in-scope engagements only. Spraying can lock out accounts (a DoS against the

@@ -257,3 +257,29 @@ an `owned` attack-path node once paths.py's compromised_accounts() unions meta["
 (Gjoko's ~3-line change). Username is used as-is (GPP creds are often LOCAL/fleet-wide - no
 fabricated DOMAIN\ prefix). References: MITRE T1552.006 + MS14-025. Complementary to sharehunt's
 `content-gpp-cpassword` rule (which only FLAGS the file; gpp RECOVERS the credential).
+
+## 2026-08-25 - Password spraying: gated CLI command (poison precedent), lockout-safe by refusal
+Built lockout-aware password spraying (docs/SPRAY.md, ROADMAP Tier 2 parity). Like `poison`, it
+is an opt-in, confirmation-gated CLI command that NEVER runs in `scan` and is NOT in
+default_engines() - spraying can lock out accounts (a DoS against the client). Pure parts
+(`parse_pass_pol`, `parse_spray_hits`, safety math, `build_findings`) live in
+`engines/spray.py` (no Engine subclass, mirroring engines/responder.py); the gated `run_spray`
+orchestration lives in `redness/spray.py`, with a single injectable `nxc_run(argv)` boundary.
+
+Orchestration: read `--pass-pol` (+ `nxc ldap --users`) first, compute a safe budget
+(`threshold - margin`, margin 1), then spray ONE password `--continue-on-success` (v1; multi-
+round deferred). A run is REFUSED unless proven safe. Findings: `spray-hit` HIGH, upgraded to
+CRITICAL on a `(Pwn3d!)` admin hit; `password-policy-no-lockout` MEDIUM when threshold==0.
+`Category.PASSWORD` (no schema bump). Recovered creds are stored (account:password, like
+`credential-cracked`/`gpp`) and ride in `meta["credentials"]` - spray is the SECOND producer of
+that shape (after gpp), same paths.py `compromised_accounts()` union pending (Gjoko). Ref MITRE
+T1110.003.
+
+Two safety measures beyond the usual `poison`-style gate: (1) overriding a safety refusal
+requires BOTH `--force` AND a second, distinct typed "FORCE" confirmation (a `confirm_force`
+callback the CLI wires to a prompt `--yes` never skips), so `--force --yes` together can never
+silently bypass both checks; (2) the danger banner always prints to stderr even in scripted
+mode. Uncredentialed spraying (lockout policy unknown - the most dangerous path) is allowed only
+with `--user-file` AND `--force` behind a loud, unmissable warning. Deferred: per-account
+`badPwdCount` skipping (needs an `ldap.parse_users` change); primary safety is the budget gate +
+one-password-per-run + the confirmation gates.

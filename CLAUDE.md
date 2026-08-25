@@ -15,8 +15,8 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (138 tests), builds to a single offline
-`.exe` with `demo / report / live / scan / poison / trigger`. Real findings need `nxc` +
+PRs #1–#4 all merged to `main`. Working, tested (144 tests), builds to a single offline
+`.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
 ![live 3D graph](docs/screenshots/live-graph.jpg)
@@ -29,7 +29,8 @@ redness/
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
-  cli.py          # entrypoint: demo / report / live / scan / poison / trigger
+  cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger
+  spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
   engines/        # tool wrappers -> List[Finding]  (Person A)
     base.py       #   Engine ABC + Target + emit_* helpers
     netexec.py    #   nxc SMB: signing, SMBv1, null/guest, shares
@@ -38,6 +39,7 @@ redness/
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
     sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)
     gpp.py        #   GPP cpassword: nxc -M gpp_password -> recovered creds (meta["credentials"])
+    spray.py      #   password spraying: pure pass-pol/hit parsers + lockout-safety math
   report/         # List[Finding] -> .docx  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
@@ -83,6 +85,7 @@ python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
 python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider shares for secrets (--hunt-content = read file contents)
 python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (intrusive; prompts)
+python -m redness.cli spray --target dc -p 'Spring2024!' --auth-user U --auth-pass P  # lockout-aware spray (intrusive; gated)
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
