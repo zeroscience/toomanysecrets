@@ -36,7 +36,9 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
 ## Tier 2 - parity (what other tools have, we lack)
 Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper + parser + test.
 - **Password spraying** - controlled, **lockout-aware** (read `--pass-pol` first). `nxc` spray.
-- **GPP `cpassword` / SYSVOL secrets** - decrypt Groups.xml; classic easy DA.
+- **GPP `cpassword` / SYSVOL secrets** - decrypt Groups.xml; classic easy DA. **BUILT** -
+  `GppEngine` wraps `nxc -M gpp_password`, in the default scan; recovers `account:password` +
+  `meta["credentials"]`. See docs/GPP.md.
 - **Delegation abuse enum** - unconstrained / constrained / **RBCD**, plus **machine-account
   quota (MAQ)** and **gMSA / shadow credentials** readability.
 - **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
