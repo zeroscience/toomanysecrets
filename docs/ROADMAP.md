@@ -36,6 +36,8 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
 ## Tier 2 - parity (what other tools have, we lack)
 Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper + parser + test.
 - **Password spraying** - controlled, **lockout-aware** (read `--pass-pol` first). `nxc` spray.
+  **BUILT** - gated `redness spray` command (never in `scan`); refuses unless lockout-safe,
+  double-gated `--force`. See docs/SPRAY.md.
 - **GPP `cpassword` / SYSVOL secrets** - decrypt Groups.xml; classic easy DA. **BUILT** -
   `GppEngine` wraps `nxc -M gpp_password`, in the default scan; recovers `account:password` +
   `meta["credentials"]`. See docs/GPP.md.
