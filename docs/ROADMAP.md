@@ -45,7 +45,11 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
   quota (MAQ)** and **gMSA / shadow credentials** readability.
 - **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
   reconsider, relay). Kali-native.
-- **MSSQL** (`nxc mssql` - linked servers, xp_cmdshell) and **WinRM** exec surface.
+- **RDP / WinRM / MSSQL remote-access surfaces** - the lateral-movement services we were blind
+  to. **BUILT** - `redness/engines/remote.py` (RdpEngine/WinRMEngine/MssqlEngine) in the default
+  scan: RDP NLA + exposure (unauthenticated), WinRM/MSSQL exposure + credentialed remote-exec
+  reach (CRITICAL on `Pwn3d!`). Passive, no schema change. See docs/REMOTE.md. Follow-ups on
+  MSSQL: linked-server hopping + xp_cmdshell exec (offensive, would be gated).
 
 ## Tier 3 - operator / OPSEC (professional polish)
 - **Session save/resume** - reopen a graph from `findings.json` (partly via `report`); persist

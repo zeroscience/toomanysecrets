@@ -31,7 +31,12 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | ADCS: ESC1-ESC17 certificate issues | Certipy | cred |
 | TLS: weak protocols/ciphers, cert issues | (stdlib) | no-cred |
 | Shares: secret hunting (filenames + file content) | NetExec spider | cred |
+| RDP: NLA disabled + exposure (+ credentialed reach) | NetExec | both |
+| WinRM: exposure + credentialed remote-exec reach | NetExec | both |
+| MSSQL: exposure + credentialed reach | NetExec | both |
+| GPP cpassword / SYSVOL secrets | NetExec | cred |
 | NetNTLMv2 capture (LLMNR/NBT-NS poisoning) | Responder | intrusive, opt-in |
+| Password spraying (lockout-aware) | NetExec | intrusive, opt-in |
 
 ## Commands
 

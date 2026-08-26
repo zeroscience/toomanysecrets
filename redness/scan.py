@@ -12,7 +12,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .engines import CertipyEngine, GppEngine, LdapEngine, NetExecEngine, TLSEngine
+from .engines import (
+    CertipyEngine, GppEngine, LdapEngine, MssqlEngine, NetExecEngine, RdpEngine, TLSEngine,
+    WinRMEngine,
+)
 from .engines.base import Engine, Target
 from .events import Event, EventBus, EventKind
 from .findings import Category, Finding, Report
@@ -23,9 +26,13 @@ def default_engines() -> list[Engine]:
 
     TLS is pure-Python (always available), so a scan yields findings even on a box
     with neither nxc nor certipy installed. LdapEngine captures AS-REP/Kerberoast
-    hashes (fed to redness.crack). GppEngine no-ops without domain creds.
+    hashes (fed to redness.crack). GppEngine no-ops without domain creds. The remote-access
+    engines (RDP/WinRM/MSSQL) read banners unauthenticated (RDP NLA + service exposure) and,
+    when creds are supplied, confirm reachable lateral-movement paths - all passive, no lockout
+    risk, so they belong in the default scan (unlike the gated poison/spray commands).
     """
-    return [NetExecEngine(), LdapEngine(), CertipyEngine(), GppEngine(), TLSEngine()]
+    return [NetExecEngine(), LdapEngine(), CertipyEngine(), GppEngine(),
+            RdpEngine(), WinRMEngine(), MssqlEngine(), TLSEngine()]
 
 
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:
