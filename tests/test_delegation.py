@@ -102,6 +102,114 @@ def test_empty_inputs_yield_nothing():
     assert dg.build_findings() == []
 
 
+def test_maq_escalates_to_critical_with_adcs():
+    assert dg.build_findings(maq=10)[0].severity is Severity.INFO
+    combo = dg.build_findings(maq=10, adcs_present=True)[0]
+    assert combo.severity is Severity.CRITICAL and combo.meta["adcs_combo"] is True
+
+
+# --- engine wiring (inject the runner seam; no nxc/DC) --- #
+from redness.engines.base import Engine, Target  # noqa: E402
+
+
+class _Proc:
+    def __init__(self, stdout=""):
+        self.stdout = stdout
+        self.stderr = ""
+
+
+def _fake_engine():
+    def runner(cmd, **kw):
+        if "--trusted-for-delegation" in cmd:
+            return _Proc(UNCONSTRAINED)
+        if "--find-delegation" in cmd:
+            return _Proc(FIND_DELEGATION)
+        if "gmsa" in cmd:
+            return _Proc(GMSA_OUT)
+        if "maq" in cmd:
+            return _Proc(MAQ_OUT)
+        return _Proc("")
+
+    class _F(dg.DelegationEngine):
+        def is_available(self):
+            return True
+
+        def _bin(self):
+            return "nxc"
+    return _F(runner=runner)
+
+
+def test_run_wiring_produces_findings():
+    tgt = Target(host="dc01.acme.local", domain="acme.local", username="u", password="p")
+    ids = {f.id for f in _fake_engine().run(tgt)}
+    assert {"delegation-unconstrained", "delegation-unconstrained-dc", "delegation-constrained",
+            "delegation-rbcd", "machine-account-quota", "gmsa-readable"} <= ids
+
+
+def test_run_noop_without_credentials():
+    called = {"n": 0}
+
+    class _F(dg.DelegationEngine):
+        def is_available(self):
+            return True
+
+        def _invoke(self, extra, t):
+            called["n"] += 1
+            return ""
+
+    assert _F().run(Target(host="dc", username="u")) == []      # no password -> not credentialed
+    assert called["n"] == 0
+
+
+def test_run_short_circuits_when_unavailable():
+    class _Unavail(dg.DelegationEngine):
+        def is_available(self):
+            return False
+
+        def _invoke(self, extra, t):
+            raise AssertionError("must not invoke nxc when unavailable")
+
+    assert _Unavail().run(Target(host="dc", username="u", password="p")) == []
+
+
+def test_dc_names_from_host():
+    assert dg._dc_names_from_host("DC01.acme.local") == {"dc01"}
+    assert dg._dc_names_from_host("10.10.0.10") == set()      # IP -> rely on the UAC bit
+
+
+def test_run_scan_passes_adcs_context_to_delegation():
+    from redness.scan import run_scan
+    from redness.findings import Finding
+
+    class _AdcsEng(Engine):
+        name = "certipy"
+
+        def is_available(self):
+            return True
+
+        def run(self, t):
+            return [Finding(id="adcs-esc1", title="ESC1", severity=Severity.CRITICAL,
+                            category=Category.ADCS)]
+
+    class _DelegProbe(Engine):
+        name = "delegation"
+        wants_adcs_context = True
+
+        def __init__(self):
+            self.seen = None
+
+        def is_available(self):
+            return True
+
+        def run(self, t, adcs_present=False):
+            self.seen = adcs_present
+            return []
+
+    probe = _DelegProbe()
+    run_scan(["dc"], username="u", password="p", engines=[_AdcsEng(), probe], discover=False)
+    assert probe.seen is True         # scan.py wired the ADCS-present flag through
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

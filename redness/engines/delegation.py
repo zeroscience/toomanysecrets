@@ -24,9 +24,12 @@ introspected offline - verify `--trusted-for-delegation` / `--find-delegation` /
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 
 from ..findings import Category, Evidence, Finding, Severity
+from .base import Engine, Target
 
 # userAccountControl bits (delegation-relevant)
 UAC_SERVER_TRUST = 0x2000            # SERVER_TRUST_ACCOUNT -> domain controller
@@ -161,8 +164,14 @@ def build_findings(
     maq: "int | None" = None,
     gmsa: "list[str] | None" = None,
     shadow: "list[str] | None" = None,
+    adcs_present: bool = False,
 ) -> list[Finding]:
-    """Turn parsed delegation state into Findings (Category.LDAP; no meta['credentials'])."""
+    """Turn parsed delegation state into Findings (Category.LDAP; no meta['credentials']).
+
+    `adcs_present` (computed by run_scan from CertipyEngine's findings this run) escalates the
+    machine-account-quota finding from INFO to CRITICAL: MAQ + an AD CS ESC path is a real
+    escalation, but MAQ alone is not.
+    """
     findings: list[Finding] = []
 
     # unconstrained: HIGH on non-DC (the primitive); INFO on a DC (expected).
@@ -240,21 +249,26 @@ def build_findings(
                 meta={"delegation": e.kind, "to": e.to},
             ))
 
-    # machine account quota - INFO baseline (combo-escalation is a paths.py/report concern)
+    # machine account quota - INFO baseline; CRITICAL only in combination with an AD CS ESC path.
     if maq is not None and maq > 0:
+        combo = bool(adcs_present)
         findings.append(Finding(
-            id="machine-account-quota", title=f"Machine account quota is {maq}",
-            severity=Severity.INFO, category=Category.LDAP,
+            id="machine-account-quota",
+            title=f"Machine account quota is {maq}" + (" (+ AD CS ESC path)" if combo else ""),
+            severity=Severity.CRITICAL if combo else Severity.INFO, category=Category.LDAP,
             description=f"ms-DS-MachineAccountQuota is {maq}: any authenticated user can create up "
                         f"to {maq} machine account(s).",
-            impact="Attacker-created machine accounts enable RBCD and shadow-credential attacks; "
-                   "urgent only in combination with a writable target or an ADCS ESC path.",
+            impact=("An AD CS ESC path was also found this scan: an attacker can create a machine "
+                    "account and abuse the vulnerable template to escalate to Domain Admin."
+                    if combo else
+                    "Attacker-created machine accounts enable RBCD and shadow-credential attacks; "
+                    "urgent only in combination with a writable target or an ADCS ESC path."),
             remediation="Set ms-DS-MachineAccountQuota to 0 and delegate machine-account creation "
                         "to a controlled group.",
             affected=["domain"],
             evidence=[Evidence(source="netexec-ldap", detail=f"MachineAccountQuota={maq}")],
             references=[_MITRE_RBCD], credentialed=True,
-            meta={"maq": maq},
+            meta={"maq": maq, "adcs_combo": combo},
         ))
 
     if gmsa:
@@ -291,3 +305,74 @@ def build_findings(
         ))
 
     return findings
+
+
+# --------------------------------------------------------------------------- #
+# Execution (impure) - orchestrate several `nxc ldap` reads                     #
+# --------------------------------------------------------------------------- #
+def _dc_names_from_host(host: str) -> "set[str]":
+    """Best-effort DC name hint from the scanned host: a hostname's short name
+    (`dc01.acme.local` -> {"dc01"}); empty for an IP. The reliable DC signal is the UAC
+    SERVER_TRUST bit in the output when nxc includes it (see parse_unconstrained)."""
+    if host and not re.match(r"^[0-9.]+$", host):
+        return {host.split(".")[0].lower()}
+    return set()
+
+
+class DelegationEngine(Engine):
+    """Delegation-family LDAP enumeration via several `nxc ldap` reads against the DC.
+
+    In default_engines() but no-ops without domain creds (delegation attributes need an authed
+    LDAP read) or without nxc. `run` takes an optional `adcs_present` that run_scan supplies
+    (via the `wants_adcs_context` flag) from CertipyEngine's findings this scan, so the MAQ
+    finding can escalate without duplicating ADCS detection here. `runner` is injectable.
+    """
+    name = "delegation"
+    wants_adcs_context = True
+
+    def __init__(self, timeout: int = 300, runner=subprocess.run):
+        self.timeout = timeout
+        self.runner = runner
+
+    def _bin(self) -> "str | None":
+        return shutil.which("nxc") or shutil.which("netexec")
+
+    def is_available(self) -> bool:
+        return self._bin() is not None
+
+    def _auth_args(self, t: Target) -> list[str]:
+        args = ["-u", t.username or ""]
+        if t.nthash:
+            args += ["-H", t.nthash]
+        else:
+            args += ["-p", t.password if t.password is not None else ""]
+        if t.kerberos:
+            args += ["-k"]
+        if t.domain:
+            args += ["-d", t.domain]
+        return args
+
+    def _invoke(self, extra: list[str], t: Target) -> str:
+        exe = self._bin()
+        if not exe:
+            return ""
+        cmd = [exe, "ldap", t.host] + self._auth_args(t) + extra
+        try:
+            p = self.runner(cmd, capture_output=True, text=True, timeout=self.timeout)
+        except (subprocess.TimeoutExpired, OSError):
+            return ""
+        return (getattr(p, "stdout", "") or "") + "\n" + (getattr(p, "stderr", "") or "")
+
+    def run(self, target: Target, adcs_present: bool = False) -> list[Finding]:
+        if not self.is_available() or not target.credentialed:   # delegation reads need auth
+            return []
+        dc = _dc_names_from_host(target.host)
+        return build_findings(
+            unconstrained=parse_unconstrained(
+                self._invoke(["--trusted-for-delegation"], target), dc_names=dc),
+            delegation=parse_find_delegation(self._invoke(["--find-delegation"], target)),
+            maq=parse_maq(self._invoke(["-M", "maq"], target)),
+            gmsa=parse_gmsa(self._invoke(["-M", "gmsa"], target)),
+            shadow=None,     # parse_shadow_creds is ready; its nxc invocation is deferred
+            adcs_present=adcs_present,
+        )

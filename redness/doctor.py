@@ -21,6 +21,7 @@ INSTALL_HINTS = {
     "netexec-ldap": "pipx install netexec  (LDAP: users + AS-REP/Kerberoast capture)",
     "certipy": "pip install certipy-ad     (or bundle it; REDNESS runs it in-process)",
     "gpp": "pipx install netexec          (nxc -M gpp_password; needs domain creds)",
+    "delegation": "pipx install netexec   (LDAP: delegation / MAQ / gMSA enum; needs domain creds)",
     "tls": "built-in (Python stdlib) - always available",
     "rdp": "pipx install netexec       (RDP: NLA check + service exposure)",
     "winrm": "pipx install netexec     (WinRM: exposure + credentialed remote-exec reach)",
