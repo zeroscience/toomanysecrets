@@ -102,6 +102,99 @@ def test_coerce_argv_single_method_and_hash_kerberos():
     assert "-o" in argv and "METHOD=PetitPotam" in argv
 
 
+# --- run_coerce orchestration (inject the nxc + DC-check boundaries; no nxc/DC) --- #
+import tempfile  # noqa: E402
+
+from redness.coerce import run_coerce  # noqa: E402
+
+
+def _nxc_stub(out=COERCE):
+    return lambda argv: out
+
+
+def test_run_coerce_credentialed_dc_is_critical():
+    report, res = run_coerce("10.10.0.5", "10.10.0.240", username="u", password="p",
+                             loot_dir=tempfile.mkdtemp(), nxc_run=_nxc_stub(),
+                             dc_check=lambda t: True)
+    assert res.refused is False and res.is_dc is True
+    assert [f.id for f in report.findings] == [
+        "coercion-petitpotam", "coercion-printerbug", "coercion-dfscoerce"]
+    assert all(f.severity is Severity.CRITICAL for f in report.findings)
+
+
+def test_run_coerce_refuses_uncredentialed_without_force():
+    called = {"n": 0}
+
+    def _run(argv):
+        called["n"] += 1
+        return COERCE
+
+    report, res = run_coerce("10.10.0.5", "10.10.0.240", nxc_run=_run, dc_check=lambda t: True)
+    assert res.refused and res.reason == "uncredentialed"
+    assert called["n"] == 0                                  # never fired the RPC
+    assert report.findings == []
+
+
+def test_force_alone_insufficient_without_confirm():
+    _, res = run_coerce("10.10.0.5", "10.10.0.240", force=True, confirm_force=lambda r: False,
+                        nxc_run=_nxc_stub(), dc_check=lambda t: True)
+    assert res.refused and res.reason == "uncredentialed"    # --force needs the FORCE confirm too
+
+
+def test_uncredentialed_force_confirmed_fires():
+    seen = {"reason": None}
+
+    def _confirm(reason):
+        seen["reason"] = reason
+        return True
+
+    report, res = run_coerce("10.10.0.5", "10.10.0.240", force=True, confirm_force=_confirm,
+                             loot_dir=tempfile.mkdtemp(), nxc_run=_nxc_stub(),
+                             dc_check=lambda t: True)
+    assert res.refused is False and len(report.findings) == 3
+    assert seen["reason"] == "uncredentialed"                # the FORCE gate was consulted
+
+
+def test_run_coerce_refuses_non_dc():
+    called = {"n": 0}
+
+    def _run(argv):
+        called["n"] += 1
+        return COERCE
+
+    _, res = run_coerce("10.10.0.9", "10.10.0.240", username="u", password="p",
+                        nxc_run=_run, dc_check=lambda t: False)
+    assert res.refused and res.reason == "not-a-dc"
+    assert called["n"] == 0                                  # no RPC to a non-DC
+
+
+def test_run_coerce_non_dc_allowed_is_high():
+    report, res = run_coerce("10.10.0.9", "10.10.0.240", username="u", password="p",
+                             target_not_dc_ok=True, loot_dir=tempfile.mkdtemp(),
+                             nxc_run=_nxc_stub(), dc_check=lambda t: False)
+    assert res.refused is False and res.is_dc is False
+    assert len(report.findings) == 3
+    assert all(f.severity is Severity.HIGH for f in report.findings)
+
+
+def test_run_coerce_writes_audit_log():
+    d = tempfile.mkdtemp()
+    run_coerce("10.10.0.5", "10.10.0.240", username="u", password="p",
+               loot_dir=d, nxc_run=_nxc_stub(), dc_check=lambda t: True)
+    with open(os.path.join(d, "coerce_audit.log"), encoding="utf-8") as fh:
+        log = fh.read()
+    assert "method=petitpotam" in log and "result=coerced" in log
+    assert "method=shadowcoerce" in log and "result=not-vulnerable" in log  # patched vector logged too
+    assert "target=10.10.0.5" in log and "listener=10.10.0.240" in log
+
+
+def test_audit_log_records_refusals():
+    d = tempfile.mkdtemp()
+    run_coerce("10.10.0.5", "10.10.0.240", loot_dir=d, dc_check=lambda t: True)   # uncredentialed
+    with open(os.path.join(d, "coerce_audit.log"), encoding="utf-8") as fh:
+        assert "result=refused-uncredentialed" in fh.read()
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
