@@ -325,3 +325,29 @@ This is discovery, not exploitation - a plain TCP connect (nothing sent to the s
 inside the passive envelope. `--no-discovery` / `run_scan(discover=False)` restores the old
 "run every available engine" behaviour. Discovery only decides WHICH engines run; the engines
 still own their own findings and graph emission.
+
+## 2026-08-27 - FTP / HTTP(AD) / SNMP engines: broaden coverage, stay on-theme
+Added three engines for the protocol coverage gaps (issue #32), each passive and in the default
+scan (dispatched by discovery where TCP-visible). All reuse existing categories - no schema bump.
+
+- **FTP** (`engines/ftp.py`, wraps `nxc ftp`): `ftp-anonymous` (MEDIUM, anon login = classic
+  unauth foothold), `ftp-exposed` (INFO, banner/version), `ftp-access` (LOW, supplied creds).
+  Probes anonymous by default (`-u anonymous -p ''`) when no creds. Verified vs NetExec ftp
+  output (`[*] Banner:`, `[+] anonymous: - Anonymous Login!`); FTP has no Pwn3d. Gated on port 21.
+
+- **HTTP** (`engines/http_ad.py`, pure stdlib): deliberately NOT a general web scanner - probes
+  only AD-relevant surfaces. `/certsrv` + `/certsrv/certfnsh.asp` -> `adcs-web-enrollment` HIGH
+  (Category.ADCS): this is **ESC8**, an NTLM-relay target that ties into the certipy story.
+  `/owa` + `/ews` -> `exchange-owa-exposed` LOW; `/` -> `http-exposed` INFO with Server banner.
+  HTTPS uses an unverified TLS context (AD web endpoints are self-signed; the TLS engine judges
+  the cert). The network fetch is injectable for tests. Gated on ports 80/443.
+
+- **SNMP** (`engines/snmp.py`, wraps net-snmp `snmpwalk`): default community strings.
+  `snmp-default-community` HIGH for `public` (read; leaks config/routes/ARP/creds), CRITICAL for
+  `private` (usually read-WRITE = device takeover). SNMP is UDP/161, invisible to a TCP
+  connect-scan, so it is deliberately NOT in discovery.ENGINE_PORTS (un-gated: runs whenever
+  snmpwalk is installed, which is_available() checks). Tool runner injectable for tests.
+
+Rationale for scope: FTP/HTTP/SNMP are common on Windows/appliance estates and each maps to a
+real AD path (esp. ESC8). DNP3/ICS-OT was explicitly parked (scope creep - different assessment
+domain). See issue #32.

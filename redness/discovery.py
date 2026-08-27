@@ -31,7 +31,11 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "rdp": (3389,),
     "winrm": (5985, 5986),
     "mssql": (1433,),
+    "ftp": (21,),
+    "http": (80, 443),                 # AD web surfaces (/certsrv = ESC8, OWA)
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
+    # NOTE: "snmp" is intentionally absent - UDP/161 is invisible to a TCP connect-scan,
+    # so the SNMP engine is left un-gated (runs whenever snmpwalk is installed).
 }
 
 # Ports we connect-scan by default: the union of ENGINE_PORTS plus a few context ports we

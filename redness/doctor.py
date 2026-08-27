@@ -25,6 +25,9 @@ INSTALL_HINTS = {
     "rdp": "pipx install netexec       (RDP: NLA check + service exposure)",
     "winrm": "pipx install netexec     (WinRM: exposure + credentialed remote-exec reach)",
     "mssql": "pipx install netexec     (MSSQL: exposure + credentialed reach)",
+    "ftp": "pipx install netexec       (FTP: anonymous login + exposure)",
+    "http": "built-in (Python stdlib) - AD web surfaces (/certsrv ESC8, OWA)",
+    "snmp": "sudo apt install snmp     (net-snmp `snmpwalk`; default community strings)",
     "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
 }
 
