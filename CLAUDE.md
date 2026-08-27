@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (151 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (167 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -40,6 +40,7 @@ redness/
     sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)
     gpp.py        #   GPP cpassword: nxc -M gpp_password -> recovered creds (meta["credentials"])
     spray.py      #   password spraying: pure pass-pol/hit parsers + lockout-safety math
+    remote.py     #   RDP/WinRM/MSSQL: NLA + exposure + credentialed remote-exec reach (passive)
   report/         # List[Finding] -> .docx  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving

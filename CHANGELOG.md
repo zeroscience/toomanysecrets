@@ -5,6 +5,15 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Remote-access protocol engines (RDP / WinRM / MSSQL):** `redness/engines/remote.py` adds
+  three passive nxc-backed engines to the default scan - the lateral-movement surfaces the
+  SMB/LDAP/AD CS/TLS engines miss. **RDP** flags missing Network Level Authentication
+  (`rdp-nla-disabled`, pre-auth surface / BlueKeep class) plus reachability; **WinRM** and
+  **MSSQL** flag exposure and, when creds are supplied, confirm a reachable remote-exec path
+  (`*-access`, HIGH, upgraded to CRITICAL on a `(Pwn3d!)` admin hit = remote code execution).
+  Passive banner reads only (no lockout risk), so they run in `scan` unlike gated poison/spray.
+  Findings reuse `Category.CONFIG` / `Category.ENUM` - no schema change. Parsers verified
+  against NetExec's rdp/winrm/mssql output and unit-tested (no live host needed).
 - **BloodHound ingest (`bloodhound` command):** load a SharpHound / BloodHound-CE collection
   (`.zip`, a directory of `.json`, or a single file) and stream real AD relationships
   (MemberOf / AdminTo / HasSession) into the graph - `redness/bloodhound.py`. Adds the

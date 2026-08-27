@@ -283,3 +283,25 @@ mode. Uncredentialed spraying (lockout policy unknown - the most dangerous path)
 with `--user-file` AND `--force` behind a loud, unmissable warning. Deferred: per-account
 `badPwdCount` skipping (needs an `ldap.parse_users` change); primary safety is the budget gate +
 one-password-per-run + the confirmation gates.
+
+## 2026-08-26 - Remote-access protocol engines (RDP/WinRM/MSSQL): passive, in the default scan
+Added `redness/engines/remote.py` - three nxc-backed engines for the lateral-movement surfaces
+the SMB/LDAP/AD CS/TLS engines miss. One module (not three files) because all three share nxc's
+`PROTO host port name <body>` line format and the same exposure/access finding shape; parsers
+stay pure and unit-tested against captured nxc output (verified the exact banner/`[+]` strings
+against NetExec's rdp/winrm/mssql protocols first - RDP prints `(nla:True|False)`, all three
+print `[+] dom\user:secret (Pwn3d!)` on a credentialed success).
+
+Key call: these run in `default_engines()`, unlike the gated `poison`/`spray` commands. They are
+PASSIVE - connect, read the banner, and (only if the operator supplied creds) try those exact
+creds once. No guessing, no lockout risk, nothing written to the target, so they belong in a
+normal `scan`. RDP even works fully unauthenticated (NLA + exposure from the banner).
+
+Findings reuse existing categories - NO `SCHEMA_VERSION` bump (still 1.1.0): `Category.CONFIG`
+for a misconfig (`rdp-nla-disabled`, MEDIUM) or a reachable-with-creds path (`*-access`),
+`Category.ENUM` for plain exposure (`*-exposed`, INFO). Severity ladder: RDP access
+MEDIUM/HIGH(admin) - interactive logon; WinRM + MSSQL access HIGH/CRITICAL(admin) - both are
+code-exec surfaces (remote PowerShell; xp_cmdshell). No new graph node type - all findings are
+host-level (affected == host), so the host node recolors by severity. doctor gains rdp/winrm/
+mssql hints (same nxc binary). Access findings do NOT ride `meta["credentials"]` - they confirm
+reach with creds we already hold, they do not recover a new credential (unlike spray/gpp).
