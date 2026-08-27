@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "Red-team orchestrator + normalizer + reporter for AD/Windows assessments (codename REDNESS)."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+]
 # Base install: CLI + reporting + live GUI (pure stdlib). Engines are extras below.
 dependencies = [
     "python-docx>=1.1.0",
