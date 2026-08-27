@@ -305,3 +305,23 @@ code-exec surfaces (remote PowerShell; xp_cmdshell). No new graph node type - al
 host-level (affected == host), so the host node recolors by severity. doctor gains rdp/winrm/
 mssql hints (same nxc binary). Access findings do NOT ride `meta["credentials"]` - they confirm
 reach with creds we already hold, they do not recover a new credential (unlike spray/gpp).
+
+## 2026-08-27 - Service-discovery dispatch: the "hail-mary" default scan runs only relevant engines
+Added `redness/discovery.py` + wired it into `run_scan`. The default scan now runs EVERYTHING
+passive, but per host it first does a lightweight TCP connect-scan (stdlib sockets, no nmap dep)
+of the ports our engines care about and dispatches only the engines whose service is actually
+open ("according to the enumeration and logic"). An `nxc mssql` no longer fires at a host with
+no 1433 open; a full-breadth scan stays fast and quiet.
+
+Design: port knowledge lives centrally in `discovery.ENGINE_PORTS` (keyed by `Engine.name`),
+NOT as a per-engine attribute - keeps the dispatch logic in one place (orchestration/Gjoko's
+lane) and leaves the engine files (Anja's lane) untouched. An engine NOT in ENGINE_PORTS is
+never gated (always runs), so unknown or UDP-only engines (e.g. a future SNMP/161 engine, which
+a TCP connect-scan cannot see) keep full coverage until they are explicitly added. `open_ports`
+takes an injectable `checker` and `run_scan` an injectable `port_scanner`, so all dispatch logic
+unit-tests with no real sockets.
+
+This is discovery, not exploitation - a plain TCP connect (nothing sent to the service), well
+inside the passive envelope. `--no-discovery` / `run_scan(discover=False)` restores the old
+"run every available engine" behaviour. Discovery only decides WHICH engines run; the engines
+still own their own findings and graph emission.

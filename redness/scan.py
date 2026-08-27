@@ -10,7 +10,7 @@ Reusable by the CLI today and the GUI later.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Optional
 
 from .engines import (
     CertipyEngine, GppEngine, LdapEngine, MssqlEngine, NetExecEngine, RdpEngine, TLSEngine,
@@ -82,14 +82,25 @@ def run_scan(
     engines: Optional[list[Engine]] = None,
     bus: Optional[EventBus] = None,
     engagement: str = "REDNESS assessment",
+    discover: bool = True,
+    port_scanner: Optional[Callable[[str], set[int]]] = None,
 ) -> Report:
     """Run engines across targets and return an aggregated Report.
 
     If `bus` is given, streams status/probe/node/edge/finding/done events for a live view.
     Engines whose underlying tool is not installed are skipped (reported via STATUS).
+
+    When `discover` is True (the default "hail-mary" behaviour), each host is first
+    TCP connect-scanned and only the engines whose service port is open are run - so a
+    full-breadth scan stays fast and quiet. `port_scanner` (host -> set of open ports) is
+    injectable for tests; it defaults to `discovery.open_ports`. `discover=False` runs
+    every available engine regardless of open ports (the old behaviour).
     """
+    from .discovery import describe, open_ports, should_run
+
     engines = engines if engines is not None else default_engines()
     report = Report(engagement=engagement, target=", ".join(targets))
+    scanner = port_scanner or (lambda h: open_ports(h))
 
     domain_label = domain or (targets[0] if targets else "scope")
     _emit(bus, EventKind.STATUS, message=f"Scan start: {len(targets)} target(s)")
@@ -101,10 +112,19 @@ def run_scan(
         _emit(bus, EventKind.NODE, id=host, label=host, type="host")
         _emit(bus, EventKind.EDGE, src=domain_label, dst=host, label="host")
 
+        open_set: Optional[set[int]] = None
+        if discover:
+            open_set = scanner(host)
+            _emit(bus, EventKind.STATUS, message=f"{host}: open ports {describe(open_set)}")
+
         for eng in engines:
             if not eng.is_available():
                 _emit(bus, EventKind.STATUS, engine=eng.name,
                       message=f"{eng.name}: not installed, skipping")
+                continue
+            if open_set is not None and not should_run(eng.name, open_set):
+                _emit(bus, EventKind.STATUS, engine=eng.name,
+                      message=f"{eng.name}: no open port on {host}, skipping")
                 continue
             _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{eng.name}: scanning {host}")
             _emit(bus, EventKind.PROBE, engine=eng.name, target=host, test=eng.name)

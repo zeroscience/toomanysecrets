@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (167 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (175 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -27,6 +27,7 @@ redness/
   findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.0.0)
   events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
+  discovery.py    # TCP connect-scan -> dispatch only relevant engines (hail-mary); --no-discovery
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger

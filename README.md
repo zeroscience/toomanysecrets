@@ -105,6 +105,11 @@ Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list,
 small built-in weak-password list catches egregiously weak creds; `--no-crack` disables it.
 Engines whose tool isn't installed are skipped and noted - a scan never hard-fails.
 
+**Hail-mary by default.** `scan` runs every passive engine, but first does a quick TCP
+service connect-scan of each host and only runs the engines whose port is actually open (an
+`nxc mssql` won't fire at a host with no 1433). Pass `--no-discovery` to force every available
+engine on every host instead.
+
 **The deliverable.** The `.docx` includes an **Attack Paths** section (owned accounts,
 roastable leads, AD CS ESCn to Domain Admin), a **MITRE ATT&CK** technique per finding, and an
 indicative **compliance mapping** (CIS v8 / ISO 27001:2022 / NIS2). The live graph draws
