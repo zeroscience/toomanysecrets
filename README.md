@@ -134,3 +134,14 @@ See [CHANGELOG.md](CHANGELOG.md) for what's new and [docs/](docs/) for design no
 For **authorized** security assessments only. Use requires written permission
 (engagement contract / scope) from the owner of the target environment. The `poison`
 command actively affects other hosts on the segment - in-scope engagements only.
+
+## License
+
+REDNESS is released under the **BSD 2-Clause License** - see [LICENSE](LICENSE).
+
+REDNESS orchestrates third-party tools rather than reimplementing them. Tools it
+merely invokes (NetExec, Responder, hashcat, John) are separate programs the operator
+installs; code it vendors or bundles (3d-force-graph, and impacket/certipy/ldap3 in the
+self-contained exe) carries its own license. See
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full breakdown and the rules
+we follow (notably: never bundle the GPL tools into a distributed binary).
