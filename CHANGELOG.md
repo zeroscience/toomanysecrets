@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Service-discovery dispatch (the "hail-mary" default scan):** `redness/discovery.py` +
+  `run_scan`. A default scan now runs every passive engine, but per host it first does a
+  lightweight TCP connect-scan (stdlib sockets, no nmap) of the ports our engines care about
+  and dispatches only the engines whose service is actually open - so a full-breadth scan stays
+  fast and quiet ("according to the enumeration and logic"). Port knowledge is centralized in
+  `discovery.ENGINE_PORTS`; engines not listed there are never gated (UDP/unknown engines keep
+  full coverage). `--no-discovery` runs every available engine regardless. This is discovery,
+  not exploitation (a plain TCP connect, nothing sent to the service).
 - **Remote-access protocol engines (RDP / WinRM / MSSQL):** `redness/engines/remote.py` adds
   three passive nxc-backed engines to the default scan - the lateral-movement surfaces the
   SMB/LDAP/AD CS/TLS engines miss. **RDP** flags missing Network Level Authentication

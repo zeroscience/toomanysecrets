@@ -299,6 +299,7 @@ def cmd_scan(args) -> int:
         username=args.username, password=args.password, nthash=args.hash,
         domain=args.domain, kerberos=args.kerberos, bus=bus,
         engagement=args.engagement, engines=engines,
+        discover=not args.no_discovery,
     )
 
     # Hash loot + optional cracking (AS-REP / Kerberoast). --no-crack hard-disables all
@@ -650,6 +651,9 @@ def main(argv=None) -> int:
                     help="spider readable SMB shares for secrets (Snaffler-style; needs nxc; opt-in)")
     sc.add_argument("--hunt-content", action="store_true",
                     help="also download candidates and scan file contents (Phase 2; more intrusive; implies --hunt-secrets)")
+    sc.add_argument("--no-discovery", action="store_true",
+                    help="run every available engine on every host (skip the TCP service "
+                         "connect-scan that otherwise dispatches only relevant engines)")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")
