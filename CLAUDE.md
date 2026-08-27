@@ -36,6 +36,7 @@ redness/
     base.py       #   Engine ABC + Target + emit_* helpers
     netexec.py    #   nxc SMB: signing, SMBv1, null/guest, shares
     ldap.py       #   nxc LDAP: users + AS-REP/Kerberoast hash capture (meta["hashes"])
+    delegation.py #   delegation/RBCD/MAQ/gMSA enum (nxc ldap); MAQ escalates w/ AD CS combo
     certipy.py    #   AD CS ESC1-ESC16 (parses `certipy find -json`)
     tls.py        #   TLS: legacy proto, weak ciphers, cert expiry/self-signed (pure stdlib)
     sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)

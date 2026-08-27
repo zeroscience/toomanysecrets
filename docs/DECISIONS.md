@@ -352,6 +352,7 @@ Rationale for scope: FTP/HTTP/SNMP are common on Windows/appliance estates and e
 real AD path (esp. ESC8). DNP3/ICS-OT was explicitly parked (scope creep - different assessment
 domain). See issue #32.
 
+<<<<<<< HEAD
 ## 2026-08-27 - Phase 3 offensive actions: arm/confirm gating + first three actions
 Offensive right-click actions (docs/GUI.md, issue #49) register in `redness/actions.py` with
 `offensive=True` and a `handler`; they NEVER run through the read-only `run_action` path
@@ -386,3 +387,40 @@ paths.py compromised_accounts() union). The three actions:
 
 Caveat: `nxc -M drsuapi -o USER=` could not be introspected offline (nxc not installed) - verify
 against real nxc; the format-based parser/findings are unaffected.
+
+## 2026-08-27 - Delegation abuse enum: one engine, balanced severities, AD CS cross-engine wiring
+Delegation abuse enumeration (docs/DELEGATION.md, ROADMAP Tier 2) is a single `DelegationEngine`
+(engines/delegation.py, mirroring ldap.py: one engine, several `nxc ldap` reads, pure parsers),
+in `default_engines()`, no-ops without domain creds/nxc. Findings use `Category.LDAP` (reuse, no
+schema bump) and carry descriptive `meta["delegation"]` but **no `meta["credentials"]`** - this
+is enumeration, not credential recovery.
+
+Severity model (balanced to avoid alert fatigue - informational baseline, CRITICAL only for the
+urgent cases): unconstrained = **HIGH on non-DC** (the attack primitive), **INFO on a DC**
+(expected - DCs legitimately have it; a separate `delegation-unconstrained-dc` finding for
+context). constrained = HIGH, **CRITICAL only with protocol transition**. RBCD = HIGH. MAQ > 0 =
+**INFO** baseline. gMSA readable + shadow-credentials = HIGH.
+
+AD CS cross-engine wiring (no duplicated ADCS detection): the MAQ finding escalates to CRITICAL
+only when an AD CS ESC path was also found this scan. Rather than re-detect ADCS inside the
+delegation engine, `run_scan` passes an `adcs_present` bool to any engine exposing
+`wants_adcs_context = True` (duck-typed - no isinstance/import coupling), computed as
+`any(f.category is Category.ADCS for f in report.findings)` at the point that engine runs.
+`DelegationEngine` is ordered **after** `CertipyEngine` in `default_engines()` so certipy's
+findings are present first; the bool flows through `build_findings(adcs_present=...)`. This is a
+reusable pattern for any future engine that needs cross-engine context without owning the
+detection.
+
+Follow-ups (deferred, tracked):
+- **nxc flag/module names unverified offline** (nxc not installable in the sandbox): verify
+  `--trusted-for-delegation` / `--find-delegation` / `-M maq` / `-M gmsa` against real nxc and add
+  captured samples to tests/ if formats differ. The pure parsers are the tested core, so the fix
+  is localized to the thin invokers.
+- **shadow-creds invocation deferred**: `parse_shadow_creds` is done + tested, but no verified nxc
+  module dumps `msDS-KeyCredentialLink`, so `run` passes `shadow=None` (we do not invent a flag).
+  Wire a verified source later.
+- **DC detection is best-effort**: UAC SERVER_TRUST bit when present, else a hostname-derived name
+  hint; against a bare IP without UAC a DC could mis-classify as non-DC (HIGH vs INFO).
+- **Attack-path edges are NOT built here**: unconstrained-host -> DA (and constrained/RBCD ->
+  target) are `paths.py`'s job (Gjoko) and need a `meta` contract agreed first; findings carry
+  `meta["delegation"]={kind,to}` for that future consumption. Contract-first, same as crack.py.
