@@ -423,3 +423,44 @@ Follow-ups (deferred, tracked):
 - **Attack-path edges are NOT built here**: unconstrained-host -> DA (and constrained/RBCD ->
   target) are `paths.py`'s job (Gjoko) and need a `meta` contract agreed first; findings carry
   `meta["delegation"]={kind,to}` for that future consumption. Contract-first, same as crack.py.
+## 2026-08-27 - Coercion: gated `coerce` command (PetitPotam/PrinterBug/DFSCoerce)
+Active RPC forced-authentication, the machine-side sibling of `trigger` (issue #49 Tier-2).
+Wraps nxc `-M coerce_plus -o LISTENER=<us>`; pure parser/argv/findings in `engines/coerce.py`,
+gated orchestration in `redness/coerce.py` (mirrors poison.py/spray.py). It only TRIGGERS the
+auth - a separately-run `redness poison` (Responder) listener captures it via the existing
+`netntlm-captured` -> crack pipeline; `coerce` recovers no credential itself. Per-vector
+`coercion-*` findings, `Category.CONFIG` (no schema bump), CRITICAL on a DC / HIGH elsewhere.
+See docs/COERCION.md.
+
+Design decisions from the pre-build security review (agreed with the repo owner):
+- **DC validation, not DC-restriction.** Coercion is refused unless the target looks like a DC
+  (AD LDAP/389-636 is DC-only), overridable with `--target-not-dc-ok` (findings then HIGH). This
+  catches fat-finger/wrong-host typos without blocking legitimate non-DC targets. The check is an
+  injectable `dc_check` callable (LDAP port probe by default) so `run_coerce` tests with no DC.
+- **Double-gate mirrors `spray`.** Normal (credentialed) run = banner + typed `YES`. The riskier
+  **uncredentialed** path (no creds, relies on an unpatched target) is a safety refusal overridden
+  only by BOTH `--force` AND a second, distinct typed `FORCE` confirmation that `--yes` never
+  skips. Coercion has no lockout math, so `--force` guards the uncredentialed path (spray's guards
+  the lockout budget) - same shape, different hazard. CLI double-gate, NOT the GUI `/action`
+  arm/confirm channel (this is an operator-run network command, not a right-click node action).
+- **Method selection.** `--method` default `all` (full coverage for the report - "which vectors
+  are open" IS the finding); a single method (petitpotam/printerbug/dfscoerce/shadowcoerce) is
+  selectable to limit detection noise.
+- **Audit logging.** Every attempt - per method result AND every refusal - is appended to
+  `loot/coerce_audit.log` (git-ignored) for post-engagement blue-team de-confliction (ROADMAP
+  Tier-3 precedent). A unified cross-command audit log (with offensive actions) stays Gjoko's
+  Tier-3 lane; this is the forward-compatible local start.
+- **Stateless RPC = no cleanup.** PetitPotam (MS-EFSR), PrinterBug (MS-RPRN), ShadowCoerce
+  (MS-FSRVP) are transient calls that leave no persistent state on the target; DFSCoerce
+  (MS-DFSNM) is the one vector calling DFS-management RPCs (NetrDfsAddStdRoot/RemoveStdRoot) - the
+  coercion generally errors after the auth fires so no DFS root is created, but it is the vector
+  to watch; verify coerce_plus's method on Kali. All vectors leave an auth/RPC event in the
+  target's logs (detection footprint, stated in the banner) - but nothing to clean up.
+- **No rate limiting** (no lockout/DoS risk on the target; a CLI invocation is one deliberate
+  RPC per method, not an automatable channel like the HTTP arm endpoint).
+
+Carry-forward follow-ups: `coerce_plus` output lines + option keys (`LISTENER`/`METHOD`) are
+unverified in-sandbox (nxc has no py3.12 wheel) - the test fixture is the source of truth, verify
+on Kali; the poisoning-off `poison --capture-only` listen mode (docs/NETNTLM.md) would be the
+cleaner pairing for both `trigger` and `coerce`; an integrated `--capture` (coerce starts its own
+listener) was deliberately deferred to keep the trigger/poison capture seam clean.

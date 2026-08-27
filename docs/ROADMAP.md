@@ -48,7 +48,9 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
   the default scan; balanced severities; MAQ escalates to CRITICAL only with an AD CS ESC path
   (cross-engine `adcs_present`). See docs/DELEGATION.md.
 - **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
-  reconsider, relay). Kali-native.
+  reconsider, relay). Kali-native. **BUILT** - gated `redness coerce` command (never in `scan`);
+  wraps nxc `coerce_plus`, per-vector `coercion-*` findings (CRITICAL on a DC), DC-validation +
+  uncredentialed double-gate + `loot/coerce_audit.log`. See docs/COERCION.md.
 - **RDP / WinRM / MSSQL remote-access surfaces** - the lateral-movement services we were blind
   to. **BUILT** - `redness/engines/remote.py` (RdpEngine/WinRMEngine/MssqlEngine) in the default
   scan: RDP NLA + exposure (unauthenticated), WinRM/MSSQL exposure + credentialed remote-exec
