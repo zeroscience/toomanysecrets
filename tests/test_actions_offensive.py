@@ -159,6 +159,104 @@ def test_catalog_exposes_offensive_flag():
     assert entry["offensive"] is True and entry["node_types"] == ["user"]
 
 
+# =========================================================================== #
+# step 2: secretsdump-target + dcsync-user                                      #
+# =========================================================================== #
+SAMPLE_SAM = (
+    "SMB  10.0.0.5  445  WS01  [+] Dumping SAM hashes\n"
+    "SMB  10.0.0.5  445  WS01  Administrator:500:aad3b435b51404eeaad3b435b51404ee:"
+    "e19ccf75ee54e06b06a5907af13cef42:::\n"
+    "SMB  10.0.0.5  445  WS01  Guest:501:aad3b435b51404eeaad3b435b51404ee:"
+    "31d6cfe0d16ae931b73c59d7e0c089c0:::\n"                        # blank password -> dropped
+    "SMB  10.0.0.5  445  WS01  svc_local:1001:aad3b435b51404eeaad3b435b51404ee:"
+    "5835048ce94ad0564e29a924a03510ef:::\n"
+)
+SAMPLE_KRBTGT = ("SMB  10.0.0.10  445  DC01  ACME\\krbtgt:502:aad3b435b51404eeaad3b435b51404ee:"
+                 "b4b9b02e6f09a9bd760f388b67351e2b:::\n")
+SAMPLE_JDOE = ("SMB  10.0.0.10  445  DC01  ACME\\jdoe:1103:aad3b435b51404eeaad3b435b51404ee:"
+               "5835048ce94ad0564e29a924a03510ef:::\n")
+SAMPLE_ADMIN = ("SMB  10.0.0.10  445  DC01  ACME\\Administrator:500:aad3b435b51404eeaad3b435b51404ee:"
+                "e19ccf75ee54e06b06a5907af13cef42:::\n")
+
+
+def test_parse_secretsdump_dedupes_and_drops_blank():
+    out = actions.parse_secretsdump(SAMPLE_SAM)
+    assert out == [("Administrator", "500", "e19ccf75ee54e06b06a5907af13cef42"),
+                   ("svc_local", "1001", "5835048ce94ad0564e29a924a03510ef")]   # Guest dropped
+
+
+def test_secretsdump_target_finding():
+    fs = actions._secretsdump_target("10.0.0.5", _tgt(), runner=lambda tgt: SAMPLE_SAM)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "secretsdump-target" and f.severity is Severity.CRITICAL
+    assert f.category is Category.SECRET and f.affected == ["10.0.0.5"]
+    assert f.meta["offensive"] is True
+    creds = f.meta["credentials"]
+    assert [c["account"] for c in creds] == ["Administrator", "svc_local"]
+    assert all(c["kind"] == "nthash" and c["source"] == "secretsdump" for c in creds)
+    assert creds[0]["secret"] == "e19ccf75ee54e06b06a5907af13cef42"    # stored, not masked
+
+
+def test_dcsync_krbtgt_is_critical_with_golden_ticket_impact():
+    fs = actions._dcsync_user("ACME\\krbtgt", _tgt(), runner=lambda target, tgt: SAMPLE_KRBTGT)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "dcsync-user" and f.severity is Severity.CRITICAL
+    assert "Golden Ticket" in f.impact
+    assert f.meta["credentials"][0] == {
+        "account": "ACME\\krbtgt", "kind": "nthash",
+        "secret": "b4b9b02e6f09a9bd760f388b67351e2b", "source": "dcsync"}
+
+
+def test_dcsync_regular_user_is_high():
+    fs = actions._dcsync_user("ACME\\jdoe", _tgt(), runner=lambda target, tgt: SAMPLE_JDOE)
+    assert fs[0].severity is Severity.HIGH and "Golden Ticket" not in fs[0].impact
+
+
+def test_dcsync_builtin_admin_is_critical():
+    fs = actions._dcsync_user("ACME\\Administrator", _tgt(), runner=lambda target, tgt: SAMPLE_ADMIN)
+    assert fs[0].severity is Severity.CRITICAL       # RID 500
+
+
+def test_dcsync_filters_to_target_principal():
+    combined = SAMPLE_KRBTGT + SAMPLE_JDOE
+    fs = actions._dcsync_user("jdoe", _tgt(), runner=lambda target, tgt: combined)
+    assert len(fs) == 1 and fs[0].affected == ["jdoe"]
+    assert fs[0].meta["credentials"][0]["secret"] == "5835048ce94ad0564e29a924a03510ef"
+
+
+def test_arm_banner_scoped_per_target():
+    _reset()
+    kb = actions.arm("dcsync-user", "ACME\\krbtgt")["banner"]
+    assert "Golden Ticket" in kb and "SOC/EDR" in kb
+    _reset()
+    ju = actions.arm("dcsync-user", "ACME\\jdoe")["banner"]
+    assert "ACME\\jdoe" in ju and "Golden Ticket" not in ju
+    _reset()
+    sd = actions.arm("secretsdump-target", "10.0.0.5")["banner"]
+    assert "local SAM" in sd
+
+
+def test_arm_execute_dcsync_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("dcsync-user", "ACME\\krbtgt", audit=log.append)
+    rep = actions.execute_armed_action(
+        "dcsync-user", "ACME\\krbtgt", _tgt(), arm_token=armed["arm_token"],
+        confirm="dcsync-user", audit=log.append, runner=lambda target, tgt: SAMPLE_KRBTGT)
+    assert [f.id for f in rep.findings] == ["dcsync-user"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_step2_actions_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["secretsdump-target"]["offensive"] is True
+    assert cat["secretsdump-target"]["node_types"] == ["host"]
+    assert cat["dcsync-user"]["offensive"] is True and cat["dcsync-user"]["node_types"] == ["user"]
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
