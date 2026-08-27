@@ -351,3 +351,38 @@ scan (dispatched by discovery where TCP-visible). All reuse existing categories 
 Rationale for scope: FTP/HTTP/SNMP are common on Windows/appliance estates and each maps to a
 real AD path (esp. ESC8). DNP3/ICS-OT was explicitly parked (scope creep - different assessment
 domain). See issue #32.
+
+## 2026-08-27 - Phase 3 offensive actions: arm/confirm gating + first three actions
+Offensive right-click actions (docs/GUI.md, issue #49) register in `redness/actions.py` with
+`offensive=True` and a `handler`; they NEVER run through the read-only `run_action` path
+(`run_action` refuses them). Because a POST has no TTY, poison/spray's typed YES/FORCE becomes a
+two-step web handshake: `arm(action, target)` issues a single-use, TTL-120s, action+target-bound
+`arm_token` (+ a target-specific banner); `execute_armed_action(action, target, tgt: Target, ...)`
+runs only against that token AND an `X-Redness-Confirm` header equal to the action id. `--force`
+has no analogue here - the confirmation is mandatory, never bypassable.
+
+Safety rails: arming is rate-limited (5 per 300s / 5 min; the 6th within the window is refused),
+tokens are single-use and expire, and every arm / execute / refuse / rate-limit is AUDITED
+(JSON lines -> `loot/offensive-audit.log`; injectable sink). The two bridge endpoints
+(`POST /action/arm`, `POST /action/execute`) + the GUI arm->confirm->execute modal are Gjoko's
+`live/` follow-up.
+
+Findings carry `meta["offensive"]=True` + `meta["action"]=<id>` (additive meta - NO findings.py
+schema bump; still SCHEMA_VERSION 1.1.0). Recovered material rides the existing shapes:
+Kerberoast -> `meta["hashes"]` (feeds crack.py); secretsdump/DCSync NT hashes ->
+`meta["credentials"]` with `kind:"nthash"` (stored, like credential-cracked; feeds the pending
+paths.py compromised_accounts() union). The three actions:
+- **kerberoast-user** (user node) - HIGH; reuses ldap.parse_kerberoast, filters to the principal.
+- **secretsdump-target** (host node) - CRITICAL; `nxc smb --sam --lsa` local SAM/LSA on one host.
+- **dcsync-user** (user node) - targeted one principal via `nxc -M drsuapi -o USER=<account>`.
+  **Severity CRITICAL for krbtgt (RID 502) or builtin Administrator (RID 500), else HIGH** (broader
+  Domain Admins membership needs enum/BloodHound - out of scope). The confirm banner is
+  target-specific: **krbtgt gets an explicit Golden Ticket warning** ("...enables Golden Ticket
+  forgery, full and persistent domain compromise; extremely loud, will almost certainly trigger
+  SOC/EDR") vs a generic "replicates the password hash for '<account>'" for regular accounts;
+  secretsdump's is lighter (one host's local SAM/LSA). A shared parse_secretsdump handles the
+  `account:rid:LM:NT:::` format (dedupe, drops blank-password hashes). Deferred: a domain-wide
+  `dcsync` (all accounts), AS-REP-roast, PtH-exec, ADCS req/auth.
+
+Caveat: `nxc -M drsuapi -o USER=` could not be introspected offline (nxc not installed) - verify
+against real nxc; the format-based parser/findings are unaffected.
