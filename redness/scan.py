@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from .engines import (
-    CertipyEngine, GppEngine, LdapEngine, MssqlEngine, NetExecEngine, RdpEngine, TLSEngine,
-    WinRMEngine,
+    CertipyEngine, FtpEngine, GppEngine, HttpEngine, LdapEngine, MssqlEngine, NetExecEngine,
+    RdpEngine, SnmpEngine, TLSEngine, WinRMEngine,
 )
 from .engines.base import Engine, Target
 from .events import Event, EventBus, EventKind
@@ -32,7 +32,8 @@ def default_engines() -> list[Engine]:
     risk, so they belong in the default scan (unlike the gated poison/spray commands).
     """
     return [NetExecEngine(), LdapEngine(), CertipyEngine(), GppEngine(),
-            RdpEngine(), WinRMEngine(), MssqlEngine(), TLSEngine()]
+            RdpEngine(), WinRMEngine(), MssqlEngine(), FtpEngine(), HttpEngine(),
+            SnmpEngine(), TLSEngine()]
 
 
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:

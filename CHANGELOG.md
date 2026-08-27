@@ -5,6 +5,13 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **FTP / HTTP / SNMP engines (broader protocol coverage):** three passive engines in the
+  default scan. **FTP** (`nxc ftp`) - anonymous login (`ftp-anonymous`) + exposure/banner.
+  **HTTP** (pure stdlib, AD-scoped, *not* a general web scanner) - flags AD CS Web Enrollment
+  `/certsrv` as an **ESC8** NTLM-relay target (`adcs-web-enrollment`, HIGH), plus OWA/EWS and a
+  server banner. **SNMP** (`snmpwalk`) - default community strings (`snmp-default-community`,
+  HIGH for `public`, CRITICAL for read-write `private`). All reuse existing categories - no
+  schema change; parsers verified/injectable and unit-tested.
 - **Service-discovery dispatch (the "hail-mary" default scan):** `redness/discovery.py` +
   `run_scan`. A default scan now runs every passive engine, but per host it first does a
   lightweight TCP connect-scan (stdlib sockets, no nmap) of the ports our engines care about

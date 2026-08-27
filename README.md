@@ -34,6 +34,9 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | RDP: NLA disabled + exposure (+ credentialed reach) | NetExec | both |
 | WinRM: exposure + credentialed remote-exec reach | NetExec | both |
 | MSSQL: exposure + credentialed reach | NetExec | both |
+| FTP: anonymous login + exposure | NetExec | both |
+| HTTP: AD web surfaces (/certsrv = ESC8, OWA/EWS) | (stdlib) | no-cred |
+| SNMP: default community strings (public/private) | snmpwalk | no-cred |
 | GPP cpassword / SYSVOL secrets | NetExec | cred |
 | NetNTLMv2 capture (LLMNR/NBT-NS poisoning) | Responder | intrusive, opt-in |
 | Password spraying (lockout-aware) | NetExec | intrusive, opt-in |
