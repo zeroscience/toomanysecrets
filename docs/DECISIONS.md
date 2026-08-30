@@ -352,7 +352,6 @@ Rationale for scope: FTP/HTTP/SNMP are common on Windows/appliance estates and e
 real AD path (esp. ESC8). DNP3/ICS-OT was explicitly parked (scope creep - different assessment
 domain). See issue #32.
 
-<<<<<<< HEAD
 ## 2026-08-27 - Phase 3 offensive actions: arm/confirm gating + first three actions
 Offensive right-click actions (docs/GUI.md, issue #49) register in `redness/actions.py` with
 `offensive=True` and a `handler`; they NEVER run through the read-only `run_action` path
