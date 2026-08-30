@@ -464,3 +464,27 @@ unverified in-sandbox (nxc has no py3.12 wheel) - the test fixture is the source
 on Kali; the poisoning-off `poison --capture-only` listen mode (docs/NETNTLM.md) would be the
 cleaner pairing for both `trigger` and `coerce`; an integrated `--capture` (coerce starts its own
 listener) was deliberately deferred to keep the trigger/poison capture seam clean.
+
+## 2026-08-31 - Offensive /action HTTP framework: arm/execute endpoints + --enable-offensive gate
+Wired the Phase-3 offensive actions (built in #50) into the live bridge so the GUI can actually
+trigger them - the plumbing half of the #49 split (Gjoko's lane). Two new endpoints in
+`redness/live/bridge.py`: `POST /action/arm` (synchronous, returns the single-use `arm_token` +
+banner from `actions.arm`) and `POST /action/execute` (async, runs `execute_armed_action` on a
+worker thread; the confirmation rides an `X-Redness-Confirm` header, never the body).
+
+Defence in depth beyond the read-only channel (contract answer #5 on #49):
+- **Off by default.** The offensive channel exists only when the operator launches
+  `redness gui|live --enable-offensive`.
+- **Separate, more-privileged token.** Enabling mints a distinct `offensive_token`
+  (`secrets.token_urlsafe(24)`) that is **NOT injected into the page** - it is printed to the
+  console (stderr), and the operator pastes it into the GUI. So page access alone (even with the
+  read CSRF token) can never fire an offensive action; you also need terminal access. Both
+  offensive endpoints require `X-Redness-Offensive: <token>`; neither accepts the read token.
+- **Loopback only.** `LiveServer(enable_offensive=True)` raises unless the bind host is loopback
+  (`_is_loopback`) - the offensive channel refuses `0.0.0.0`.
+- **Hidden until armed.** `GET /actions` filters out `offensive=True` entries unless the channel
+  is enabled, so the GUI shows them (in red) only when unlocked.
+Audit/rate-limit/single-use/TTL all live in `actions.py` (from #50) and are unchanged. GUI flow
+(web/index.html): right-click an offensive action -> arm -> `window.confirm(banner)` -> execute
+with the arm_token + confirm header. Tests: 8 new (loopback guard, token gating, 403-when-disabled,
+arm 200 / 429-on-rate, execute routing with the confirm header, catalog show/hide) - 249 total.

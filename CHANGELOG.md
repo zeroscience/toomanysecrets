@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Offensive actions wired into the GUI (arm/execute HTTP framework):** the Phase-3 offensive
+  actions (Kerberoast / secretsdump / DCSync) are now triggerable from the live graph via two new
+  bridge endpoints - `POST /action/arm` (returns a single-use token + banner) and
+  `POST /action/execute` (needs the token + an `X-Redness-Confirm` header). Gated hard:
+  **off by default**, unlocked only with `redness gui|live --enable-offensive`, which mints a
+  **separate operator-console token** (never embedded in the page) that must be pasted into the
+  GUI; **loopback-bind only**; offensive actions stay hidden in the catalog until enabled. GUI
+  flow is right-click -> arm -> confirm(banner) -> execute.
 - **FTP / HTTP / SNMP engines (broader protocol coverage):** three passive engines in the
   default scan. **FTP** (`nxc ftp`) - anonymous login (`ftp-anonymous`) + exposure/banner.
   **HTTP** (pure stdlib, AD-scoped, *not* a general web scanner) - flags AD CS Web Enrollment
