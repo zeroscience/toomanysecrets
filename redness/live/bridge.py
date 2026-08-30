@@ -36,6 +36,11 @@ def _web_dir() -> str:
 
 _WEB_DIR = _web_dir()
 
+
+def _is_loopback(host: str) -> bool:
+    """True only for loopback binds. The offensive channel refuses anything else (never 0.0.0.0)."""
+    return host in {"127.0.0.1", "localhost", "::1"} or host.startswith("127.")
+
 _CTYPES = {
     ".html": "text/html; charset=utf-8",
     ".js": "application/javascript; charset=utf-8",
@@ -53,7 +58,10 @@ class LiveServer:
                  buffer_cap: int = 5000,
                  on_scan: Optional[Callable[[dict], None]] = None,
                  on_action: Optional[Callable[[dict], None]] = None,
-                 action_catalog: Optional[list] = None):
+                 action_catalog: Optional[list] = None,
+                 on_arm: Optional[Callable[[dict], dict]] = None,
+                 on_execute: Optional[Callable[[dict], None]] = None,
+                 enable_offensive: bool = False):
         self.bus = bus
         self.host = host
         self.port = port
@@ -66,6 +74,18 @@ class LiveServer:
         # CSRF token injected into the page and required by POST /scan. A cross-origin
         # site can't read it (same-origin policy), so it can't forge a scan request.
         self.token = secrets.token_urlsafe(18)
+        # Offensive channel (arm/execute) - OFF unless explicitly enabled at launch.
+        # It carries a SEPARATE, more-privileged token that is NOT injected into the page:
+        # the operator reads it from the console and pastes it into the GUI, so page access
+        # alone can never fire an offensive action. Refused entirely on a non-loopback bind.
+        self.on_arm = on_arm
+        self.on_execute = on_execute
+        self.offensive_enabled = bool(enable_offensive)
+        if self.offensive_enabled and not _is_loopback(host):
+            raise RuntimeError(
+                f"refusing to enable the offensive channel on non-loopback bind {host!r} "
+                "(offensive actions require host=127.0.0.1)")
+        self.offensive_token = secrets.token_urlsafe(24) if self.offensive_enabled else None
         self._buffer: list[str] = []
         self._clients: set[Queue] = set()
         self._cap = buffer_cap
@@ -155,13 +175,19 @@ def _make_handler(live: LiveServer):
             elif path == "/events":
                 self._serve_events()
             elif path == "/actions":
-                self._serve_json(live.action_catalog if live.on_action else [])
+                cat = live.action_catalog if live.on_action else []
+                if not live.offensive_enabled:      # hide offensive actions unless armed at launch
+                    cat = [a for a in cat if not a.get("offensive")]
+                self._serve_json(cat)
             else:
                 self._serve_static(path.lstrip("/"))   # vendor/, css, logo, etc.
 
         def _serve_json(self, obj):
+            self._serve_json_code(obj, 200)
+
+        def _serve_json_code(self, obj, code):
             body = json.dumps(obj).encode("utf-8")
-            self.send_response(200)
+            self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -174,9 +200,12 @@ def _make_handler(live: LiveServer):
                 return
             with open(path, encoding="utf-8") as fh:
                 html = fh.read()
-            # Inject the CSRF token and whether scanning is enabled.
+            # Inject the CSRF token and whether scanning is enabled. The offensive token is
+            # deliberately NOT injected - only whether the channel is enabled, so the GUI can
+            # show the "paste offensive token" field; the token itself stays on the console.
             html = html.replace("__CSRF_TOKEN__", live.token)
             html = html.replace("__SCAN_ENABLED__", "1" if live.on_scan else "0")
+            html = html.replace("__OFFENSIVE_ENABLED__", "1" if live.offensive_enabled else "0")
             body = html.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -184,8 +213,51 @@ def _make_handler(live: LiveServer):
             self.end_headers()
             self.wfile.write(body)
 
+        def _read_json(self):
+            length = int(self.headers.get("Content-Length", 0))
+            return json.loads(self.rfile.read(length) or b"{}")
+
+        def _handle_offensive(self, path):
+            # Separate, more-privileged gate: the offensive channel must be enabled at launch
+            # AND the caller must present the console-only offensive token. Neither the read
+            # token nor page access is enough.
+            if not live.offensive_enabled:
+                self.send_error(403, "offensive channel disabled")
+                return
+            if self.headers.get("X-Redness-Offensive", "") != live.offensive_token:
+                self.send_error(403, "bad offensive token")
+                return
+            try:
+                params = self._read_json()
+            except (ValueError, json.JSONDecodeError):
+                self.send_error(400, "bad json")
+                return
+            if path == "/action/arm":
+                if live.on_arm is None:
+                    self.send_error(403, "endpoint disabled")
+                    return
+                try:
+                    result = live.on_arm(params)               # {arm_token, expires_in, banner}
+                except Exception as e:                          # ArmError (rate-limit / not offensive)
+                    code = 429 if "rate" in str(e).lower() else 400
+                    self._serve_json_code({"error": str(e)}, code)
+                    return
+                self._serve_json(result)
+                return
+            # /action/execute - the confirmation rides an HTTP header, never the body.
+            if live.on_execute is None:
+                self.send_error(403, "endpoint disabled")
+                return
+            params = dict(params)
+            params["confirm"] = self.headers.get("X-Redness-Confirm", "")
+            threading.Thread(target=live.on_execute, args=(params,), daemon=True).start()
+            self._serve_json_code({"status": "executing"}, 202)
+
         def do_POST(self):
             path = self.path.split("?", 1)[0]
+            if path in ("/action/arm", "/action/execute"):
+                self._handle_offensive(path)
+                return
             handler = {"/scan": live.on_scan, "/action": live.on_action}.get(path)
             if path not in ("/scan", "/action"):
                 self.send_error(404)

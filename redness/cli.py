@@ -158,10 +158,12 @@ def cmd_live(args) -> int:
     from .events import default_bus
     from .live import demo as live_demo
 
-    server = _live_server(default_bus, args.host, args.port)
+    server = _live_server(default_bus, args.host, args.port,
+                          enable_offensive=getattr(args, "enable_offensive", False))
     url = server.start()
     print(f"[+] Live graph at {url}")
     print("[*] Use the 'New scan' panel, or right-click a node for enum actions.")
+    _print_offensive_banner(server)
     if not args.no_open:
         webbrowser.open(url)
 
@@ -222,14 +224,56 @@ def _live_action_handler(bus):
     return on_action
 
 
-def _live_server(bus, host, port):
+def _live_offensive_handlers(bus):
+    """Arm/execute handlers for the gated offensive /action channel (only wired when enabled).
+
+    `on_arm` issues a single-use arm_token (raises ArmError -> the bridge maps to 4xx). `on_execute`
+    runs the armed action against a Target built from the posted creds; `target` is the principal
+    (a user node) while `host` is the box to connect to (the DC), defaulting to domain/target.
+    """
+    from .actions import arm, execute_armed_action
+    from .engines.base import Target
+
+    def on_arm(params: dict) -> dict:
+        return arm((params.get("action") or "").strip(), (params.get("target") or "").strip())
+
+    def on_execute(params: dict) -> None:
+        action = (params.get("action") or "").strip()
+        target = (params.get("target") or "").strip()
+        if not action or not target:
+            return
+        tgt = Target(host=(params.get("host") or params.get("domain") or target),
+                     username=params.get("username") or None,
+                     password=params.get("password") or None,
+                     nthash=params.get("hash") or None,
+                     domain=params.get("domain") or None)
+        execute_armed_action(action, target, tgt, arm_token=params.get("arm_token") or "",
+                             confirm=params.get("confirm") or "", bus=bus)
+    return on_arm, on_execute
+
+
+def _live_server(bus, host, port, enable_offensive=False):
     """LiveServer wired with the scan + action handlers and the action catalog."""
     from .actions import catalog
     from .live import LiveServer
+    on_arm, on_execute = _live_offensive_handlers(bus) if enable_offensive else (None, None)
     return LiveServer(bus, host=host, port=port,
                       on_scan=_live_scan_handler(bus),
                       on_action=_live_action_handler(bus),
-                      action_catalog=catalog())
+                      action_catalog=catalog(),
+                      on_arm=on_arm, on_execute=on_execute,
+                      enable_offensive=enable_offensive)
+
+
+def _print_offensive_banner(server) -> None:
+    """Print the console-only offensive token (never embedded in the page) if enabled."""
+    if getattr(server, "offensive_enabled", False):
+        print("\n[!] OFFENSIVE CHANNEL ENABLED - kerberoast / secretsdump / dcsync are unlocked.",
+              file=sys.stderr)
+        print("[!] Authorized, in-scope engagements ONLY. Every arm/execute is audited to loot/.",
+              file=sys.stderr)
+        print(f"[!] Offensive token (paste into the GUI to unlock these actions): {server.offensive_token}\n",
+              file=sys.stderr)
 
 
 def cmd_gui(args) -> int:
@@ -238,9 +282,11 @@ def cmd_gui(args) -> int:
 
     from .events import default_bus
 
-    server = _live_server(default_bus, args.host, args.port)
+    server = _live_server(default_bus, args.host, args.port,
+                          enable_offensive=getattr(args, "enable_offensive", False))
     url = server.start()
     print(f"[+] REDNESS GUI at {url}")
+    _print_offensive_banner(server)
     try:
         import webview                                    # pywebview
         webview.create_window("REDNESS · Zero Science Lab", url, width=1360, height=900)
@@ -747,11 +793,17 @@ def main(argv=None) -> int:
     g = sub.add_parser("gui", help="native desktop window (pywebview; falls back to browser)")
     g.add_argument("--host", default="127.0.0.1")
     g.add_argument("--port", type=int, default=8765)
+    g.add_argument("--enable-offensive", action="store_true",
+                   help="unlock the gated offensive right-click actions (kerberoast/secretsdump/"
+                        "dcsync); prints a separate console token you paste into the GUI. Loopback only")
     g.set_defaults(func=cmd_gui)
 
     lv = sub.add_parser("live", help="serve the live 3D graph (simulated enumeration)")
     lv.add_argument("--host", default="127.0.0.1")
     lv.add_argument("--port", type=int, default=8765)
+    lv.add_argument("--enable-offensive", action="store_true",
+                    help="unlock the gated offensive right-click actions (loopback only; "
+                         "prints a separate console token to paste into the GUI)")
     lv.add_argument("--no-open", action="store_true", help="don't auto-open a browser")
     lv.add_argument("--demo", action="store_true", help="stream simulated data (no targets needed)")
     lv.add_argument("--loop", action="store_true", help="with --demo: replay continuously")

@@ -7,6 +7,7 @@
 <!-- live 3D graph: domain -> hosts/users/shares/CA, colored by finding severity -->
 
 <meta name="csrf" content="__CSRF_TOKEN__">
+<meta name="offensive-enabled" content="__OFFENSIVE_ENABLED__">
 <meta name="scan-enabled" content="__SCAN_ENABLED__">
 <!-- Vendored locally (3d-force-graph 1.80.0, bundles three.js) - works fully offline. -->
 <script src="/vendor/3d-force-graph.min.js"></script>
@@ -87,6 +88,8 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #ctxmenu .ctxitem { padding:6px 9px; border-radius:5px; cursor:pointer; color:#c9d1d9; }
   #ctxmenu .ctxitem:hover { background:#1b2230; color:#fff; }
+  #ctxmenu .ctxoff { color:#ff5252; }
+  #ctxmenu .ctxoff:hover { background:#2a1414; color:#ff8a80; }
   #ctxmenu .ctxnone { padding:6px 9px; color:#6b7280; }
 </style>
 </head>
@@ -176,7 +179,8 @@
        NetNTLMv2 (intrusive; opt-in; <code>--analyze</code> to observe only).</p>
     <p><code>redness report findings.json --out report.docx</code> - re-render a saved report.</p>
     <div class="foot">In the graph: nodes are domain / hosts / users / shares / CAs, colored by
-      finding severity. (Right-click actions - Kerberoast, secretsdump, pass-the-hash - coming.)</div>
+      finding severity. Right-click a node for enum actions; offensive actions (Kerberoast /
+      secretsdump / DCSync) appear in red when launched with --enable-offensive.</div>
   </div>
 </div>
 
@@ -329,14 +333,18 @@ function showNodeMenu(node, event){
   const acts = ACTIONS_CATALOG.filter(a => (a.node_types||[]).includes(node.type));
   let html = `<div class="ctxhead">${node.label||node.id}</div>`;
   html += acts.length
-    ? acts.map(a => `<div class="ctxitem" data-a="${a.id}">${a.label}</div>`).join('')
+    ? acts.map(a => `<div class="ctxitem${a.offensive?' ctxoff':''}" data-a="${a.id}">${a.offensive?'⚠ ':''}${a.label}</div>`).join('')
     : `<div class="ctxnone">no actions for this node yet</div>`;
   ctx.innerHTML = html;
   ctx.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
   ctx.style.top  = Math.min(event.clientY, window.innerHeight - 44*(acts.length+1)) + 'px';
   ctx.classList.add('show');
   ctx.querySelectorAll('.ctxitem').forEach(it =>
-    it.onclick = () => { runAction(it.dataset.a, node); ctx.classList.remove('show'); });
+    it.onclick = () => {
+      const a = acts.find(x => x.id === it.dataset.a);
+      if (a && a.offensive) armAndExecute(it.dataset.a, node); else runAction(it.dataset.a, node);
+      ctx.classList.remove('show');
+    });
 }
 Graph.onNodeRightClick((node, event) => showNodeMenu(node, event));
 document.addEventListener('click', e => { if (!ctx.contains(e.target)) ctx.classList.remove('show'); });
@@ -353,6 +361,38 @@ async function runAction(actionId, node) {
       body: JSON.stringify(body) });
     if (!res.ok) log(`action rejected (${res.status})`, 'sev-high');
   } catch (err) { log('action request failed: '+err, 'sev-high'); }
+}
+
+// ---- Offensive actions (Phase 3): arm -> confirm(banner) -> execute ----
+// The offensive token is NOT in the page; the operator ran `--enable-offensive`, saw a token
+// printed on the console, and pastes it here. It is required on both offensive requests.
+let OFFENSIVE_TOKEN = '';
+async function armAndExecute(actionId, node){
+  if (!OFFENSIVE_TOKEN)
+    OFFENSIVE_TOKEN = (prompt('Paste the offensive token shown in the console (redness … --enable-offensive):')||'').trim();
+  if (!OFFENSIVE_TOKEN) { log('offensive token required', 'sev-high'); return; }
+  const creds = { username: el('s_user') && el('s_user').value || null,
+                  password: el('s_pass') && el('s_pass').value || null,
+                  domain:   el('s_domain') && el('s_domain').value || null };
+  let arm;
+  try {
+    const r = await fetch('/action/arm', { method:'POST',
+      headers: { 'Content-Type':'application/json', 'X-Redness-Offensive': OFFENSIVE_TOKEN },
+      body: JSON.stringify({ action: actionId, target: node.id }) });
+    if (!r.ok) { log(`arm rejected (${r.status})`, 'sev-high'); if (r.status===403) OFFENSIVE_TOKEN=''; return; }
+    arm = await r.json();
+  } catch (err) { log('arm request failed: '+err, 'sev-high'); return; }
+  if (!window.confirm((arm.banner || `Offensive action ${actionId} on ${node.id}.`) + '\n\nProceed?')) {
+    log(`offensive action cancelled: ${actionId}`, 'sev-low'); return;
+  }
+  try {
+    const r = await fetch('/action/execute', { method:'POST',
+      headers: { 'Content-Type':'application/json', 'X-Redness-Offensive': OFFENSIVE_TOKEN,
+                 'X-Redness-Confirm': actionId },
+      body: JSON.stringify(Object.assign({ action: actionId, target: node.id, arm_token: arm.arm_token }, creds)) });
+    if (!r.ok) { log(`execute rejected (${r.status})`, 'sev-high'); return; }
+    log(`offensive: ${actionId} → ${node.id} (armed + confirmed)`, 'sev-critical');
+  } catch (err) { log('execute request failed: '+err, 'sev-high'); }
 }
 
 // ---- About / Usage modals ----
