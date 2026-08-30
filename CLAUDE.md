@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (197 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (207 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
