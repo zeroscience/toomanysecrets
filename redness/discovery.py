@@ -27,6 +27,7 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "netexec": (445,),                 # SMB
     "netexec-ldap": (389, 636),        # LDAP / LDAPS (users + AS-REP/Kerberoast capture)
     "certipy": (389, 636),             # AD CS enumeration over LDAP
+    "delegation": (389, 636),          # delegation / MAQ / gMSA enumeration over LDAP
     "gpp": (445,),                     # GPP cpassword over SYSVOL (SMB)
     "rdp": (3389,),
     "winrm": (5985, 5986),

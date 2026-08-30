@@ -44,7 +44,9 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
   `GppEngine` wraps `nxc -M gpp_password`, in the default scan; recovers `account:password` +
   `meta["credentials"]`. See docs/GPP.md.
 - **Delegation abuse enum** - unconstrained / constrained / **RBCD**, plus **machine-account
-  quota (MAQ)** and **gMSA / shadow credentials** readability.
+  quota (MAQ)** and **gMSA / shadow credentials** readability. **BUILT** - `DelegationEngine` in
+  the default scan; balanced severities; MAQ escalates to CRITICAL only with an AD CS ESC path
+  (cross-engine `adcs_present`). See docs/DELEGATION.md.
 - **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
   reconsider, relay). Kali-native.
 - **RDP / WinRM / MSSQL remote-access surfaces** - the lateral-movement services we were blind

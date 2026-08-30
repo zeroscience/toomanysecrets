@@ -13,8 +13,8 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from .engines import (
-    CertipyEngine, FtpEngine, GppEngine, HttpEngine, LdapEngine, MssqlEngine, NetExecEngine,
-    RdpEngine, SnmpEngine, TLSEngine, WinRMEngine,
+    CertipyEngine, DelegationEngine, FtpEngine, GppEngine, HttpEngine, LdapEngine, MssqlEngine,
+    NetExecEngine, RdpEngine, SnmpEngine, TLSEngine, WinRMEngine,
 )
 from .engines.base import Engine, Target
 from .events import Event, EventBus, EventKind
@@ -31,7 +31,7 @@ def default_engines() -> list[Engine]:
     when creds are supplied, confirm reachable lateral-movement paths - all passive, no lockout
     risk, so they belong in the default scan (unlike the gated poison/spray commands).
     """
-    return [NetExecEngine(), LdapEngine(), CertipyEngine(), GppEngine(),
+    return [NetExecEngine(), LdapEngine(), CertipyEngine(), DelegationEngine(), GppEngine(),
             RdpEngine(), WinRMEngine(), MssqlEngine(), FtpEngine(), HttpEngine(),
             SnmpEngine(), TLSEngine()]
 
@@ -130,7 +130,14 @@ def run_scan(
             _emit(bus, EventKind.STATUS, engine=eng.name, message=f"{eng.name}: scanning {host}")
             _emit(bus, EventKind.PROBE, engine=eng.name, target=host, test=eng.name)
             try:
-                found = eng.run(tgt)
+                if getattr(eng, "wants_adcs_context", False):
+                    # pass whether an AD CS ESC path has already been found this scan
+                    # (CertipyEngine runs earlier) - lets delegation escalate MAQ without
+                    # duplicating ADCS detection. Only engines that opt in receive it.
+                    adcs = any(f.category is Category.ADCS for f in report.findings)
+                    found = eng.run(tgt, adcs_present=adcs)
+                else:
+                    found = eng.run(tgt)
             except Exception as e:            # a broken engine must not abort the scan
                 _emit(bus, EventKind.STATUS, engine=eng.name,
                       message=f"{eng.name}: error on {host}: {e}")
