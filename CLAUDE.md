@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (185 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (207 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -132,9 +132,11 @@ add a captured sample to the matching tests/ file.
 ## GUI vision & roadmap - docs/GUI.md
 Native window via `redness gui` (pywebview, browser fallback) reusing the web UI; branded
 REDNESS v1.33.7 / Zero Science Lab / Silly Security Inc. (Anja Ivanovska & Gjoko Krstic);
-About + Usage modals shipped. NEXT big piece: right-click node actions ("further attacks in
-one place" - Kerberoast/secretsdump/PtH/DCSync/ADCS) via a token-gated POST /action + engines
-(anjaiv). Phased plan + action catalog in docs/GUI.md. Bump version in web/index.html +
+About + Usage modals shipped. Right-click node actions ("further attacks in one place"): the
+gated offensive engines (kerberoast-user / secretsdump-target / dcsync-user, arm/confirm +
+audit) are built in `actions.py` (anjaiv); the `POST /action/arm` + `/action/execute` bridge
+endpoints + GUI modal are the remaining Gjoko piece. Phased plan + action catalog in docs/GUI.md.
+Bump version in web/index.html +
 pyproject.toml together.
 
 ## Next up - see docs/ROADMAP.md (the prioritized plan)

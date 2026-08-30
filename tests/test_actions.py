@@ -18,9 +18,12 @@ def test_catalog_and_node_types():
     assert {"enum-smb", "enum-ldap", "enum-adcs", "enum-tls"} <= ids
     host_ids = {a.id for a in actions.actions_for("host")}
     assert "enum-smb" in host_ids and "enum-tls" in host_ids
-    # Phase 2 is read-only: no offensive actions, and user nodes get none yet.
-    assert all(not a["offensive"] for a in actions.catalog())
-    assert actions.actions_for("user") == []
+    # Read-only enum actions stay non-offensive; Phase 3 adds gated offensive actions.
+    enum = {"enum-smb", "enum-ldap", "enum-adcs", "enum-tls"}
+    assert all(not a["offensive"] for a in actions.catalog() if a["id"] in enum)
+    # kerberoast-user is the first offensive action, and it targets user nodes.
+    assert "kerberoast-user" in {a.id for a in actions.actions_for("user")}
+    assert next(a for a in actions.catalog() if a["id"] == "kerberoast-user")["offensive"] is True
 
 
 class _FakeEng(Engine):

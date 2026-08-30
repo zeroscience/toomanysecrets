@@ -23,6 +23,8 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
 2. **Phase 3 right-click offensive actions** *(Anja engines + Gjoko plumbing)* - the payoff of
    the `/action` channel: Kerberoast-this-user, secretsdump, DCSync, pass-the-hash exec,
    ADCS ESC abuse (`certipy req/auth`). Each gated like `poison`. "Everything in one place."
+   **IN PROGRESS** - arm/confirm gating + kerberoast-user / secretsdump-target / dcsync-user
+   engines built (`actions.py`); bridge endpoints + GUI modal are Gjoko's follow-up. See DECISIONS.
 3. **Share secret-hunting (Snaffler-style)** *(Anja)* - spider readable shares for passwords,
    keys, connection strings, `web.config`, `unattend.xml`, `*.kdbx`, scripts. Surface each
    secret as a **graph node + finding**. Almost no orchestrator does this well; it's often the
