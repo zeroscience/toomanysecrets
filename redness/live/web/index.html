@@ -214,7 +214,7 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3))
   .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
-  .nodeOpacity(0.9)                   // soft, slightly translucent - less hard-plastic
+  .nodeOpacity(0.3)                   // glassy translucent shell (a glowing core rides inside)
   .nodeRelSize(5)
   // Curved links flow around the graph instead of rigid straight lines (attack paths arc more).
   .linkCurvature(l => l.attack ? 0.28 : 0.16)
@@ -234,6 +234,32 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
 Graph.d3VelocityDecay(0.3);
 const _charge = Graph.d3Force('charge'); if (_charge) _charge.strength(-150);
 setTimeout(() => { try { Graph.d3AlphaTarget(0.02).resumeAnimation(); } catch(e){} }, 2500);
+
+// Glowing core inside each translucent orb. We reuse the bundle's OWN three.js (reached via
+// each default node mesh's .constructor) so there is no second three instance to conflict:
+// a smaller, bright, self-illuminated (emissive) sphere added as a child of the shell mesh.
+// Colour is synced from the shell each pass so severity/owned/goal recolours propagate.
+function _ensureCore(n){
+  const shell = n.__threeObj;
+  if (!shell || !shell.material || !shell.geometry || !shell.children) return;
+  let core = shell.children.find(c => c.__core);
+  if (!core){
+    const Mesh = shell.constructor, Geo = shell.geometry.constructor, Mat = shell.material.constructor;
+    const r = (shell.geometry.parameters && shell.geometry.parameters.radius) || 4;
+    try {
+      core = new Mesh(new Geo(r * 0.5, 16, 16), new Mat({ transparent: true, opacity: 0.95 }));
+    } catch(e){ return; }
+    core.__core = true;
+    shell.add(core);
+  }
+  const c = shell.material.color;                 // shell's current colour (lib keeps it updated)
+  if (c && core.material.color){
+    core.material.color.copy(c);
+    if (core.material.color.offsetHSL) core.material.color.offsetHSL(0, -0.1, 0.32);  // brighter core
+    if (core.material.emissive){ core.material.emissive.copy(c); core.material.emissiveIntensity = 1.1; }
+  }
+}
+setInterval(() => { for (const n of nodes) _ensureCore(n); }, 400);
 
 // Re-apply the link accessors so a change to highlightLinks repaints immediately.
 function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.linkColor())

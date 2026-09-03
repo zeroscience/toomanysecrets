@@ -5,12 +5,15 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Changed
-- **Organic live-graph look:** nodes are now smooth, soft, slightly translucent orbs
-  (`nodeResolution` 20 + `nodeOpacity` + larger `nodeRelSize`) instead of hard faceted balls;
-  links curve and flow; and the layout has a gentle perpetual drift (low `d3AlphaTarget` +
-  softer velocity decay / charge) so it quietly breathes instead of freezing into a rigid
-  lattice. Also fixed the WebGL canvas to size to its container + track resizes, so the graph
-  renders even when the page loads in a hidden/zero-sized host.
+- **Organic live-graph look:** nodes are now smooth **translucent orbs with a bright glowing
+  core inside** - a glassy `nodeOpacity` 0.3 shell (`nodeResolution` 20, larger `nodeRelSize`)
+  with a smaller emissive inner sphere added via the graph's own bundled three.js (reached
+  through each mesh's `.constructor`, so no second three instance and no extra dependency); the
+  core colour syncs from the shell so severity / owned / goal recolours carry through. Links
+  curve and flow, and the layout has a gentle perpetual drift (low `d3AlphaTarget` + softer
+  velocity decay / charge) so it quietly breathes instead of freezing into a rigid lattice.
+  Also fixed the WebGL canvas to size to its container + track resizes, so the graph renders
+  even when the page loads in a hidden/zero-sized host.
 
 ### Added
 - **NTLM relay map + graph replay cinematic:** `redness/relay.py` correlates findings a scan
