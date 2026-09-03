@@ -4,6 +4,14 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
+### Changed
+- **Organic live-graph look:** nodes are now smooth, soft, slightly translucent orbs
+  (`nodeResolution` 20 + `nodeOpacity` + larger `nodeRelSize`) instead of hard faceted balls;
+  links curve and flow; and the layout has a gentle perpetual drift (low `d3AlphaTarget` +
+  softer velocity decay / charge) so it quietly breathes instead of freezing into a rigid
+  lattice. Also fixed the WebGL canvas to size to its container + track resizes, so the graph
+  renders even when the page loads in a hidden/zero-sized host.
+
 ### Added
 - **NTLM relay map + graph replay cinematic:** `redness/relay.py` correlates findings a scan
   already produced into concrete relay chains - AD CS Web Enrollment (ESC8) becomes a CRITICAL
