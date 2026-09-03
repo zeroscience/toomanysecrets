@@ -18,6 +18,9 @@ Zero Science Lab · powered by Silly Security Inc.
   an SMB enum: shares and session/logged-on data.)
 
 ### Changed
+- **Ambient breathing on high-value nodes:** the Domain Admin goal and any owned (compromised)
+  nodes now gently pulse in size continuously, so the compromise state stays visually alive and
+  draws the eye even when the graph is at rest (desynced per node; yields to the replay finale).
 - **Organic live-graph look:** nodes are now smooth **translucent orbs with a bright glowing
   core inside** - a glassy `nodeOpacity` 0.3 shell (`nodeResolution` 20, larger `nodeRelSize`)
   with a smaller emissive inner sphere added via the graph's own bundled three.js (reached
