@@ -68,15 +68,21 @@ class _MissingEngine(Engine):
         raise AssertionError("must not run an unavailable engine")
 
 
+# run_scan appends derived findings (relay chains) after the engines; count only the
+# engine-produced ones so these orchestration tests are stable as derivations grow.
+def _engine_findings(report):
+    return [f for f in report.findings if not f.id.startswith("ntlm-relay")]
+
+
 def test_run_scan_aggregates_findings():
     report = run_scan(["10.0.0.1", "10.0.0.2"], engines=[_FakeEngine()], engagement="T")
-    assert len(report.findings) == 4                 # 2 findings x 2 hosts
+    assert len(_engine_findings(report)) == 4        # 2 findings x 2 hosts
     assert report.target == "10.0.0.1, 10.0.0.2"
 
 
 def test_run_scan_skips_unavailable():
     report = run_scan(["10.0.0.1"], engines=[_MissingEngine(), _FakeEngine()])
-    assert len(report.findings) == 2                 # only the available engine ran
+    assert len(_engine_findings(report)) == 2        # only the available engine ran
 
 
 def test_run_scan_streams_graph():
@@ -102,7 +108,7 @@ def test_run_scan_engine_error_is_contained():
         def run(self, t): raise RuntimeError("kaboom")
     # should not raise; just yields no findings from the boom engine
     report = run_scan(["10.0.0.1"], engines=[_Boom(), _FakeEngine()])
-    assert len(report.findings) == 2
+    assert len(_engine_findings(report)) == 2
 
 
 def test_node_type_secret():
