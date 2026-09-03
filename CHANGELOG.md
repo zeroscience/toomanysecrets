@@ -6,10 +6,16 @@ Zero Science Lab · powered by Silly Security Inc.
 ## [Unreleased]
 ### Added
 - **New-node flash on right-click discovery:** when a right-click action (enum or offensive)
-  turns up a host/IP that wasn't on the graph yet, that node pulses and glows for ~3 seconds so
-  the operator can immediately spot what the action discovered. Scoped to a window right after
-  the action (the initial scan build doesn't flash), with a hard cleanup fallback so a node is
-  never left stuck glowing if the tab was backgrounded.
+  turns up a host/IP that wasn't on the graph yet, an **expanding cyan ring** (a scanner-ping
+  ripple, three rings over ~3 seconds) emanates from that node so the operator can immediately
+  spot what the action discovered. Scoped to a window right after the action (the initial scan
+  build doesn't flash), with a hard cleanup fallback so a node is never left mid-animation if the
+  tab was backgrounded.
+- **Demo right-click discovery:** in `live --demo`, right-clicking **Enumerate SMB** on a host now
+  simulates a realistic discovery - readable shares on the host, plus an active session revealing
+  a logged-on user and the workstation they came from (a new in-scope host) - so the new-node
+  ring is visible without any tools installed. (What legitimately spawns a new in-scope node from
+  an SMB enum: shares and session/logged-on data.)
 
 ### Changed
 - **Organic live-graph look:** nodes are now smooth **translucent orbs with a bright glowing

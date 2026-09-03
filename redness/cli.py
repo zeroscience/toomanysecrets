@@ -159,7 +159,8 @@ def cmd_live(args) -> int:
     from .live import demo as live_demo
 
     server = _live_server(default_bus, args.host, args.port,
-                          enable_offensive=getattr(args, "enable_offensive", False))
+                          enable_offensive=getattr(args, "enable_offensive", False),
+                          demo=args.demo)
     url = server.start()
     print(f"[+] Live graph at {url}")
     print("[*] Use the 'New scan' panel, or right-click a node for enum actions.")
@@ -252,14 +253,23 @@ def _live_offensive_handlers(bus):
     return on_arm, on_execute
 
 
-def _live_server(bus, host, port, enable_offensive=False):
-    """LiveServer wired with the scan + action handlers and the action catalog."""
+def _live_server(bus, host, port, enable_offensive=False, demo=False):
+    """LiveServer wired with the scan + action handlers and the action catalog.
+
+    In `demo` mode a right-click action is served by the simulator (so it discovers new nodes
+    with no tools installed) instead of the real engine runner.
+    """
     from .actions import catalog
     from .live import LiveServer
+    if demo:
+        from .live import demo as live_demo
+        on_action = lambda p: live_demo.simulate_action(bus, p)   # noqa: E731
+    else:
+        on_action = _live_action_handler(bus)
     on_arm, on_execute = _live_offensive_handlers(bus) if enable_offensive else (None, None)
     return LiveServer(bus, host=host, port=port,
                       on_scan=_live_scan_handler(bus),
-                      on_action=_live_action_handler(bus),
+                      on_action=on_action,
                       action_catalog=catalog(),
                       on_arm=on_arm, on_execute=on_execute,
                       enable_offensive=enable_offensive)
