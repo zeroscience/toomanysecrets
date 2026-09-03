@@ -213,6 +213,11 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   .nodeColor(n => (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3))
+  .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
+  .nodeOpacity(0.9)                   // soft, slightly translucent - less hard-plastic
+  .nodeRelSize(5)
+  // Curved links flow around the graph instead of rigid straight lines (attack paths arc more).
+  .linkCurvature(l => l.attack ? 0.28 : 0.16)
   // Attack-path edges are red and busy; potential (roastable, uncracked) leads are dimmer.
   // A link lit by the replay cinematic goes bright white and thick.
   .linkColor(l => highlightLinks.has(l) ? '#ffffff'
@@ -222,6 +227,13 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   .linkDirectionalParticles(l => highlightLinks.has(l) ? 8 : (l.attack ? (l.potential?2:5) : 2))
   .linkDirectionalParticleWidth(l => highlightLinks.has(l) ? 4 : (l.attack ? 2.6 : 1.6))
   .linkDirectionalParticleSpeed(l => l.attack ? 0.02 : 0.012);
+
+// Organic, living motion: softer velocity decay so nodes glide, more breathing room between
+// them, and a gentle perpetual drift (low alpha target) so the graph never freezes into a
+// rigid lattice - it slowly, quietly breathes.
+Graph.d3VelocityDecay(0.3);
+const _charge = Graph.d3Force('charge'); if (_charge) _charge.strength(-150);
+setTimeout(() => { try { Graph.d3AlphaTarget(0.02).resumeAnimation(); } catch(e){} }, 2500);
 
 // Re-apply the link accessors so a change to highlightLinks repaints immediately.
 function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.linkColor())
