@@ -256,10 +256,41 @@ function _ensureCore(n){
   if (c && core.material.color){
     core.material.color.copy(c);
     if (core.material.color.offsetHSL) core.material.color.offsetHSL(0, -0.1, 0.32);  // brighter core
-    if (core.material.emissive){ core.material.emissive.copy(c); core.material.emissiveIntensity = 1.1; }
+    if (core.material.emissive){ core.material.emissive.copy(c);
+      if (!n.__flashing) core.material.emissiveIntensity = 1.1; }   // leave the flash its glow
   }
 }
 setInterval(() => { for (const n of nodes) _ensureCore(n); }, 400);
+
+// --- "new node" flash: pulse + glow a node for 3s when a right-click action discovers it ---
+let flashNewUntil = 0;                        // armed for a window after a right-click action
+function _baseVal(n){ return n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3; }
+function flashNewNode(n, tries){
+  const shell = n.__threeObj;                 // the lib builds the mesh a beat after addNode
+  if (!shell){ if ((tries||0) < 25) setTimeout(() => flashNewNode(n, (tries||0)+1), 120); return; }
+  if (n.__flashing) return;
+  n.__flashing = true;
+  const core = shell.children ? shell.children.find(c => c.__core) : null;
+  const t0 = performance.now(), DUR = 3000, base = _baseVal(n);
+  (function frame(now){
+    const k = Math.min(1, (now - t0) / DUR), env = 1 - k;   // envelope fades over 3s
+    const pulse = Math.abs(Math.sin(k * Math.PI * 8));      // ~4 pulses
+    n.__val = base * (1 + 1.1 * pulse * env);               // swell up to ~2x, decaying
+    try { Graph.nodeVal(Graph.nodeVal()); } catch(e){}
+    if (core && core.material && core.material.emissive)
+      core.material.emissiveIntensity = 1.1 + 3.5 * pulse * env;   // bright glowing pulse
+    if (k < 1){ requestAnimationFrame(frame); }
+    else { _endFlash(n, core); }
+  })(t0);
+  // Fallback: rAF pauses in a backgrounded tab, so guarantee cleanup via a timer too.
+  setTimeout(() => _endFlash(n, core), DUR + 400);
+}
+function _endFlash(n, core){
+  if (!n.__flashing) return;
+  n.__flashing = false; n.__val = undefined;
+  try { Graph.nodeVal(Graph.nodeVal()); } catch(e){}
+  if (core && core.material) core.material.emissiveIntensity = 1.1;
+}
 
 // Re-apply the link accessors so a change to highlightLinks repaints immediately.
 function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.linkColor())
@@ -292,6 +323,9 @@ function addNode(d){
   }
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
   nodeById.set(d.id, n); nodes.push(n); bump();
+  // If this node appeared right after a right-click action, flash it so the operator
+  // can see it's newly discovered (a new IP/host the action turned up).
+  if (Date.now() < flashNewUntil) flashNewNode(n);
 }
 function addEdge(d){
   const key = d.src + '|' + d.dst + '|' + (d.label||'');
@@ -408,6 +442,7 @@ document.addEventListener('click', e => { if (!ctx.contains(e.target)) ctx.class
 
 async function runAction(actionId, node) {
   log(`action: ${actionId} → ${node.id}`, 'sev-low');
+  flashNewUntil = Date.now() + 12000;         // flash any nodes this action discovers
   const body = { action: actionId, target: node.id,
     username: el('s_user') && el('s_user').value || null,
     password: el('s_pass') && el('s_pass').value || null,
@@ -442,6 +477,7 @@ async function armAndExecute(actionId, node){
   if (!window.confirm((arm.banner || `Offensive action ${actionId} on ${node.id}.`) + '\n\nProceed?')) {
     log(`offensive action cancelled: ${actionId}`, 'sev-low'); return;
   }
+  flashNewUntil = Date.now() + 12000;         // flash nodes this action discovers
   try {
     const r = await fetch('/action/execute', { method:'POST',
       headers: { 'Content-Type':'application/json', 'X-Redness-Offensive': OFFENSIVE_TOKEN,

@@ -4,6 +4,13 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
+### Added
+- **New-node flash on right-click discovery:** when a right-click action (enum or offensive)
+  turns up a host/IP that wasn't on the graph yet, that node pulses and glows for ~3 seconds so
+  the operator can immediately spot what the action discovered. Scoped to a window right after
+  the action (the initial scan build doesn't flash), with a hard cleanup fallback so a node is
+  never left stuck glowing if the tab was backgrounded.
+
 ### Changed
 - **Organic live-graph look:** nodes are now smooth **translucent orbs with a bright glowing
   core inside** - a glassy `nodeOpacity` 0.3 shell (`nodeResolution` 20, larger `nodeRelSize`)
