@@ -160,6 +160,57 @@ def test_catalog_exposes_offensive_flag():
 
 
 # =========================================================================== #
+# asrep-roast (offensive; reuses ldap.parse_asrep; needs no credentials)        #
+# =========================================================================== #
+# two AS-REP roastable accounts; the action must keep only the requested principal's hash
+SAMPLE_ASREP = (
+    "$krb5asrep$23$svc-backup@ACME.LOCAL:aaaa1111$bbbb2222cccc3333\n"
+    "$krb5asrep$23$jdoe@ACME.LOCAL:dddd4444$eeee5555ffff6666\n"
+)
+
+
+def test_asrep_roast_filters_to_principal_and_marks_offensive():
+    fs = actions._asrep_roast("svc-backup", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "asrep-roast-user" and f.severity is Severity.HIGH
+    assert f.category is Category.KERBEROS and f.affected == ["svc-backup"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "asrep-roast"
+    assert f.meta["hashes"] == [
+        {"account": "svc-backup",
+         "hash": "$krb5asrep$23$svc-backup@ACME.LOCAL:aaaa1111$bbbb2222cccc3333",
+         "type": "krb5asrep"}]                    # jdoe excluded
+    assert f.credentialed is False                # AS-REP roasting needs no creds
+
+
+def test_asrep_roast_case_insensitive_principal_match():
+    fs = actions._asrep_roast("ACME\\SVC-BACKUP", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert len(fs) == 1 and fs[0].affected == ["ACME\\SVC-BACKUP"]
+
+
+def test_asrep_roast_no_hash_returns_empty():
+    fs = actions._asrep_roast("ghost", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert fs == []
+
+
+def test_arm_execute_asrep_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("asrep-roast", "svc-backup", audit=log.append)
+    rep = actions.execute_armed_action(
+        "asrep-roast", "svc-backup", _tgt(), arm_token=armed["arm_token"],
+        confirm="asrep-roast", audit=log.append, runner=lambda tgt: SAMPLE_ASREP)
+    assert [f.id for f in rep.findings] == ["asrep-roast-user"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_asrep_roast_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["asrep-roast"]["offensive"] is True and cat["asrep-roast"]["node_types"] == ["user"]
+
+
+# =========================================================================== #
 # step 2: secretsdump-target + dcsync-user                                      #
 # =========================================================================== #
 SAMPLE_SAM = (

