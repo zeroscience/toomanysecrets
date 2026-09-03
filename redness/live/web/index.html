@@ -228,6 +228,15 @@ function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.link
   .linkDirectionalParticles(Graph.linkDirectionalParticles())
   .linkDirectionalParticleWidth(Graph.linkDirectionalParticleWidth()); }
 
+// Keep the WebGL canvas sized to its container. ForceGraph3D reads the size once at init;
+// if the page loads while the pane is hidden/zero-sized (e.g. embedded), the canvas stays
+// 0x0. Size it explicitly and track changes so the graph always fills the view.
+function sizeGraph(){ const g = el('graph');
+  if (g.clientWidth && g.clientHeight) Graph.width(g.clientWidth).height(g.clientHeight); }
+sizeGraph();
+window.addEventListener('resize', sizeGraph);
+try { new ResizeObserver(sizeGraph).observe(el('graph')); } catch(e){}
+
 let fitTimer = null;
 function bump(){
   Graph.graphData({ nodes, links }); refreshCounts();
