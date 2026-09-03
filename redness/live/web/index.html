@@ -262,34 +262,50 @@ function _ensureCore(n){
 }
 setInterval(() => { for (const n of nodes) _ensureCore(n); }, 400);
 
-// --- "new node" flash: pulse + glow a node for 3s when a right-click action discovers it ---
+// --- "new node" flash: an expanding colored ring (scanner ping) for 3s when a right-click
+// action discovers a node. A bright cyan wireframe sphere cloned from the node expands and
+// fades outward - three rings over 3s - so a fresh host/IP is unmistakable. Built from the
+// graph's own three (node mesh constructors), added as a child so it tracks the node.
+const NEW_RING_COLOR = '#5ffbf1';             // bright cyan "discovery" signal
 let flashNewUntil = 0;                        // armed for a window after a right-click action
-function _baseVal(n){ return n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3; }
 function flashNewNode(n, tries){
   const shell = n.__threeObj;                 // the lib builds the mesh a beat after addNode
   if (!shell){ if ((tries||0) < 25) setTimeout(() => flashNewNode(n, (tries||0)+1), 120); return; }
   if (n.__flashing) return;
   n.__flashing = true;
-  const core = shell.children ? shell.children.find(c => c.__core) : null;
-  const t0 = performance.now(), DUR = 3000, base = _baseVal(n);
+  const Mesh = shell.constructor, Geo = shell.geometry.constructor, Mat = shell.material.constructor;
+  const r = (shell.geometry.parameters && shell.geometry.parameters.radius) || 4;
+  let ring;
+  try {
+    const mat = new Mat({ transparent: true, opacity: 0.9, wireframe: true });
+    if (mat.color && mat.color.set) mat.color.set(NEW_RING_COLOR);
+    if (mat.emissive){ mat.emissive.set(NEW_RING_COLOR); mat.emissiveIntensity = 1.6; }
+    if ('depthWrite' in mat) mat.depthWrite = false;
+    ring = new Mesh(new Geo(r, 16, 12), mat);
+    ring.__ring = true;
+    shell.add(ring);
+  } catch(e){ n.__flashing = false; return; }
+  const t0 = performance.now(), DUR = 3000;
   (function frame(now){
-    const k = Math.min(1, (now - t0) / DUR), env = 1 - k;   // envelope fades over 3s
-    const pulse = Math.abs(Math.sin(k * Math.PI * 8));      // ~4 pulses
-    n.__val = base * (1 + 1.1 * pulse * env);               // swell up to ~2x, decaying
-    try { Graph.nodeVal(Graph.nodeVal()); } catch(e){}
-    if (core && core.material && core.material.emissive)
-      core.material.emissiveIntensity = 1.1 + 3.5 * pulse * env;   // bright glowing pulse
-    if (k < 1){ requestAnimationFrame(frame); }
-    else { _endFlash(n, core); }
+    const k = Math.min(1, (now - t0) / DUR);
+    const cyc = (k * 3) % 1;                  // three expanding rings across the 3s
+    const s = 1 + cyc * 2.4;                  // grow outward from the node
+    ring.scale.set(s, s, s);
+    if (ring.material) ring.material.opacity = 0.9 * (1 - cyc) * (1 - k);   // fade each ring + overall
+    if (k < 1){ requestAnimationFrame(frame); } else { _endFlash(n); }
   })(t0);
   // Fallback: rAF pauses in a backgrounded tab, so guarantee cleanup via a timer too.
-  setTimeout(() => _endFlash(n, core), DUR + 400);
+  setTimeout(() => _endFlash(n), DUR + 400);
 }
-function _endFlash(n, core){
+function _endFlash(n){
   if (!n.__flashing) return;
-  n.__flashing = false; n.__val = undefined;
-  try { Graph.nodeVal(Graph.nodeVal()); } catch(e){}
-  if (core && core.material) core.material.emissiveIntensity = 1.1;
+  n.__flashing = false;
+  const shell = n.__threeObj;
+  const ring = shell && shell.children ? shell.children.find(c => c.__ring) : null;
+  if (ring){
+    shell.remove(ring);
+    try { ring.geometry.dispose(); ring.material.dispose(); } catch(e){}
+  }
 }
 
 // Re-apply the link accessors so a change to highlightLinks repaints immediately.

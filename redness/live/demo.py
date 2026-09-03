@@ -6,6 +6,7 @@ see the 3D graph build and light up before any GUI phase is committed.
 """
 from __future__ import annotations
 
+import random
 import time
 
 from ..events import Event, EventBus, EventKind
@@ -19,6 +20,51 @@ def _emit(bus: EventBus, kind: EventKind, engine: str = "demo", **data) -> None:
 def _finding(bus: EventBus, **kw) -> None:
     f = Finding(**kw)
     _emit(bus, EventKind.FINDING, finding=f.to_dict())
+
+
+def simulate_action(bus: EventBus, params: dict) -> None:
+    """Simulate what a right-click enum discovers, so the demo shows a NEW node pop up (+ flash).
+
+    What legitimately makes a new node appear within the already-scanned scope? A real SMB
+    enumeration of a host reveals: readable **shares** on that host, and - via active
+    **sessions** - a logged-on **user** and the **workstation** that user is logged into (a
+    host we hadn't touched yet, still inside the engagement scope). That is the honest source
+    of a "new" node, and what we simulate here.
+    """
+    action = (params.get("action") or "").strip()
+    target = (params.get("target") or "").strip()
+    if not target:
+        return
+    _emit(bus, EventKind.STATUS, message=f"{action}: probing {target}")
+    time.sleep(0.6)
+
+    if action == "enum-smb":
+        for share in ("backups$", "IT-scripts"):        # readable shares on the host
+            sid = f"\\\\{target}\\{share}"
+            _emit(bus, EventKind.NODE, id=sid, label=share, type="share")
+            _emit(bus, EventKind.EDGE, src=target, dst=sid, label="share")
+            time.sleep(0.45)
+        _finding(bus, id="smb-writable-share", title="Writable non-default SMB share",
+                 severity=Severity.HIGH, category=Category.SMB,
+                 affected=[f"\\\\{target}\\backups$"], credentialed=True)
+        time.sleep(0.4)
+        # an active session -> a logged-on user + the workstation they came from (new in-scope host)
+        user = random.choice(["svc-sql", "helpdesk", "adm.blake", "backup-op"])
+        _emit(bus, EventKind.NODE, id=user, label=user, type="user")
+        _emit(bus, EventKind.EDGE, src=target, dst=user, label="session")
+        time.sleep(0.45)
+        ws = f"10.10.0.{random.randint(40, 99)}"
+        _emit(bus, EventKind.NODE, id=ws, label=f"WS ({ws})", type="host")
+        _emit(bus, EventKind.EDGE, src=user, dst=ws, label="logged-on")
+        _emit(bus, EventKind.STATUS,
+              message=f"enum-smb: 2 shares, session {user} -> new host {ws} (in scope)")
+    else:
+        # other enum actions reveal one related detail node so the flash is still demoed
+        label = action.replace("enum-", "").upper() or "detail"
+        rid = f"{target} :: {label}"
+        _emit(bus, EventKind.NODE, id=rid, label=label, type="host")
+        _emit(bus, EventKind.EDGE, src=target, dst=rid, label=action.replace("enum-", ""))
+        _emit(bus, EventKind.STATUS, message=f"{action}: enumerated {target}")
 
 
 def run(bus: EventBus, step: float = 0.45) -> None:
