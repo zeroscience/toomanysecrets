@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (249 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (255 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger / coerce`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -29,6 +29,8 @@ redness/
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
   discovery.py    # TCP connect-scan -> dispatch only relevant engines (hail-mary); --no-discovery
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
+  paths.py        # derive attack-path edges from findings (owned/roastable/ADCS -> Domain Admin)
+  relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)

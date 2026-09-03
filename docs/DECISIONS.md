@@ -488,3 +488,25 @@ Audit/rate-limit/single-use/TTL all live in `actions.py` (from #50) and are unch
 (web/index.html): right-click an offensive action -> arm -> `window.confirm(banner)` -> execute
 with the arm_token + confirm header. Tests: 8 new (loopback guard, token gating, 403-when-disabled,
 arm 200 / 429-on-rate, execute routing with the confirm header, catalog show/hide) - 249 total.
+
+## 2026-08-31 - NTLM relay map (derivation) + live-graph "Replay path to DA" cinematic
+Two paired features - a capability and its visualization.
+
+Relay map (`redness/relay.py`, mirrors paths.py): correlates findings a scan already produced
+into the concrete NTLM relay chains an operator would run. ESC8 (`adcs-web-enrollment`) ->
+CRITICAL `ntlm-relay-to-adcs` (coerce a DC, relay to /certsrv, DC cert -> DCSync -> Domain
+Admin); `smb-signing-not-required` -> HIGH `ntlm-relay-to-smb`. `coercion-*` findings (from the
+`coerce` command) supply confirmed victims; absent those it derives from a generic "a coercible
+DC", since ESC8 + missing signing are relay-able on their own. Findings are `Category.CONFIG`
+(no schema bump). Emission draws a central `NTLM Relay` node with coercion fan-in and relay
+fan-out (ESC8 CA -> Domain Admin goal; signing-off hosts). Wired into `run_scan` AFTER
+`emit_attack_paths` so the goal node exists; `emit_relay_paths` also appends its findings to the
+report. Pure derivation, no new tool; unit-tested with synthetic Reports.
+
+Graph glow-up (`live/web/index.html`): a "Replay path to DA" button plays the attack+relay edges
+from entry point toward the goal (order = reverse-BFS depth from the goal node), lighting each
+edge bright white + thick, emitting particle bursts (`Graph.emitParticles`), flying the camera to
+each hop, then pulsing the Domain Admin node - the "how we'd own you" story for demos/report
+screenshots. Added the `relay` node type/colour + legend rows. A `highlightLinks` set drives the
+transient link styling; `refreshLinks()` re-applies the accessors. Verified in-browser against
+`redness live --demo` (no console errors).

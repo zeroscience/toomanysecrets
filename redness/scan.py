@@ -149,6 +149,9 @@ def run_scan(
     # Derive attack-path edges from what we found and light them up in the graph.
     from .paths import emit_attack_paths
     emit_attack_paths(bus, report, domain=domain_label)
+    # Correlate coercion + missing signing + ESC8 into concrete NTLM relay chains.
+    from .relay import emit_relay_paths
+    emit_relay_paths(bus, report, domain=domain_label)
 
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
     _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")

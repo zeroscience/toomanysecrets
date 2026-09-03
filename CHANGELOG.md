@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **NTLM relay map + graph replay cinematic:** `redness/relay.py` correlates findings a scan
+  already produced into concrete relay chains - AD CS Web Enrollment (ESC8) becomes a CRITICAL
+  `ntlm-relay-to-adcs` chain to Domain Admin (coerce a DC -> relay to /certsrv -> DC cert ->
+  DCSync), and signing-disabled hosts become a HIGH `ntlm-relay-to-smb`. Drawn on the graph as a
+  central **NTLM Relay** node with coercion fan-in and relay fan-out. Pure derivation, no new
+  tool, no schema change. Plus a **"Replay path to DA"** button that animates the attack/relay
+  edges from entry point to the Domain Admin goal (edge lighting + particle bursts + camera fly +
+  goal pulse) - the "how we'd own you" story for demos and report screenshots.
 - **Offensive actions wired into the GUI (arm/execute HTTP framework):** the Phase-3 offensive
   actions (Kerberoast / secretsdump / DCSync) are now triggerable from the live graph via two new
   bridge endpoints - `POST /action/arm` (returns a single-use token + banner) and

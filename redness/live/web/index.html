@@ -123,7 +123,9 @@
   <div class="row"><span class="dot" style="background:#ff4d4d"></span>finding (by severity)</div>
   <div class="row"><span class="dot" style="background:#ff2d2d"></span>owned (compromised)</div>
   <div class="row"><span class="dot" style="background:#ffcf33"></span>Domain Admin (goal)</div>
-  <div class="row"><span class="dot" style="background:#ff3737"></span>attack path</div>
+  <div class="row"><span class="dot" style="background:#ff884d"></span>NTLM relay</div>
+  <div class="row"><span class="dot" style="background:#ff3737"></span>attack / relay path</div>
+  <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">▶ Replay path to DA</button>
 </div>
 
 <button id="scantoggle" class="hidden">＋ New scan</button>
@@ -188,7 +190,7 @@
 const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
   share:'#e08a55', ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a',
   group:'#a78bfa', ou:'#94a3b8', gpo:'#64748b', container:'#64748b', secret:'#ec4899',
-  owned:'#ff2d2d', goal:'#ffcf33' };   // owned = compromised account, goal = Domain Admin
+  owned:'#ff2d2d', goal:'#ffcf33', relay:'#ff884d' };   // owned=compromised, goal=DA, relay=NTLM relay
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
 const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
@@ -197,6 +199,7 @@ const nodes = [], links = [];
 const nodeById = new Map();
 const linkKeys = new Set();       // dedupe edges across replay/loop
 const seenFindings = new Set();   // dedupe findings across replay/loop
+const highlightLinks = new Set(); // edges lit during the "replay path to DA" cinematic
 const worstSev = new Map();       // node id -> worst severity string
 let findingCount = 0;
 
@@ -211,12 +214,28 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3))
   // Attack-path edges are red and busy; potential (roastable, uncracked) leads are dimmer.
-  .linkColor(l => l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
-                           : 'rgba(120,130,150,.35)')
-  .linkWidth(l => (l.attack && !l.potential) ? 2.2 : 0)
-  .linkDirectionalParticles(l => l.attack ? (l.potential?2:5) : 2)
-  .linkDirectionalParticleWidth(l => l.attack ? 2.6 : 1.6)
+  // A link lit by the replay cinematic goes bright white and thick.
+  .linkColor(l => highlightLinks.has(l) ? '#ffffff'
+                  : l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
+                             : 'rgba(120,130,150,.35)')
+  .linkWidth(l => highlightLinks.has(l) ? 5 : ((l.attack && !l.potential) ? 2.2 : 0))
+  .linkDirectionalParticles(l => highlightLinks.has(l) ? 8 : (l.attack ? (l.potential?2:5) : 2))
+  .linkDirectionalParticleWidth(l => highlightLinks.has(l) ? 4 : (l.attack ? 2.6 : 1.6))
   .linkDirectionalParticleSpeed(l => l.attack ? 0.02 : 0.012);
+
+// Re-apply the link accessors so a change to highlightLinks repaints immediately.
+function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.linkColor())
+  .linkDirectionalParticles(Graph.linkDirectionalParticles())
+  .linkDirectionalParticleWidth(Graph.linkDirectionalParticleWidth()); }
+
+// Keep the WebGL canvas sized to its container. ForceGraph3D reads the size once at init;
+// if the page loads while the pane is hidden/zero-sized (e.g. embedded), the canvas stays
+// 0x0. Size it explicitly and track changes so the graph always fills the view.
+function sizeGraph(){ const g = el('graph');
+  if (g.clientWidth && g.clientHeight) Graph.width(g.clientWidth).height(g.clientHeight); }
+sizeGraph();
+window.addEventListener('resize', sizeGraph);
+try { new ResizeObserver(sizeGraph).observe(el('graph')); } catch(e){}
 
 let fitTimer = null;
 function bump(){
@@ -394,6 +413,59 @@ async function armAndExecute(actionId, node){
     log(`offensive: ${actionId} → ${node.id} (armed + confirmed)`, 'sev-critical');
   } catch (err) { log('execute request failed: '+err, 'sev-high'); }
 }
+
+// ---- "Replay path to Domain Admin" cinematic ----
+// Walks the attack/relay edges from the entry point toward the Domain Admin goal, lighting
+// each in turn with a particle burst and a camera nudge - the "how we'd own you" story.
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const _lid = x => (x && x.id !== undefined) ? x.id : x;   // link ends resolve to node objects
+let replaying = false;
+
+function replayOrder(){
+  const al = links.filter(l => l.attack);
+  const depth = new Map();                                // steps from a node to the goal
+  let frontier = nodes.filter(n => n.type === 'goal').map(n => n.id);
+  frontier.forEach(g => depth.set(g, 0));
+  let d = 0;
+  while (frontier.length){
+    const next = [];
+    for (const l of al){ const s = _lid(l.source), t = _lid(l.target);
+      if (frontier.includes(t) && !depth.has(s)){ depth.set(s, d + 1); next.push(s); } }
+    frontier = next; d++;
+  }
+  // farthest-from-goal first, so the story plays entry -> ... -> Domain Admin
+  return al.slice().sort((a, b) => (depth.get(_lid(b.source)) ?? 0) - (depth.get(_lid(a.source)) ?? 0));
+}
+
+function pulseNode(n){
+  const base = n.__val || 9; let t = 0;
+  const iv = setInterval(() => { t += 0.4; n.__val = base + Math.abs(Math.sin(t)) * 6;
+    Graph.nodeVal(Graph.nodeVal());
+    if (t > Math.PI * 3){ clearInterval(iv); n.__val = base; Graph.nodeVal(Graph.nodeVal()); } }, 55);
+}
+
+async function replayPaths(){
+  if (replaying) return;
+  const order = replayOrder();
+  if (!order.length){ log('no attack path to replay yet - run a scan first', 'sev-low'); return; }
+  replaying = true; highlightLinks.clear(); refreshLinks();
+  log('▶ replaying path to Domain Admin...', 'sev-critical');
+  for (const l of order){
+    highlightLinks.add(l); refreshLinks();
+    try { for (let i = 0; i < 3; i++) Graph.emitParticles(l); } catch(e){}
+    const t = nodeById.get(_lid(l.target));
+    if (t && t.x !== undefined)
+      Graph.cameraPosition({ x:t.x, y:t.y, z:(t.z||0) + 120 }, t, 600);
+    await sleep(780);
+  }
+  const goal = nodes.find(n => n.type === 'goal');
+  if (goal) pulseNode(goal);
+  await sleep(900);
+  highlightLinks.clear(); refreshLinks();
+  if (nodes.length) Graph.zoomToFit(600, 50);
+  replaying = false;
+}
+el('replaybtn').onclick = replayPaths;
 
 // ---- About / Usage modals ----
 function showModal(id){ el(id).classList.add('show'); }
