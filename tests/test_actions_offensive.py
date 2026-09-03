@@ -308,6 +308,77 @@ def test_step2_actions_in_catalog():
     assert cat["dcsync-user"]["offensive"] is True and cat["dcsync-user"]["node_types"] == ["user"]
 
 
+# =========================================================================== #
+# adcs-esc1 (offensive; certipy req -> auth; CA auto-resolved from certipy find) #
+# =========================================================================== #
+SAMPLE_CERTIPY_AUTH = (
+    "[*] Using principal: administrator@acme.local\n"
+    "[*] Trying to get TGT...\n"
+    "[*] Got TGT\n"
+    "[*] Saved credential cache to 'administrator.ccache'\n"
+    "[*] Trying to retrieve NT hash for 'administrator'\n"
+    "[*] Got hash for 'administrator@acme.local': "
+    "aad3b435b51404eeaad3b435b51404ee:e19ccf75ee54e06b06a5907af13cef42\n"
+)
+# certipy `find -json` shape (index-keyed), matching engines/certipy._iter_objects/_name_of
+SAMPLE_FIND = {
+    "Certificate Templates": {
+        "0": {"Template Name": "UserAuth", "Certificate Authorities": ["ACME-CA"]},
+        "1": {"Template Name": "WebServer", "Certificate Authorities": ["ACME-CA"]},
+    },
+    "Certificate Authorities": {
+        "0": {"CA Name": "ACME-CA", "DNS Name": "ca01.acme.local"},
+    },
+}
+
+
+def test_parse_certipy_auth():
+    assert actions.parse_certipy_auth(SAMPLE_CERTIPY_AUTH) == [
+        ("administrator@acme.local", "e19ccf75ee54e06b06a5907af13cef42")]
+    assert actions.parse_certipy_auth("no hash here") == []
+
+
+def test_ca_for_template_resolves_name_and_host():
+    assert actions.ca_for_template(SAMPLE_FIND, "UserAuth") == ("ACME-CA", "ca01.acme.local")
+    assert actions.ca_for_template(SAMPLE_FIND, "userauth") == ("ACME-CA", "ca01.acme.local")  # ci
+    assert actions.ca_for_template(SAMPLE_FIND, "Nonexistent") is None
+
+
+def test_adcs_esc1_finding_shape():
+    fs = actions._adcs_esc1("UserAuth", _tgt(), runner=lambda target, tgt: SAMPLE_CERTIPY_AUTH)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "adcs-esc1-abused" and f.severity is Severity.CRITICAL
+    assert f.category is Category.ADCS and f.affected == ["administrator@acme.local"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "adcs-esc1"
+    assert "esc" not in f.meta                       # omitted on purpose - keeps paths.py clean
+    assert f.meta["credentials"] == [{
+        "account": "administrator@acme.local", "kind": "nthash",
+        "secret": "e19ccf75ee54e06b06a5907af13cef42", "source": "adcs-esc1"}]
+
+
+def test_adcs_esc1_no_output_returns_empty():
+    fs = actions._adcs_esc1("UserAuth", _tgt(), runner=lambda target, tgt: "req failed")
+    assert fs == []
+
+
+def test_arm_execute_adcs_esc1_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("adcs-esc1", "UserAuth", audit=log.append)
+    rep = actions.execute_armed_action(
+        "adcs-esc1", "UserAuth", _tgt(), arm_token=armed["arm_token"],
+        confirm="adcs-esc1", audit=log.append, runner=lambda target, tgt: SAMPLE_CERTIPY_AUTH)
+    assert [f.id for f in rep.findings] == ["adcs-esc1-abused"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_adcs_esc1_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["adcs-esc1"]["offensive"] is True and cat["adcs-esc1"]["node_types"] == ["template"]
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):
