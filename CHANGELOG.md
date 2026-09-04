@@ -5,6 +5,8 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Changed
+- **About window copy:** dropped the "Authorized security assessments only." footer and tightened
+  the blurb (removed the dash-aside phrasing) so it reads in our own voice.
 - **Relay map now accepts poisoning as a source:** `redness/relay.py` treats spoofable
   LLMNR/NBT-NS name resolution (from `listen`) as a second way to obtain the NTLM auth a relay
   needs, alongside coercion. When both a relay target (ESC8 / signing-off host) and poisonable
