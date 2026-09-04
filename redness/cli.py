@@ -721,6 +721,50 @@ _TRIGGER_BANNER = (
 )
 
 
+def cmd_listen(args) -> int:
+    """Passive link-local discovery: listen for mDNS/LLMNR/NBT-NS/SSDP announcements."""
+    import time
+    import webbrowser
+
+    from .mcast import listen
+
+    print("[*] REDNESS link-local discovery (passive listen). Authorized, in-scope segments only.")
+    if args.active:
+        print("[*] --active: will also send a single SSDP M-SEARCH to solicit UPnP replies.")
+
+    bus = None
+    server = None
+    if args.live:
+        from .events import default_bus
+        from .live import LiveServer
+        bus = default_bus
+        server = LiveServer(bus, host=args.host, port=args.port)
+        url = server.start()
+        print(f"[+] Live graph at {url}")
+        if not args.no_open:
+            webbrowser.open(url)
+        time.sleep(1.0)
+
+    report, _announces = listen(args.duration, active=args.active, bus=bus)
+    _print_summary(report)
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+    if server:
+        print("[*] Live graph running. Ctrl+C to stop.")
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            print("\n[*] Stopping.")
+            server.stop()
+    return 0
+
+
 def cmd_trigger(args) -> int:
     # Generator output goes to stdout so it can be redirected cleanly
     # (`redness trigger --host X > lure.html`); the banner + operator hints go to stderr.
@@ -922,6 +966,20 @@ def main(argv=None) -> int:
     co.add_argument("--port", type=int, default=8765, help="live graph port")
     co.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     co.set_defaults(func=cmd_coerce)
+
+    li = sub.add_parser("listen",
+                        help="passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP) on the segment")
+    li.add_argument("--duration", type=int, default=60, help="seconds to listen (default 60)")
+    li.add_argument("--active", action="store_true",
+                    help="also send one SSDP M-SEARCH to solicit UPnP replies (still low-noise)")
+    li.add_argument("--engagement", default="REDNESS link-local discovery")
+    li.add_argument("--out", help="write a .docx report to this path")
+    li.add_argument("--json", help="write findings JSON to this path")
+    li.add_argument("--live", action="store_true", help="stream to the live 3D graph")
+    li.add_argument("--host", default="127.0.0.1", help="live graph bind host")
+    li.add_argument("--port", type=int, default=8765, help="live graph port")
+    li.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    li.set_defaults(func=cmd_listen)
 
     tr = sub.add_parser("trigger",
                         help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")

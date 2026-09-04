@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- **Passive link-local discovery (`listen` command):** `redness/mcast.py` listens for the
+  broadcast/multicast "chatter" a WiFi/LAN segment leaks - **mDNS**, **LLMNR**, **NBT-NS**, and
+  **SSDP/UPnP** - to inventory hosts and devices (printers, IoT, media, Apple/Android) with *no
+  active scanning*, and to surface attack surface: `llmnr-nbtns-poisonable` (MEDIUM - spoofable
+  name resolution, feeds `poison`) and `wpad-lookup-observed` (HIGH - WPAD spoofing -> credential
+  theft). Pure-Python sockets (no new dependency), fully passive by default (`--active` sends one
+  SSDP M-SEARCH), parsers unit-tested against hand-built packets. Findings reuse ENUM/CONFIG - no
+  schema change.
 - **New-node flash on right-click discovery:** when a right-click action (enum or offensive)
   turns up a host/IP that wasn't on the graph yet, an **expanding cyan ring** (a scanner-ping
   ripple, three rings over ~3 seconds) emanates from that node so the operator can immediately
