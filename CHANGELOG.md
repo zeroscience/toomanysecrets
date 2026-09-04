@@ -4,6 +4,10 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
+### Security
+- **gitignore a root `scope.txt` / `targets.txt`** so a real engagement scope can't be committed
+  by accident (root-anchored; the sample `examples/scope.txt` stays tracked).
+
 ### Changed
 - **New Scan panel:** added an ✕ in the header to close/cancel the panel (e.g. if you opened it
   or a scope import by mistake) without starting a scan.
