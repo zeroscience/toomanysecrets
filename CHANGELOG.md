@@ -4,7 +4,17 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
+### Security
+- **gitignore a root `scope.txt` / `targets.txt`** so a real engagement scope can't be committed
+  by accident (root-anchored; the sample `examples/scope.txt` stays tracked).
+
 ### Changed
+- **New Scan panel:** added an ✕ in the header to close/cancel the panel (e.g. if you opened it
+  or a scope import by mistake) without starting a scan.
+- **Trimmed the CLI banners:** dropped the "Authorized, in-scope engagements only / assume written
+  authorization" boilerplate from the `spray` / `poison` / `coerce` / `trigger` banners, the
+  offensive-channel notice, and the `listen` line - kept the operational danger info (INTRUSIVE,
+  can lock out accounts, affects other hosts, loud to a SOC).
 - **About window copy:** dropped the "Authorized security assessments only." footer and tightened
   the blurb (removed the dash-aside phrasing) so it reads in our own voice.
 - **Relay map now accepts poisoning as a source:** `redness/relay.py` treats spoofable
