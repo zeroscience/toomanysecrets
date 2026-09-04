@@ -280,8 +280,7 @@ def _print_offensive_banner(server) -> None:
     if getattr(server, "offensive_enabled", False):
         print("\n[!] OFFENSIVE CHANNEL ENABLED - kerberoast / secretsdump / dcsync are unlocked.",
               file=sys.stderr)
-        print("[!] Authorized, in-scope engagements ONLY. Every arm/execute is audited to loot/.",
-              file=sys.stderr)
+        print("[!] Every arm/execute is audited to loot/.", file=sys.stderr)
         print(f"[!] Offensive token (paste into the GUI to unlock these actions): {server.offensive_token}\n",
               file=sys.stderr)
 
@@ -391,9 +390,8 @@ _SPRAY_BANNER = (
     "\n=====================================================================\n"
     " REDNESS spray - password spraying (INTRUSIVE)\n"
     " Spraying CAN LOCK OUT ACCOUNTS (a denial of service against the\n"
-    " client) and is loud to a SOC. Lockout-aware, but authorized,\n"
-    " in-scope engagements ONLY - assume written authorization and client\n"
-    " awareness of the account-lockout policy.\n"
+    " client) and is loud to a SOC. Lockout-aware, but know the account\n"
+    " lockout policy before you run it.\n"
     "=====================================================================\n"
 )
 
@@ -511,8 +509,7 @@ def cmd_spray(args) -> int:
 _POISON_BANNER = (
     "\n=====================================================================\n"
     " REDNESS poison - LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
-    " INTRUSIVE: affects OTHER hosts on the local segment. Authorized,\n"
-    " in-scope engagements only - assume written authorization exists.\n"
+    " INTRUSIVE: affects OTHER hosts on the local segment.\n"
     "=====================================================================\n"
 )
 
@@ -594,9 +591,8 @@ _COERCE_BANNER = (
     "\n=====================================================================\n"
     " REDNESS coerce - active RPC forced authentication (PetitPotam/\n"
     " PrinterBug/DFSCoerce). INTRUSIVE: actively coerces a TARGET machine\n"
-    " (often a DC) into authenticating to your listener - the target WILL\n"
-    " log the authentication/RPC event. Authorized, in-scope engagements\n"
-    " only - assume written authorization exists.\n"
+    " (often a DC) into authenticating to your listener; the target WILL\n"
+    " log the authentication/RPC event.\n"
     "=====================================================================\n"
 )
 
@@ -715,8 +711,7 @@ def cmd_coerce(args) -> int:
 _TRIGGER_BANNER = (
     "\n=====================================================================\n"
     " REDNESS trigger - forced-authentication UNC link (NetNTLMv2 capture)\n"
-    " The artifact coerces a victim's credentials when opened. Authorized,\n"
-    " in-scope engagements only - assume written authorization exists.\n"
+    " The artifact coerces a victim's credentials when opened.\n"
     "=====================================================================\n"
 )
 
@@ -728,7 +723,7 @@ def cmd_listen(args) -> int:
 
     from .mcast import listen
 
-    print("[*] REDNESS link-local discovery (passive listen). Authorized, in-scope segments only.")
+    print("[*] REDNESS link-local discovery (passive listen).")
     if args.active:
         print("[*] --active: will also send a single SSDP M-SEARCH to solicit UPnP replies.")
 

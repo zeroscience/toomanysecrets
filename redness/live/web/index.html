@@ -77,6 +77,8 @@
   .modal .grid .k { color:#6b7280; }
   .modal .x { float:right; cursor:pointer; color:#8a93a2; font-size:16px; line-height:1; }
   .modal .x:hover { color:#ff5252; }
+  #scanpanel .x { float:right; cursor:pointer; color:#8a93a2; font-size:15px; line-height:1; }
+  #scanpanel .x:hover { color:#ff5252; }
   .modal .foot { margin-top:16px; color:#4b5563; font-size:10.5px; letter-spacing:.05em; }
   /* right-click node action menu */
   #ctxmenu { position:fixed; z-index:60; display:none; min-width:210px;
@@ -130,7 +132,7 @@
 
 <button id="scantoggle" class="hidden">＋ New scan</button>
 <div id="scanpanel" class="panel">
-  <h2>NEW SCAN</h2>
+  <h2><span class="x" id="scanclose" title="Cancel">✕</span>NEW SCAN</h2>
   <textarea id="targets" placeholder="targets - one IP / hostname / CIDR per line&#10;10.10.0.15&#10;dc01.acme.local"></textarea>
   <input type="file" id="scopefile" accept=".txt" title="Load a scope .txt">
   <div class="row2">
@@ -402,6 +404,7 @@ const panel = el('scanpanel'), toggle = el('scantoggle');
 if (SCAN_ENABLED) {
   toggle.classList.remove('hidden');
   toggle.onclick = () => panel.classList.toggle('show');
+  el('scanclose').onclick = () => panel.classList.remove('show');   // X cancels / closes the panel
   el('scopefile').onchange = (e) => {
     const f = e.target.files[0]; if(!f) return;
     const r = new FileReader();
