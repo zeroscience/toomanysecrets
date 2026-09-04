@@ -76,6 +76,33 @@ def test_emit_adds_findings_and_draws_map():
     assert any(e.data.get("src") == "acme.local" and e.data.get("dst") == relay.RELAY for e in edges)
 
 
+def test_poisoning_present_helper():
+    assert relay.poisoning_present(_report(_f("llmnr-nbtns-poisonable", ["FS01"]))) is True
+    assert relay.poisoning_present(_report(_f("wpad-lookup-observed", ["10.0.0.9"]))) is True
+    assert relay.poisoning_present(_report(_f("smb-signing-not-required", ["10.0.0.1"]))) is False
+
+
+def test_poisoning_annotates_relay_finding():
+    # a relay target (ESC8) + poisonable name resolution from `listen`
+    r = _report(_f("adcs-web-enrollment", ["ca01"], Category.ADCS),
+                _f("llmnr-nbtns-poisonable", ["FILESERVER"]))
+    f = {x.id: x for x in relay.build_relay_findings(r)}["ntlm-relay-to-adcs"]
+    assert f.meta["poison_source"] is True
+    assert "poison" in f.impact.lower() and "llmnr" in f.impact.lower()
+
+
+def test_emit_draws_poison_source_into_relay():
+    bus = EventBus()
+    events = []
+    bus.subscribe(lambda e: events.append(e))
+    r = _report(_f("smb-signing-not-required", ["10.0.0.9"], Category.SMB),
+                _f("llmnr-nbtns-poisonable", ["FS01"]))
+    relay.emit_relay_paths(bus, r)
+    edges = [e for e in events if e.kind is EventKind.EDGE]
+    assert any(e.data.get("src") == relay.POISON_NODE and e.data.get("dst") == relay.RELAY
+               and e.data.get("attack") for e in edges)
+
+
 def test_emit_noop_when_nothing_to_relay():
     bus = EventBus()
     events = []

@@ -529,3 +529,18 @@ falling back to LLMNR/NBT-NS is spoofable; feeds `poison`), `wpad-lookup-observe
 `link-local segment` node. Complements the active TCP connect-scan (catches printers/IoT/Apple/
 media the port-scan misses) and ties into the existing `poison`/`trigger` NetNTLM story. Segment-
 local + observes other hosts' traffic, so authorized-scope only.
+
+## 2026-09-04 - Relay map gains poisoning as a source; `scan --listen` folds in the passive sweep
+Wired `listen`'s poisonable findings into the relay map. A relay needs two things: a target that
+does not enforce signing/EPA (SMB signing-off or ESC8), and a way to OBTAIN NTLM auth to relay.
+We already modeled coercion as that source; LLMNR/NBT-NS poisoning (surfaced by `listen`, finding
+`llmnr-nbtns-poisonable` / `wpad-lookup-observed`) is the other. `relay.poisoning_present()` gates
+it: when present alongside a relay target, `emit_relay_paths` draws a `LLMNR/NBT-NS poison` node
+into the `NTLM Relay` node, and `build_relay_findings` notes the poisoning source in the ESC8/SMB
+relay findings' impact + meta (`poison_source`). Pure derivation, no schema change.
+
+Because the two live in separate commands (`scan` vs `listen`), `run_scan` gained `listen_secs`
+(CLI `scan --listen SECONDS`): an optional passive sweep whose findings are merged into the scan
+report BEFORE the relay derivation, so a single command produces a relay map that connects
+poison -> relay -> target -> Domain Admin. `listen(emit_done=False)` when embedded so it does not
+prematurely signal DONE.

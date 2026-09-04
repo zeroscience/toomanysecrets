@@ -342,7 +342,8 @@ def _bind_broadcast(port: int):
 
 
 def listen(duration: int = 60, *, active: bool = False, bus: Optional[EventBus] = None,
-           engagement: str = "REDNESS link-local discovery") -> tuple[Report, list[Announce]]:
+           engagement: str = "REDNESS link-local discovery",
+           emit_done: bool = True) -> tuple[Report, list[Announce]]:
     """Listen on the segment for `duration` seconds, aggregate announcements into a Report.
 
     Passive by default (sends nothing). `active=True` fires one SSDP M-SEARCH to solicit UPnP
@@ -407,7 +408,8 @@ def listen(duration: int = 60, *, active: bool = False, bus: Optional[EventBus] 
         _emit(bus, EventKind.FINDING, finding=f.to_dict())
     _emit(bus, EventKind.STATUS,
           message=f"mcast: {len(announces)} announcement(s), {len(report.findings)} finding(s)")
-    _emit(bus, EventKind.DONE, engine="mcast")
+    if emit_done:
+        _emit(bus, EventKind.DONE, engine="mcast")
     return report, announces
 
 

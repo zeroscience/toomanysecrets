@@ -4,6 +4,14 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
+### Changed
+- **Relay map now accepts poisoning as a source:** `redness/relay.py` treats spoofable
+  LLMNR/NBT-NS name resolution (from `listen`) as a second way to obtain the NTLM auth a relay
+  needs, alongside coercion. When both a relay target (ESC8 / signing-off host) and poisonable
+  name resolution are present, the graph draws a `LLMNR/NBT-NS poison` node feeding the `NTLM
+  Relay` node, and the relay findings note the poisoning source. `scan --listen SECONDS` folds a
+  passive sweep into a scan so the two combine into one report/relay map automatically.
+
 ### Added
 - **Passive link-local discovery (`listen` command):** `redness/mcast.py` listens for the
   broadcast/multicast "chatter" a WiFi/LAN segment leaks - **mDNS**, **LLMNR**, **NBT-NS**, and
