@@ -38,6 +38,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | HTTP: AD web surfaces (/certsrv = ESC8, OWA/EWS) | (stdlib) | no-cred |
 | SNMP: default community strings (public/private) | snmpwalk | no-cred |
 | GPP cpassword / SYSVOL secrets | NetExec | cred |
+| Link-local discovery (mDNS/LLMNR/NBT-NS/SSDP) | (stdlib) | passive, segment-local |
 | NetNTLMv2 capture (LLMNR/NBT-NS poisoning) | Responder | intrusive, opt-in |
 | Password spraying (lockout-aware) | NetExec | intrusive, opt-in |
 
@@ -49,6 +50,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | `redness scan` | Run the engines against one/many targets → report + live graph (+ crack) |
 | `redness gui` | **Native desktop window** (Windows/Linux) around the live 3D graph |
 | `redness live` | The same UI in a browser (`--demo` for simulated data) |
+| `redness listen` | Passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP) - hosts, devices, poisonable names |
 | `redness poison` | LLMNR/NBT-NS poisoning to capture NetNTLMv2 (intrusive; opt-in) |
 | `redness bloodhound` | Ingest a SharpHound/BloodHound collection (MemberOf/AdminTo/HasSession) into the graph |
 | `redness report` | Re-render a `.docx` from a saved `findings.json` |

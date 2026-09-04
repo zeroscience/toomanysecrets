@@ -510,3 +510,22 @@ each hop, then pulsing the Domain Admin node - the "how we'd own you" story for 
 screenshots. Added the `relay` node type/colour + legend rows. A `highlightLinks` set drives the
 transient link styling; `refreshLinks()` re-applies the accessors. Verified in-browser against
 `redness live --demo` (no console errors).
+
+## 2026-09-04 - Passive link-local discovery (`listen`): the broadcast/multicast layer
+Added `redness/mcast.py` + a `listen` command for the passive discovery layer the active scan
+misses: the multicast/broadcast "chatter" a WiFi/LAN segment leaks. Pure-Python sockets (no new
+dependency), parsing kept pure and separate from the socket loop (unit-tested against hand-built
+packets; NetBIOS decode grounded on the RFC1001 'FRED' example).
+
+Protocols: mDNS (5353/224.0.0.251), LLMNR (5355/224.0.0.252), NBT-NS (137 broadcast), SSDP
+(1900/239.255.255.250). Fully **passive by default** (sends nothing); `--active` fires a single
+SSDP M-SEARCH. Sockets that can't bind (privileges / port in use - NBT-NS 137 needs admin on
+some OSes) are skipped with a STATUS, never fatal.
+
+Findings reuse ENUM/CONFIG - no schema bump: `mcast-inventory` (INFO, hosts/devices seen with no
+active scanning), `ssdp-upnp-devices` (INFO), `llmnr-nbtns-poisonable` (MEDIUM - name resolution
+falling back to LLMNR/NBT-NS is spoofable; feeds `poison`), `wpad-lookup-observed` (HIGH - a
+`wpad` lookup means WPAD spoofing -> credential theft). Graph: discovered devices hang off a
+`link-local segment` node. Complements the active TCP connect-scan (catches printers/IoT/Apple/
+media the port-scan misses) and ties into the existing `poison`/`trigger` NetNTLM story. Segment-
+local + observes other hosts' traffic, so authorized-scope only.
