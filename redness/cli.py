@@ -355,7 +355,7 @@ def cmd_scan(args) -> int:
         username=args.username, password=args.password, nthash=args.hash,
         domain=args.domain, kerberos=args.kerberos, bus=bus,
         engagement=args.engagement, engines=engines,
-        discover=not args.no_discovery,
+        discover=not args.no_discovery, listen_secs=args.listen,
     )
 
     # Hash loot + optional cracking (AS-REP / Kerberoast). --no-crack hard-disables all
@@ -882,6 +882,9 @@ def main(argv=None) -> int:
     sc.add_argument("--no-discovery", action="store_true",
                     help="run every available engine on every host (skip the TCP service "
                          "connect-scan that otherwise dispatches only relevant engines)")
+    sc.add_argument("--listen", type=int, default=0, metavar="SECONDS",
+                    help="also run a passive link-local sweep for N seconds; its poisonable "
+                         "LLMNR/NBT-NS findings feed the relay map (poison -> relay -> target)")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")

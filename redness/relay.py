@@ -63,6 +63,16 @@ def smb_unsigned_hosts(report) -> list[str]:
     return sorted(set(out))
 
 
+_POISON_IDS = {"llmnr-nbtns-poisonable", "wpad-lookup-observed"}
+POISON_NODE = "LLMNR/NBT-NS poison"
+
+
+def poisoning_present(report) -> bool:
+    """True if the segment has spoofable name resolution (from `listen`) - an alternate way to
+    obtain the NTLM authentication a relay needs, besides coercion."""
+    return any(f.id in _POISON_IDS for f in report.findings)
+
+
 def derive_relay_chains(report) -> list[RelayChain]:
     """The relay chains implied by a scan's findings (ESC8 first - it reaches DA)."""
     victims = coercible_victims(report) or [""]     # "" = generic "a coercible DC"
@@ -81,6 +91,12 @@ def build_relay_findings(report) -> list[Finding]:
     findings: list[Finding] = []
     victims = coercible_victims(report)
     who = ", ".join(victims) if victims else "a coercible DC (e.g. via PetitPotam/PrinterBug)"
+    poison = poisoning_present(report)
+    # The auth to relay has two sources: coercion, or poisoning spoofable name resolution.
+    src_note = (" The authentication to relay can also be captured by poisoning the segment's "
+                "LLMNR/NBT-NS name resolution (`redness poison`, seen via `redness listen`), not "
+                "only by coercion." if poison else "")
+    poison_ref = ["https://attack.mitre.org/techniques/T1557/001/"] if poison else []
 
     esc8 = esc8_targets(report)
     if esc8:
@@ -94,7 +110,8 @@ def build_relay_findings(report) -> list[Finding]:
                         "victim machine.",
             impact=f"Coercing {who} and relaying to {', '.join(esc8)} yields a certificate for a "
                    "Domain Controller account; that cert authenticates for DCSync - full domain "
-                   "compromise. This chains coercion + ESC8 that are each present in this scan.",
+                   "compromise. This chains coercion + ESC8 that are each present in this scan."
+                   + src_note,
             remediation="Enable EPA (Extended Protection for Authentication) + require HTTPS on the "
                         "CA web endpoints, disable HTTP enrollment if unused, and enforce SMB/LDAP "
                         "signing to break relay. Patch the coercion vectors (KB5005413, disable "
@@ -102,9 +119,9 @@ def build_relay_findings(report) -> list[Finding]:
             affected=esc8,
             evidence=[Evidence(source="relay", detail=f"ESC8 at {', '.join(esc8)}; victim: {who}")],
             references=["https://attack.mitre.org/techniques/T1187/",
-                        "https://attack.mitre.org/techniques/T1649/"],
+                        "https://attack.mitre.org/techniques/T1649/"] + poison_ref,
             credentialed=False,
-            meta={"relay": "adcs-esc8", "targets": esc8},
+            meta={"relay": "adcs-esc8", "targets": esc8, "poison_source": poison},
         ))
 
     smb = smb_unsigned_hosts(report)
@@ -118,14 +135,14 @@ def build_relay_findings(report) -> list[Finding]:
                         "authentication can be relayed to them.",
             impact=f"Relaying {who}'s (or any captured) authentication to these hosts enables "
                    "authenticated actions and, with a privileged victim, code execution / "
-                   "secrets dump on the target.",
+                   "secrets dump on the target." + src_note,
             remediation="Enforce SMB signing (Digitally sign communications = always) via GPO on "
                         "all hosts, especially DCs; combine with the coercion patches.",
             affected=smb,
             evidence=[Evidence(source="relay", detail=f"{len(smb)} signing-disabled host(s)")],
             references=["https://attack.mitre.org/techniques/T1557/001/"],
             credentialed=False,
-            meta={"relay": "smb", "targets": smb},
+            meta={"relay": "smb", "targets": smb, "poison_source": poison},
         ))
     return findings
 
@@ -160,6 +177,11 @@ def emit_relay_paths(bus: Optional[EventBus], report, domain: str = "domain") ->
     else:                                               # generic: the domain feeds a coercible DC
         _emit(bus, EventKind.EDGE, src=domain, dst=RELAY, label="coerce a DC", attack=True,
               potential=True, technique="T1187")
+
+    if poisoning_present(report):                       # the OTHER source of relay-able auth
+        _emit(bus, EventKind.NODE, id=POISON_NODE, label=POISON_NODE, type="owned")
+        _emit(bus, EventKind.EDGE, src=POISON_NODE, dst=RELAY, label="poison LLMNR/NBT-NS",
+              attack=True, technique="T1557.001")
 
     for ca in esc8_targets(report):
         _emit(bus, EventKind.NODE, id=ca, label=ca, type="template")

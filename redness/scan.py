@@ -85,6 +85,7 @@ def run_scan(
     engagement: str = "REDNESS assessment",
     discover: bool = True,
     port_scanner: Optional[Callable[[str], set[int]]] = None,
+    listen_secs: int = 0,
 ) -> Report:
     """Run engines across targets and return an aggregated Report.
 
@@ -146,10 +147,18 @@ def run_scan(
                 report.findings.append(f)
                 _emit_finding_graph(bus, domain_label, host, f)
 
+    # Optional passive link-local sweep: its poisonable (LLMNR/NBT-NS) findings become a second
+    # source into the relay map below (poison -> relay -> target), alongside coercion.
+    if listen_secs > 0:
+        from .mcast import listen
+        _emit(bus, EventKind.STATUS, message=f"passive listen: {listen_secs}s on the segment")
+        lrep, _ = listen(listen_secs, bus=bus, emit_done=False)
+        report.findings.extend(lrep.findings)
+
     # Derive attack-path edges from what we found and light them up in the graph.
     from .paths import emit_attack_paths
     emit_attack_paths(bus, report, domain=domain_label)
-    # Correlate coercion + missing signing + ESC8 into concrete NTLM relay chains.
+    # Correlate coercion + missing signing + ESC8 (+ LLMNR/NBT-NS poisoning) into relay chains.
     from .relay import emit_relay_paths
     emit_relay_paths(bus, report, domain=domain_label)
 
