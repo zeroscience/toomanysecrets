@@ -379,6 +379,74 @@ def test_adcs_esc1_in_catalog():
     assert cat["adcs-esc1"]["offensive"] is True and cat["adcs-esc1"]["node_types"] == ["template"]
 
 
+# =========================================================================== #
+# pth-exec (offensive; fixed recon battery via pass-the-hash; no command input)  #
+# =========================================================================== #
+SAMPLE_PTH = (
+    "SMB  10.0.0.5  445  WS01  [*] Windows 10 (name:WS01) (domain:ACME) (signing:False)\n"
+    "SMB  10.0.0.5  445  WS01  [+] ACME\\Administrator:e19ccf75... (Pwn3d!)\n"
+    "SMB  10.0.0.5  445  WS01  [+] Executed command via wmiexec\n"
+    "SMB  10.0.0.5  445  WS01  acme\\administrator\n"
+    "SMB  10.0.0.5  445  WS01  WS01\n"
+    "SMB  10.0.0.5  445  WS01  Windows IP Configuration\n"
+    "SMB  10.0.0.5  445  WS01  Host Name: WS01\n"
+)
+SAMPLE_PTH_NOADMIN = (
+    "SMB  10.0.0.5  445  WS01  [*] Windows 10 (name:WS01) (domain:ACME) (signing:False)\n"
+    "SMB  10.0.0.5  445  WS01  [-] ACME\\lowpriv:pw STATUS_ACCESS_DENIED\n"
+)
+
+
+def test_parse_pth_exec_success_strips_prefix_and_status():
+    ok, output = actions.parse_pth_exec(SAMPLE_PTH)
+    assert ok is True
+    assert "acme\\administrator" in output and "Windows IP Configuration" in output
+    assert "[+]" not in output and "Pwn3d" not in output   # nxc status lines dropped
+
+
+def test_parse_pth_exec_non_admin_is_no_exec():
+    assert actions.parse_pth_exec(SAMPLE_PTH_NOADMIN) == (False, "")
+
+
+def test_pth_exec_finding_is_critical_no_credentials():
+    fs = actions._pth_exec("10.0.0.5", _tgt(), runner=lambda tgt: SAMPLE_PTH)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "pth-exec" and f.severity is Severity.CRITICAL
+    assert f.category is Category.SMB and f.affected == ["10.0.0.5"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "pth-exec"
+    assert "credentials" not in f.meta                     # consumes a hash, recovers none
+    assert "acme\\administrator" in f.evidence[0].detail    # proof-of-exec snippet
+
+
+def test_pth_exec_no_exec_returns_empty():
+    fs = actions._pth_exec("10.0.0.5", _tgt(), runner=lambda tgt: SAMPLE_PTH_NOADMIN)
+    assert fs == []
+
+
+def test_pth_exec_battery_is_whitelisted_recon_only():
+    # the guardrail: only these four read-only commands can ever run - no arbitrary input path
+    cmds = [c.strip().split()[0].lower() for c in actions.RECON_BATTERY.split("&")]
+    assert set(cmds) == {"whoami", "hostname", "ipconfig", "systeminfo"}
+
+
+def test_arm_execute_pth_exec_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("pth-exec", "10.0.0.5", audit=log.append)
+    rep = actions.execute_armed_action(
+        "pth-exec", "10.0.0.5", _tgt(), arm_token=armed["arm_token"],
+        confirm="pth-exec", audit=log.append, runner=lambda tgt: SAMPLE_PTH)
+    assert [f.id for f in rep.findings] == ["pth-exec"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_pth_exec_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["pth-exec"]["offensive"] is True and cat["pth-exec"]["node_types"] == ["host"]
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

