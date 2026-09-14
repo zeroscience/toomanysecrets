@@ -160,6 +160,57 @@ def test_catalog_exposes_offensive_flag():
 
 
 # =========================================================================== #
+# asrep-roast (offensive; reuses ldap.parse_asrep; needs no credentials)        #
+# =========================================================================== #
+# two AS-REP roastable accounts; the action must keep only the requested principal's hash
+SAMPLE_ASREP = (
+    "$krb5asrep$23$svc-backup@ACME.LOCAL:aaaa1111$bbbb2222cccc3333\n"
+    "$krb5asrep$23$jdoe@ACME.LOCAL:dddd4444$eeee5555ffff6666\n"
+)
+
+
+def test_asrep_roast_filters_to_principal_and_marks_offensive():
+    fs = actions._asrep_roast("svc-backup", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "asrep-roast-user" and f.severity is Severity.HIGH
+    assert f.category is Category.KERBEROS and f.affected == ["svc-backup"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "asrep-roast"
+    assert f.meta["hashes"] == [
+        {"account": "svc-backup",
+         "hash": "$krb5asrep$23$svc-backup@ACME.LOCAL:aaaa1111$bbbb2222cccc3333",
+         "type": "krb5asrep"}]                    # jdoe excluded
+    assert f.credentialed is False                # AS-REP roasting needs no creds
+
+
+def test_asrep_roast_case_insensitive_principal_match():
+    fs = actions._asrep_roast("ACME\\SVC-BACKUP", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert len(fs) == 1 and fs[0].affected == ["ACME\\SVC-BACKUP"]
+
+
+def test_asrep_roast_no_hash_returns_empty():
+    fs = actions._asrep_roast("ghost", _tgt(), runner=lambda tgt: SAMPLE_ASREP)
+    assert fs == []
+
+
+def test_arm_execute_asrep_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("asrep-roast", "svc-backup", audit=log.append)
+    rep = actions.execute_armed_action(
+        "asrep-roast", "svc-backup", _tgt(), arm_token=armed["arm_token"],
+        confirm="asrep-roast", audit=log.append, runner=lambda tgt: SAMPLE_ASREP)
+    assert [f.id for f in rep.findings] == ["asrep-roast-user"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_asrep_roast_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["asrep-roast"]["offensive"] is True and cat["asrep-roast"]["node_types"] == ["user"]
+
+
+# =========================================================================== #
 # step 2: secretsdump-target + dcsync-user                                      #
 # =========================================================================== #
 SAMPLE_SAM = (
@@ -255,6 +306,145 @@ def test_step2_actions_in_catalog():
     assert cat["secretsdump-target"]["offensive"] is True
     assert cat["secretsdump-target"]["node_types"] == ["host"]
     assert cat["dcsync-user"]["offensive"] is True and cat["dcsync-user"]["node_types"] == ["user"]
+
+
+# =========================================================================== #
+# adcs-esc1 (offensive; certipy req -> auth; CA auto-resolved from certipy find) #
+# =========================================================================== #
+SAMPLE_CERTIPY_AUTH = (
+    "[*] Using principal: administrator@acme.local\n"
+    "[*] Trying to get TGT...\n"
+    "[*] Got TGT\n"
+    "[*] Saved credential cache to 'administrator.ccache'\n"
+    "[*] Trying to retrieve NT hash for 'administrator'\n"
+    "[*] Got hash for 'administrator@acme.local': "
+    "aad3b435b51404eeaad3b435b51404ee:e19ccf75ee54e06b06a5907af13cef42\n"
+)
+# certipy `find -json` shape (index-keyed), matching engines/certipy._iter_objects/_name_of
+SAMPLE_FIND = {
+    "Certificate Templates": {
+        "0": {"Template Name": "UserAuth", "Certificate Authorities": ["ACME-CA"]},
+        "1": {"Template Name": "WebServer", "Certificate Authorities": ["ACME-CA"]},
+    },
+    "Certificate Authorities": {
+        "0": {"CA Name": "ACME-CA", "DNS Name": "ca01.acme.local"},
+    },
+}
+
+
+def test_parse_certipy_auth():
+    assert actions.parse_certipy_auth(SAMPLE_CERTIPY_AUTH) == [
+        ("administrator@acme.local", "e19ccf75ee54e06b06a5907af13cef42")]
+    assert actions.parse_certipy_auth("no hash here") == []
+
+
+def test_ca_for_template_resolves_name_and_host():
+    assert actions.ca_for_template(SAMPLE_FIND, "UserAuth") == ("ACME-CA", "ca01.acme.local")
+    assert actions.ca_for_template(SAMPLE_FIND, "userauth") == ("ACME-CA", "ca01.acme.local")  # ci
+    assert actions.ca_for_template(SAMPLE_FIND, "Nonexistent") is None
+
+
+def test_adcs_esc1_finding_shape():
+    fs = actions._adcs_esc1("UserAuth", _tgt(), runner=lambda target, tgt: SAMPLE_CERTIPY_AUTH)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "adcs-esc1-abused" and f.severity is Severity.CRITICAL
+    assert f.category is Category.ADCS and f.affected == ["administrator@acme.local"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "adcs-esc1"
+    assert "esc" not in f.meta                       # omitted on purpose - keeps paths.py clean
+    assert f.meta["credentials"] == [{
+        "account": "administrator@acme.local", "kind": "nthash",
+        "secret": "e19ccf75ee54e06b06a5907af13cef42", "source": "adcs-esc1"}]
+
+
+def test_adcs_esc1_no_output_returns_empty():
+    fs = actions._adcs_esc1("UserAuth", _tgt(), runner=lambda target, tgt: "req failed")
+    assert fs == []
+
+
+def test_arm_execute_adcs_esc1_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("adcs-esc1", "UserAuth", audit=log.append)
+    rep = actions.execute_armed_action(
+        "adcs-esc1", "UserAuth", _tgt(), arm_token=armed["arm_token"],
+        confirm="adcs-esc1", audit=log.append, runner=lambda target, tgt: SAMPLE_CERTIPY_AUTH)
+    assert [f.id for f in rep.findings] == ["adcs-esc1-abused"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_adcs_esc1_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["adcs-esc1"]["offensive"] is True and cat["adcs-esc1"]["node_types"] == ["template"]
+
+
+# =========================================================================== #
+# pth-exec (offensive; fixed recon battery via pass-the-hash; no command input)  #
+# =========================================================================== #
+SAMPLE_PTH = (
+    "SMB  10.0.0.5  445  WS01  [*] Windows 10 (name:WS01) (domain:ACME) (signing:False)\n"
+    "SMB  10.0.0.5  445  WS01  [+] ACME\\Administrator:e19ccf75... (Pwn3d!)\n"
+    "SMB  10.0.0.5  445  WS01  [+] Executed command via wmiexec\n"
+    "SMB  10.0.0.5  445  WS01  acme\\administrator\n"
+    "SMB  10.0.0.5  445  WS01  WS01\n"
+    "SMB  10.0.0.5  445  WS01  Windows IP Configuration\n"
+    "SMB  10.0.0.5  445  WS01  Host Name: WS01\n"
+)
+SAMPLE_PTH_NOADMIN = (
+    "SMB  10.0.0.5  445  WS01  [*] Windows 10 (name:WS01) (domain:ACME) (signing:False)\n"
+    "SMB  10.0.0.5  445  WS01  [-] ACME\\lowpriv:pw STATUS_ACCESS_DENIED\n"
+)
+
+
+def test_parse_pth_exec_success_strips_prefix_and_status():
+    ok, output = actions.parse_pth_exec(SAMPLE_PTH)
+    assert ok is True
+    assert "acme\\administrator" in output and "Windows IP Configuration" in output
+    assert "[+]" not in output and "Pwn3d" not in output   # nxc status lines dropped
+
+
+def test_parse_pth_exec_non_admin_is_no_exec():
+    assert actions.parse_pth_exec(SAMPLE_PTH_NOADMIN) == (False, "")
+
+
+def test_pth_exec_finding_is_critical_no_credentials():
+    fs = actions._pth_exec("10.0.0.5", _tgt(), runner=lambda tgt: SAMPLE_PTH)
+    assert len(fs) == 1
+    f = fs[0]
+    assert f.id == "pth-exec" and f.severity is Severity.CRITICAL
+    assert f.category is Category.SMB and f.affected == ["10.0.0.5"]
+    assert f.meta["offensive"] is True and f.meta["action"] == "pth-exec"
+    assert "credentials" not in f.meta                     # consumes a hash, recovers none
+    assert "acme\\administrator" in f.evidence[0].detail    # proof-of-exec snippet
+
+
+def test_pth_exec_no_exec_returns_empty():
+    fs = actions._pth_exec("10.0.0.5", _tgt(), runner=lambda tgt: SAMPLE_PTH_NOADMIN)
+    assert fs == []
+
+
+def test_pth_exec_battery_is_whitelisted_recon_only():
+    # the guardrail: only these four read-only commands can ever run - no arbitrary input path
+    cmds = [c.strip().split()[0].lower() for c in actions.RECON_BATTERY.split("&")]
+    assert set(cmds) == {"whoami", "hostname", "ipconfig", "systeminfo"}
+
+
+def test_arm_execute_pth_exec_happy_path():
+    _reset()
+    log = []
+    armed = actions.arm("pth-exec", "10.0.0.5", audit=log.append)
+    rep = actions.execute_armed_action(
+        "pth-exec", "10.0.0.5", _tgt(), arm_token=armed["arm_token"],
+        confirm="pth-exec", audit=log.append, runner=lambda tgt: SAMPLE_PTH)
+    assert [f.id for f in rep.findings] == ["pth-exec"]
+    assert rep.findings[0].meta["offensive"] is True
+    assert {"arm", "execute", "result"} <= {r["event"] for r in log}
+
+
+def test_pth_exec_in_catalog():
+    cat = {e["id"]: e for e in actions.catalog()}
+    assert cat["pth-exec"]["offensive"] is True and cat["pth-exec"]["node_types"] == ["host"]
 
 
 if __name__ == "__main__":
