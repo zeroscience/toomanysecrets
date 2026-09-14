@@ -85,7 +85,7 @@ TLS + reporting + the GUI need no external tools.
 
 ```bash
 # Full assessment: scan a scope file, capture+crack hashes, report, watch the graph
-redness scan --targets scope.txt -u user -p pass -d acme.local \
+redness scan --targets examples/scope.txt -u user -p pass -d acme.local \
   --wordlist /usr/share/wordlists/rockyou.txt --out report.docx --json findings.json --live
 
 # One target, no creds (SMB / TLS / AS-REP)

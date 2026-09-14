@@ -128,10 +128,6 @@ Zero Science Lab · powered by Silly Security Inc.
   WebGL canvas to size to its container + track resizes, so the graph renders even when the page
   loads in a hidden/zero-sized host.
 
-### Security
-- `2026-09-04` **gitignore a root `scope.txt` / `targets.txt`** so a real engagement scope can't be
-  committed by accident (root-anchored; the sample `examples/scope.txt` stays tracked).
-
 ### Planned
 - ntlmrelayx live relay was considered and deliberately dropped as too heavy/intrusive (see
   [docs/NETNTLM.md](docs/NETNTLM.md)). Next directions live in [docs/ROADMAP.md](docs/ROADMAP.md)
