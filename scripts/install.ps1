@@ -25,5 +25,5 @@ if (Get-Command nxc -ErrorAction SilentlyContinue) {
 Write-Host "`n[*] Environment check:" -ForegroundColor Cyan
 & ".\.venv\Scripts\redness.exe" doctor
 
-Write-Host "`n[+] Done. Run with:  .\.venv\Scripts\redness.exe scan --targets scope.txt --live" -ForegroundColor Green
+Write-Host "`n[+] Done. Run with:  .\.venv\Scripts\redness.exe scan --targets examples/scope.txt --live" -ForegroundColor Green
 Write-Host "    (Windows note: nxc is painful here - your Kali VM with nxc installed is the easier operator box.)"

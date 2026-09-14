@@ -5,7 +5,7 @@
   python -m redness.cli doctor                       # what engines/tools are installed
   python -m redness.cli live                          # live 3D GUI
   python -m redness.cli scan --target 10.0.0.10 -u user -p pass --out report.docx
-  python -m redness.cli scan --targets scope.txt --live
+  python -m redness.cli scan --targets examples/scope.txt --live
 """
 from __future__ import annotations
 
@@ -329,7 +329,7 @@ def cmd_scan(args) -> int:
         print(f"[!] could not read scope file: {e}")
         return 2
     if not targets:
-        print("[!] no targets - pass --target HOST and/or --targets scope.txt")
+        print("[!] no targets - pass --target HOST and/or --targets examples/scope.txt")
         return 2
     print(f"[*] {len(targets)} target(s): {', '.join(targets)}")
 

@@ -30,4 +30,4 @@ echo "[*] Environment check:"
 redness doctor || python -m redness.cli doctor
 echo
 echo "[+] Done. Activate with:  source .venv/bin/activate"
-echo "    Then:  redness scan --targets scope.txt --live"
+echo "    Then:  redness scan --targets examples/scope.txt --live"

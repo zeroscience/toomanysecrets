@@ -82,5 +82,5 @@ status/probe/node/edge/finding/done.
   `redness/live/web/` and reference it; it'll bundle via the same `datas` walk).
 - **Scope input:** load a `.txt` with **one IP / CIDR / host per line** as the target
   set to enumerate (ignore blank lines and `#` comments). This feeds the real-scan
-  path (TODO #3) - a `--targets scope.txt` flag on a future `scan`/`live` real run, and
+  path (TODO #3) - a `--targets examples/scope.txt` flag on a future `scan`/`live` real run, and
   a file picker in the GUI. Keep parsing in one small helper so CLI + GUI share it.

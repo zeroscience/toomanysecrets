@@ -15,10 +15,6 @@ output/
 *.ntds
 *.kirbi
 *.ccache
-# Real scope files at the repo root (the sample examples/scope.txt stays tracked)
-/scope.txt
-/scope*.txt
-/targets.txt
 
 # IDE / OS
 .vscode/
