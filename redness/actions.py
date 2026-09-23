@@ -117,7 +117,7 @@ def run_action(action_id: str, target: str, *, username: Optional[str] = None,
 ARM_TTL = 120.0                  # seconds an arm_token stays valid
 ARM_RATE_MAX = 5                 # max arm requests ...
 ARM_RATE_WINDOW = 300.0          # ... per this many seconds (5 min); 6th within the window is refused
-AUDIT_PATH = os.path.join("loot", "offensive-audit.log")
+# Offensive arm/execute/refuse events land in the unified audit log (redness/audit.py).
 
 
 class ArmError(Exception):
@@ -136,18 +136,10 @@ _ARM: dict[str, _ArmRecord] = {}
 _ARM_TIMES: list[float] = []     # recent arm timestamps, for rate limiting
 
 
-def _default_audit(rec: dict) -> None:
-    try:
-        os.makedirs(os.path.dirname(AUDIT_PATH) or ".", exist_ok=True)
-        with open(AUDIT_PATH, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(rec) + "\n")
-    except OSError:
-        pass
-
-
 def _audit(sink: Optional[Callable[[dict], None]], event: str, **fields) -> None:
-    rec = {"ts": time.time(), "event": event, **fields}
-    (sink or _default_audit)(rec)
+    """Route every arm/execute/refuse/result to the unified audit log (or an injected sink)."""
+    from . import audit
+    audit.record(event, sink=sink, **fields)
 
 
 def arm(action_id: str, target: str, *, now: Optional[float] = None,

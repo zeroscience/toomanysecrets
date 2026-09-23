@@ -5,6 +5,13 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Unified audit log (`loot/audit.log`):** one timestamped JSONL timeline of every
+  sensitive/active operation for blue-team de-confliction - `redness/audit.py`. `scan` / `poison`
+  / `spray` now audit (start + done) where they logged nothing before; the offensive right-click
+  actions route their arm/execute/refuse/result through it (retiring the separate
+  `offensive-audit.log`); `coerce` adds a structured record while keeping its detailed per-vector
+  `coerce_audit.log` sidecar. Params only, never secrets (booleans/counts/iface/target); best-effort
+  writes never break a run; `loot/` stays gitignored. See [docs/AUDIT.md](docs/AUDIT.md).
 - `2026-09-23` **Retest diff (`redness diff`):** compare a baseline `findings.json` to a current
   one and classify every finding as **new / fixed / unchanged / severity-changed** - the retest
   deliverable after a remediation round. `redness/diff.py` is pure over the findings model
