@@ -150,6 +150,24 @@ def cmd_report(args) -> int:
     return 0
 
 
+def cmd_diff(args) -> int:
+    from .diff import diff_reports
+
+    with open(args.baseline, encoding="utf-8") as fh:
+        baseline = Report.from_json(fh.read())
+    with open(args.current, encoding="utf-8") as fh:
+        current = Report.from_json(fh.read())
+    result = diff_reports(baseline, current)
+    print(result.to_text())
+    if args.json:
+        import json
+        with open(args.json, "w", encoding="utf-8") as fh:
+            json.dump(result.to_dict(), fh, indent=2)
+        print(f"\n[+] Wrote diff JSON -> {args.json}")
+    # Non-zero exit on a regression so retests can gate CI / scripts.
+    return 2 if result.regressed() else 0
+
+
 def cmd_live(args) -> int:
     import threading
     import time
@@ -836,6 +854,12 @@ def main(argv=None) -> int:
     rp.add_argument("findings")
     rp.add_argument("--out", default="report.docx")
     rp.set_defaults(func=cmd_report)
+
+    df = sub.add_parser("diff", help="retest diff: compare a baseline findings.json to a current one")
+    df.add_argument("baseline", help="prior scan findings.json")
+    df.add_argument("current", help="current scan findings.json")
+    df.add_argument("--json", help="write the classified diff to this path")
+    df.set_defaults(func=cmd_diff)
 
     sub.add_parser("doctor", help="check which engines/tools are installed").set_defaults(func=cmd_doctor)
 
