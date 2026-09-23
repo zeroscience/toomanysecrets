@@ -33,7 +33,8 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
    + `Category.SECRET`; on `feat/sharehunt`, pending Gjoko's schema review. See docs/SHAREHUNT.md.
 4. **Report upgrades** *(Gjoko)* - attack-path narrative ("how we'd reach DA"), **MITRE ATT&CK**
    technique IDs per finding (we already store some), and a **compliance map** (NIS2 / ISO 27001
-   / CIS) like adscan. Optional self-contained **HTML report** mirroring the graph.
+   / CIS) like adscan. **BUILT** - docx attack-paths/MITRE/compliance; plus a self-contained
+   **HTML report** (`--html`) that embeds the live 3D graph offline. See docs/HTML_REPORT.md.
 
 ## Tier 2 - parity (what other tools have, we lack)
 Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper + parser + test.
@@ -58,10 +59,13 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
   MSSQL: linked-server hopping + xp_cmdshell exec (offensive, would be gated).
 
 ## Tier 3 - operator / OPSEC (professional polish)
-- **Session save/resume** - reopen a graph from `findings.json` (partly via `report`); persist
-  creds/scope as an **engagement profile**.
-- **Audit log** - timestamped record of every action for **de-confliction** with the blue team.
-- **Diff mode** - re-scan and show *what changed* (hardening regression / retest).
+- **Session save/resume** - reopen a graph from `findings.json` (via `report` / `--html`); the
+  scan now also persists the graph in `report.meta["graph"]`. Remaining: persist creds/scope as a
+  named **engagement profile** (deferred - small QoL).
+- **Audit log** - **BUILT** - unified `loot/audit.log` (JSONL) across scan/poison/spray/coerce/
+  offensive actions for blue-team de-confliction. See docs/AUDIT.md.
+- **Diff mode** - **BUILT** - `redness diff baseline.json current.json` classifies findings as
+  new/fixed/unchanged/severity-changed; exits 2 on a regression. See docs/RETEST.md.
 
 ## Ownership split (avoid collisions)
 - **Anja - `redness/engines/` + attacks:** Phase 3 actions, secret-hunting engine, spraying,

@@ -14,10 +14,12 @@ their output into one findings model, renders a `.docx` report, and can stream a
 consumes them. Change it only deliberately, bump `SCHEMA_VERSION`, and log it in
 `docs/DECISIONS.md`.
 
-## Current status (2026-08-11)
-PRs #1–#4 all merged to `main`. Working, tested (268 tests), builds to a single offline
-`.exe` with `demo / report / live / scan / poison / spray / trigger / coerce`. Real findings need `nxc` +
-`certipy` on PATH; `poison` needs `responder` (Linux/Kali).
+## Current status (2026-09-23)
+Working, tested (309 tests), builds to a single offline `.exe`. Commands: `demo / report / diff /
+live / gui / scan / poison / spray / trigger / coerce / listen / bloodhound / doctor`. Reports
+render to `.docx` and a self-contained `.html` (findings + the live 3D graph inlined). Real
+findings need `nxc` + `certipy` on PATH; `poison` needs `responder` (Linux/Kali). Capability tiers
+in ROADMAP are essentially complete; next focus is GUI/animation polish (docs/GUI.md).
 
 ![live 3D graph](docs/screenshots/live-graph.jpg)
 
@@ -26,7 +28,10 @@ PRs #1–#4 all merged to `main`. Working, tested (268 tests), builds to a singl
 redness/
   findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.0.0)
   events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
-  scan.py         # run_scan(): engines x targets -> Report (+ stream to bus)
+  scan.py         # run_scan(): engines x targets -> Report (+ stream to bus; captures meta["graph"])
+  diff.py         # retest diff: baseline vs current findings.json -> new/fixed/unchanged/changed
+  audit.py        # unified loot/audit.log (JSONL) across scan/poison/spray/coerce/actions
+  graphmodel.py   # collect NODE/EDGE events -> {nodes,links} for the HTML report (+ report fallback)
   discovery.py    # TCP connect-scan -> dispatch only relevant engines (hail-mary); --no-discovery
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   paths.py        # derive attack-path edges from findings (owned/roastable/ADCS -> Domain Admin)
@@ -51,7 +56,7 @@ redness/
     ftp.py        #   nxc ftp: anonymous login + exposure/banner
     http_ad.py    #   AD web surfaces (stdlib): /certsrv = ESC8, OWA/EWS, server banner
     snmp.py       #   default SNMP communities via snmpwalk (public=HIGH, private=CRITICAL)
-  report/         # List[Finding] -> .docx  (Person B)
+  report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
     demo.py, web/index.html, web/logo.svg, web/vendor/3d-force-graph.min.js
@@ -93,6 +98,8 @@ python -m redness.cli live                               # same UI in a browser
 python -m redness.cli live --demo                        # streaming simulated data
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
+python -m redness.cli scan --targets examples/scope.txt --json out.json --html report.html  # docx/json/html outputs
+python -m redness.cli diff baseline.json retest.json     # retest diff (new/fixed/unchanged/changed; exit 2 on regression)
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
 python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider shares for secrets (--hunt-content = read file contents)
 python -m redness.cli poison --iface eth0 --duration 600   # NetNTLMv2 capture (intrusive; prompts)
