@@ -626,3 +626,22 @@ once. Shared verbatim (modulo the two files' variable names) between the live
 so a client's offline report shows the same cascade. Pure front-end (ring meshes + particles); no
 findings-contract or schema change. Verified both surfaces in-browser (rings cascade, gold burst at
 the goal, no console errors).
+
+## 2026-09-23 - Severity as physics (GUI + HTML report) [v1.35.0]
+Made a node's worst-affecting severity drive its physical presence, so the eye is pulled to the
+most critical findings without reading a single label. Three coupled effects, keyed by severity
+(SEV_SIZE / SEV_AMP / SEV_SPD / SEV_PULL):
+  - **Size:** `baseVal(n)` adds a severity term to the type-based node size (critical +4.5 ... info
+    +0), so a critical node visibly swells.
+  - **Throb:** the ambient breathing loop now breathes every node with a finding, amplitude AND
+    speed scaling with severity (critical throbs hard + fast); owned/goal keep a breathing floor so
+    the compromise state stays alive.
+  - **Layout force:** a custom d3 force (`Graph.d3Force('severity', ...)`) pulls each node toward
+    the origin proportional to its severity weight (gentle, 0.09 * alpha * weight), so criticals
+    gravitate inward and cluster while low/info drift outward. It biases the layout, it does not
+    collapse it (charge/link still shape the graph).
+Live uses the streamed `worstSev` map; the HTML report reads the `sev` baked onto each graph node
+(`_sev_by_node`), so both surfaces behave identically. The report's finale `pulse()` now sets
+`__burst` so the severity-throb loop yields to it (no size fight). Pure front-end; no
+findings-contract or schema change. Verified both surfaces in-browser (criticals larger + central,
+no console errors). GUI 1.34.0 -> 1.35.0.

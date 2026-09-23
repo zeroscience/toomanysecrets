@@ -116,6 +116,18 @@ def test_render_includes_compromise_shockwaves():
     assert "__shock" in html                                      # rings independent of the discovery flash
 
 
+def test_render_includes_severity_physics():
+    html = html_report.render(_rep())
+    assert "severityForce" in html and "SEV_PULL" in html         # centre-pull force
+    assert "SEV_SIZE" in html and "function throb" in html        # size + throb by severity
+
+
+def test_render_tags_nodes_with_worst_severity():
+    # a critical finding on a node must bake sev="critical" into the graph JSON so the physics fires
+    html = html_report.render(_rep())
+    assert '"sev": "critical"' in html or '"sev":"critical"' in html
+
+
 def test_render_empty_report():
     html = html_report.render(Report(engagement="empty", target="none"))
     assert "No findings recorded." in html

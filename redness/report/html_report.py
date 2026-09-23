@@ -232,13 +232,23 @@ _TEMPLATE = """<!doctype html>
     relay:'#ff884d' };
   var SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c', low:'#6fcf97',
     info:'#8a93a2' };
+  // Severity as physics: worse findings swell larger, throb harder/faster, and are pulled toward
+  // the centre so the criticals cluster and draw the eye.
+  var SEV_SIZE = { critical:4.5, high:2.6, medium:1.1, low:0.3, info:0 };
+  var SEV_AMP  = { critical:0.30, high:0.19, medium:0.10, low:0.05, info:0 };
+  var SEV_SPD  = { critical:3.3, high:2.6, medium:2.0, low:1.6, info:1.4 };
+  var SEV_PULL = { critical:1.0, high:0.6, medium:0.28, low:0.08, info:0 };
+  function baseVal(n){
+    var typeV = n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
+    return typeV + (SEV_SIZE[n.sev] || 0);
+  }
   var G = ForceGraph3D()(document.getElementById('graph'))
     .backgroundColor('#0b0d12')
     .graphData(DATA)
     .nodeLabel(function(n){ return n.label + (n.sev ? ' - ' + n.sev.toUpperCase() : ''); })
     .nodeColor(function(n){ return (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
         : n.sev ? SEV_COLOR[n.sev] : (TYPE_COLOR[n.type] || '#9aa4b2'); })
-    .nodeVal(function(n){ return n.val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3); })
+    .nodeVal(function(n){ return n.val || baseVal(n); })
     .nodeResolution(20).nodeOpacity(0.3).nodeRelSize(5)
     .linkCurvature(function(l){ return l.attack ? 0.28 : 0.16; })
     .linkColor(function(l){ return l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
@@ -250,6 +260,36 @@ _TEMPLATE = """<!doctype html>
   G.d3VelocityDecay(0.3);
   var charge = G.d3Force('charge'); if (charge) charge.strength(-150);
   setTimeout(function(){ try { G.d3AlphaTarget(0.02).resumeAnimation(); } catch(e){} }, 2500);
+
+  // severity as a force: pull each node toward the centre in proportion to its worst severity, so
+  // the critical findings gravitate inward and cluster while low/info nodes drift outward.
+  function severityForce(){
+    var _n = [];
+    var f = function(alpha){
+      for (var i=0;i<_n.length;i++){ var n=_n[i]; var w=SEV_PULL[n.sev]||0; if(!w) continue;
+        var k=alpha*w*0.09;
+        if(n.x!==undefined) n.vx-=n.x*k; if(n.y!==undefined) n.vy-=n.y*k; if(n.z!==undefined) n.vz-=n.z*k; }
+    };
+    f.initialize = function(nn){ _n = nn; };
+    return f;
+  }
+  try { G.d3Force('severity', severityForce()); } catch(e){}
+
+  // ambient throb driven by severity: worse nodes breathe harder + faster, drawing the eye.
+  (function throb(){
+    var t = performance.now()/1000, any=false;
+    (G.graphData().nodes||[]).forEach(function(n){
+      if (n.__burst) return;
+      var hv = (n.type==='goal'||n.type==='owned');
+      var amp = SEV_AMP[n.sev] || 0, spd = SEV_SPD[n.sev] || 1.8;
+      if (hv) amp = Math.max(amp, 0.16);
+      if (amp <= 0) return;
+      any = true; if (n.__ph===undefined) n.__ph = Math.random()*6.28;
+      n.val = baseVal(n) * (1 + amp * Math.sin(t*spd + n.__ph));
+    });
+    if (any){ try { G.nodeVal(G.nodeVal()); } catch(e){} }
+    requestAnimationFrame(throb);
+  })();
 
   // glowing core inside each translucent orb (reuse the bundle's own three via .constructor)
   function core(n){
@@ -303,9 +343,9 @@ _TEMPLATE = """<!doctype html>
   function camFor(s,t){ var D=160; if(!s||s.x===undefined) return {x:t.x,y:t.y,z:(t.z||0)+D};
     var dx=t.x-s.x,dy=t.y-s.y,dz=(t.z||0)-(s.z||0),L=Math.hypot(dx,dy,dz)||1; dx/=L;dy/=L;dz/=L;
     return {x:t.x-dx*D*0.65+55, y:t.y-dy*D*0.65+70, z:(t.z||0)-dz*D*0.65+D*0.9}; }
-  function pulse(n){ var base=n.type==='goal'?9:5, t=0;
+  function pulse(n){ var base=n.type==='goal'?9:5, t=0; n.__burst=true;   // let the finale own the size
     var iv=setInterval(function(){ t+=0.4; n.val=base+Math.abs(Math.sin(t))*6; G.nodeVal(G.nodeVal());
-      if(t>Math.PI*3){ clearInterval(iv); n.val=undefined; G.nodeVal(G.nodeVal()); } }, 55); }
+      if(t>Math.PI*3){ clearInterval(iv); n.__burst=false; n.val=undefined; G.nodeVal(G.nodeVal()); } }, 55); }
   function orbitGoal(goal){ var r=150, start=performance.now();
     (function spin(){ if(tourAbort||!touring) return; var e=(performance.now()-start)/1000; if(e>1.6) return;
       var a=e*1.6; try{ G.cameraPosition({x:goal.x+Math.cos(a)*r, y:goal.y+45, z:(goal.z||0)+Math.sin(a)*r}); }catch(_){}

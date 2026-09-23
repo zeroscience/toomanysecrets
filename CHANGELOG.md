@@ -5,6 +5,13 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Severity as physics (GUI + HTML report):** a finding's worst severity now drives
+  the node's behaviour - critical nodes **swell larger**, **throb harder and faster** (ambient
+  breathing amplitude/speed scale with severity), and a custom force **pulls them toward the
+  centre** so the criticals cluster and draw the eye while low/info nodes drift to the periphery.
+  Owned/goal nodes keep a breathing floor. GUI bumped to v1.35.0. Shared by
+  `redness/live/web/index.html` and the self-contained HTML report; pure front-end, no
+  contract/schema change.
 - `2026-09-23` **Compromise-spread shockwaves (GUI + HTML report):** domain takeover now reads as a
   cascade - a red shock ring erupts from every compromised (owned) node, then a pulse travels
   outward hop by hop along the attack edges (BFS from the owned set), ringing each node the

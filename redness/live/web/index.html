@@ -112,7 +112,7 @@
 <div id="tourhud"><span class="pip"></span>AUTO-TOUR &nbsp;·&nbsp; tracing path to Domain Admin &nbsp;<span class="skip">click / drag to skip</span></div>
 
 <div id="hud" class="panel">
-  <div id="brand"><img src="/logo.svg" alt="ZeroScience"><span id="ver">v1.34.0</span></div>
+  <div id="brand"><img src="/logo.svg" alt="ZeroScience"><span id="ver">v1.35.0</span></div>
   <h1>REDNESS</h1>
   <div class="tagline">Zero Science Lab · powered by Silly Security Inc.</div>
   <div class="sub">live enumeration · <span id="conn">connecting…</span></div>
@@ -164,7 +164,7 @@
   <div class="card">
     <span class="x" onclick="hideModal('about')">✕</span>
     <h2>REDNESS</h2>
-    <div class="brandline">v1.34.0 · Zero Science Lab · powered by Silly Security Inc.</div>
+    <div class="brandline">v1.35.0 · Zero Science Lab · powered by Silly Security Inc.</div>
     <p>Red-team orchestrator for Active Directory and Windows. It drives NetExec, Impacket and
     Certipy, folds what they find into one model, and shows it as a live 3D graph and a Word report.</p>
     <p>SMB, LDAP, Kerberos and AD CS enumeration with or without creds; shares, users, ESC
@@ -173,7 +173,7 @@
     <div class="grid">
       <span class="k">Developed by</span><span>Anja Ivanovska &amp; Gjoko Krstic</span>
       <span class="k">Contact</span><span><a href="mailto:anja@zeroscience.mk">anja@zeroscience.mk</a> · <a href="mailto:gjoko@zeroscience.mk">gjoko@zeroscience.mk</a></span>
-      <span class="k">Version</span><span>1.34.0</span>
+      <span class="k">Version</span><span>1.35.0</span>
     </div>
   </div>
 </div>
@@ -206,6 +206,16 @@ const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
 const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
+// Severity as physics: worse findings swell larger, throb harder + faster, and are pulled
+// toward the centre so the most critical stuff clusters and draws the eye.
+const SEV_SIZE = { critical:4.5, high:2.6, medium:1.1, low:0.3, info:0 };   // added to base node size
+const SEV_AMP  = { critical:0.30, high:0.19, medium:0.10, low:0.05, info:0 };// throb amplitude
+const SEV_SPD  = { critical:3.3, high:2.6, medium:2.0, low:1.6, info:1.4 };  // throb speed
+const SEV_PULL = { critical:1.0, high:0.6, medium:0.28, low:0.08, info:0 };  // centre-pull weight
+function baseVal(n){
+  const typeV = n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
+  return typeV + (SEV_SIZE[worstSev.get(n.id)] || 0);
+}
 
 const nodes = [], links = [];
 const nodeById = new Map();
@@ -224,7 +234,7 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' - '+worstSev.get(n.id).toUpperCase():''}`)
   .nodeColor(n => (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
-  .nodeVal(n => n.__val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3))
+  .nodeVal(n => n.__val || baseVal(n))
   .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
   .nodeOpacity(0.3)                   // glassy translucent shell (a glowing core rides inside)
   .nodeRelSize(5)
@@ -246,6 +256,26 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
 Graph.d3VelocityDecay(0.3);
 const _charge = Graph.d3Force('charge'); if (_charge) _charge.strength(-150);
 setTimeout(() => { try { Graph.d3AlphaTarget(0.02).resumeAnimation(); } catch(e){} }, 2500);
+
+// Severity as a force: pull each node toward the centre in proportion to its worst severity, so
+// the critical findings gravitate inward and cluster (the eye is drawn to the middle), while
+// low/info nodes drift to the periphery. Gentle - it biases the layout, doesn't collapse it.
+function severityForce(){
+  let _nodes = [];
+  const force = (alpha) => {
+    for (const n of _nodes){
+      const w = SEV_PULL[worstSev.get(n.id)] || 0;
+      if (!w) continue;
+      const k = alpha * w * 0.09;                 // modest so charge/link still shape the graph
+      if (n.x !== undefined) n.vx -= n.x * k;
+      if (n.y !== undefined) n.vy -= n.y * k;
+      if (n.z !== undefined) n.vz -= n.z * k;
+    }
+  };
+  force.initialize = (nn) => { _nodes = nn; };
+  return force;
+}
+try { Graph.d3Force('severity', severityForce()); } catch(e){}
 
 // Glowing core inside each translucent orb. We reuse the bundle's OWN three.js (reached via
 // each default node mesh's .constructor) so there is no second three instance to conflict:
@@ -548,18 +578,23 @@ function pulseNode(n){
       Graph.nodeVal(Graph.nodeVal()); } }, 55);
 }
 
-// Ambient "breathing" on the high-value nodes (Domain Admin goal + owned) so the compromise
-// state is always gently alive and draws the eye, even when the graph is at rest.
+// Ambient "breathing", now driven by severity: the worse a node's findings, the harder and
+// faster it throbs (critical is unmistakable), so the eye is drawn to the most severe nodes even
+// at rest. Owned/goal nodes always breathe (compromise state stays alive) as a floor.
 function _ambientPulse(){
   let any = false;
   const t = performance.now() / 1000;
   for (const n of nodes){
-    if ((n.type === 'goal' || n.type === 'owned') && !n.__burst){
-      any = true;
-      if (n.__ph === undefined) n.__ph = Math.random() * 6.28;   // desync each node
-      const base = n.type === 'goal' ? 9 : 5;
-      n.__val = base * (1 + 0.16 * Math.sin(t * 1.8 + n.__ph));
-    }
+    if (n.__burst) continue;                                     // a tour/replay pulse owns the size
+    const hv = (n.type === 'goal' || n.type === 'owned');
+    const sev = worstSev.get(n.id);
+    let amp = SEV_AMP[sev] || 0;
+    let spd = SEV_SPD[sev] || 1.8;
+    if (hv){ amp = Math.max(amp, 0.16); }                        // floor for compromise/goal state
+    if (amp <= 0) continue;
+    any = true;
+    if (n.__ph === undefined) n.__ph = Math.random() * 6.28;     // desync each node
+    n.__val = baseVal(n) * (1 + amp * Math.sin(t * spd + n.__ph));
   }
   if (any){ try { Graph.nodeVal(Graph.nodeVal()); } catch(e){} }
   requestAnimationFrame(_ambientPulse);
