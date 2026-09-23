@@ -103,6 +103,13 @@ def test_build_writes_file():
         assert "REDNESS ASSESSMENT REPORT" in fh.read()
 
 
+def test_render_includes_cinematic_auto_tour():
+    html = html_report.render(_rep())
+    assert 'id="rtour"' in html and "AUTO-TOUR" in html          # the tour toast
+    assert "function tour(" in html and "emitParticles" in html  # the tour drives edges + camera
+    assert "G.cameraPosition" in html
+
+
 def test_render_empty_report():
     html = html_report.render(Report(engagement="empty", target="none"))
     assert "No findings recorded." in html

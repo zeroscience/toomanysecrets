@@ -592,3 +592,21 @@ derivation appends findings, so we never mutate the caller's report just to draw
 assets anchor to the domain while the attack-path/relay overlay stays exact. `graph_for(report)`
 picks the captured graph when present, else the reconstruction. Wired to `scan --html` and
 `report --html`.
+
+## 2026-09-23 - Cinematic auto-tour (GUI + HTML report) [v1.34.0]
+Turned the manual "Replay path to DA" button into a self-playing cinematic. On scan-complete
+(live GUI, on the DONE event) or after the layout settles (HTML report, ~2.8s), if an attack path
+to a Domain Admin goal exists, the camera plays the story automatically: an establishing wide
+shot, then it flies the attack/relay edges entry -> owned -> Domain Admin in path order (BFS depth
+from the goal, farthest-first), lighting each edge with a particle burst and a trail-following
+camera pose (`tourCamFor`: sit behind the target along the direction just travelled), pulsing
+owned nodes as they're reached, and finishing with a goal pulse + slow orbit before zooming back
+to fit.
+
+OPSEC/UX: the tour is one-shot (`tourPlayed`) and yields to the operator - any pointerdown/wheel on
+the renderer cancels an in-progress tour and suppresses the auto-play (their intent beats the
+show); a top-center toast says it's running and "click/drag to skip"; the Replay button still
+triggers it on demand. Shared across both surfaces: the live `redness/live/web/index.html` and the
+self-contained HTML report (`redness/report/html_report.py`) run the same choreography, so the
+report a client opens performs the same "how we'd own you" walk offline. Pure front-end (camera +
+link highlight + particles); no findings-contract or schema change. GUI version 1.33.7 -> 1.34.0.
