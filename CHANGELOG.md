@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Compromise-spread shockwaves (GUI + HTML report):** domain takeover now reads as a
+  cascade - a red shock ring erupts from every compromised (owned) node, then a pulse travels
+  outward hop by hop along the attack edges (BFS from the owned set), ringing each node the
+  compromise reaches (orange as it spreads, gold when it hits the Domain Admin goal) with a
+  particle burst on each traversed edge. Ambient and periodic (~every 4.2s once a compromise
+  exists); pauses during the auto-tour so the two never fight for the stage. Shared by
+  `redness/live/web/index.html` and the self-contained HTML report; pure front-end, no
+  contract/schema change.
 - `2026-09-23` **Cinematic auto-tour of the attack path (GUI + HTML report):** the graph now plays
   its own "how we'd reach Domain Admin" story - an establishing wide shot, then the camera flies
   the attack/relay edges entry -> owned -> Domain Admin in order, lighting each with a particle

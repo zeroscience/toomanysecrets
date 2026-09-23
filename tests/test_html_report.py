@@ -110,6 +110,12 @@ def test_render_includes_cinematic_auto_tour():
     assert "G.cameraPosition" in html
 
 
+def test_render_includes_compromise_shockwaves():
+    html = html_report.render(_rep())
+    assert "function spreadWave" in html and "shockRing" in html  # the cascade + ring primitive
+    assert "__shock" in html                                      # rings independent of the discovery flash
+
+
 def test_render_empty_report():
     html = html_report.render(Report(engagement="empty", target="none"))
     assert "No findings recorded." in html

@@ -648,6 +648,79 @@ function maybeAutoTour(){
   setTimeout(() => { if (!tourPlayed && !userInteracted && !touring) cinematicTour(true); }, 1600);
 }
 
+// ---- Compromise-spread shockwaves ----
+// The domain takeover reads as a cascade: a shock ring erupts from each compromised (owned) node,
+// then a pulse travels outward hop-by-hop along the attack edges, ringing each node the compromise
+// reaches - orange as it spreads, gold when it hits the Domain Admin goal. Ambient and periodic;
+// yields to the auto-tour so the two never fight for the stage.
+let spreading = false;
+
+// One expanding, fading wireframe ring at a node. Independent of the discovery flash (its own
+// __shock marker), so waves stack and coexist with a right-click flash.
+function shockRing(n, color, dur, maxScale){
+  const shell = n && n.__threeObj;
+  if (!shell || !shell.geometry || !shell.material) return;
+  const Mesh = shell.constructor, Geo = shell.geometry.constructor, Mat = shell.material.constructor;
+  const r = (shell.geometry.parameters && shell.geometry.parameters.radius) || 4;
+  let ring;
+  try {
+    const mat = new Mat({ transparent: true, opacity: 0.85, wireframe: true });
+    if (mat.color && mat.color.set) mat.color.set(color);
+    if (mat.emissive){ mat.emissive.set(color); mat.emissiveIntensity = 1.4; }
+    if ('depthWrite' in mat) mat.depthWrite = false;
+    ring = new Mesh(new Geo(r, 14, 10), mat);
+    ring.__shock = true; shell.add(ring);
+  } catch(e){ return; }
+  const t0 = performance.now(), DUR = dur || 900, MAX = maxScale || 3.2;
+  const done = () => { if (ring && ring.parent){ try { ring.parent.remove(ring);
+    ring.geometry.dispose(); ring.material.dispose(); } catch(e){} ring = null; } };
+  (function frame(now){
+    if (!ring) return;
+    const k = Math.min(1, (now - t0) / DUR);
+    const s = 1 + k * MAX; ring.scale.set(s, s, s);
+    if (ring.material) ring.material.opacity = 0.85 * (1 - k);
+    if (k < 1) requestAnimationFrame(frame); else done();
+  })(t0);
+  setTimeout(done, DUR + 500);      // rAF pauses in a backgrounded tab; guarantee cleanup
+}
+
+// BFS the compromise outward from every owned node along attack edges, one hop at a time.
+async function spreadWave(){
+  if (spreading || touring) return;
+  const startIds = nodes.filter(n => n.type === 'owned').map(n => n.id);
+  if (!startIds.length) return;
+  const attack = links.filter(l => l.attack);
+  spreading = true;
+  const outBy = new Map();
+  for (const l of attack){ const s = _lid(l.source);
+    if (!outBy.has(s)) outBy.set(s, []); outBy.get(s).push(l); }
+  const visited = new Set(startIds);
+  let frontier = startIds.slice();
+  frontier.forEach(id => shockRing(nodeById.get(id), '#ff3b3b'));   // erupt at the compromised origins
+  while (frontier.length){
+    if (touring){ break; }                                         // the tour owns the stage
+    const next = [];
+    for (const id of frontier){
+      for (const l of (outBy.get(id) || [])){
+        try { for (let i = 0; i < 3; i++) Graph.emitParticles(l); } catch(e){}
+        const t = _lid(l.target);
+        if (!visited.has(t)){ visited.add(t); next.push(t); }
+      }
+    }
+    if (!next.length) break;
+    await sleep(520);                                              // let the pulse travel the edge
+    next.forEach(id => { const n = nodeById.get(id); if (!n) return;
+      const goal = n.type === 'goal';
+      shockRing(n, goal ? '#ffcf33' : '#ff7a45', goal ? 1100 : 900, goal ? 4.2 : 3.2); });
+    frontier = next;
+  }
+  spreading = false;
+}
+// Periodic ambient cascade once a compromise exists (paused during the auto-tour).
+setInterval(() => {
+  if (!touring && !spreading && nodes.some(n => n.type === 'owned')) spreadWave();
+}, 4200);
+
 // ---- About / Usage modals ----
 function showModal(id){ el(id).classList.add('show'); }
 function hideModal(id){ el(id).classList.remove('show'); }
