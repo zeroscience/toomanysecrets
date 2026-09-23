@@ -152,6 +152,11 @@ Zero Science Lab · powered by Silly Security Inc.
   + token-gated `POST /action` + `GET /actions`; right-click a host/domain node in the graph to
   run Enumerate SMB / LDAP / AD CS / TLS against it, streamed back live. The channel every future
   action plugs into.
+- `2026-09-24` **CI: pytest on push/PR (`.github/workflows/ci.yml`):** GitHub Actions runs the
+  offline test suite on every push to `main` and every PR, across a matrix of
+  ubuntu-latest + windows-latest x Python 3.10/3.12. Windows is in the matrix on purpose - the
+  live bridge uses raw sockets and has had Windows-only races - so regressions there get caught
+  automatically. Base install only (`pip install . pytest`); no engines/DC needed.
 
 ### Changed
 - `2026-09-04` **New Scan panel:** added an ✕ in the header to close/cancel the panel (e.g. if you
