@@ -645,3 +645,23 @@ Live uses the streamed `worstSev` map; the HTML report reads the `sev` baked ont
 `__burst` so the severity-throb loop yields to it (no size fight). Pure front-end; no
 findings-contract or schema change. Verified both surfaces in-browser (criticals larger + central,
 no console errors). GUI 1.34.0 -> 1.35.0.
+
+## 2026-09-23 - Depth & atmosphere: fake-bloom glow + starfield vignette (GUI + HTML report)
+Pushed the graph from "wireframe demo" toward "ops console" within the hard constraint that we
+cannot load external three.js addons (CSP on the live page + the HTML report must stay a single
+self-contained file) and the vendored 3d-force-graph bundle ships NO post-processing bloom pass
+(grep: no UnrealBloomPass) and does not expose THREE (so Fog/Sprite/Points classes are
+unreachable). Two effects, both built only from primitives reachable via a node mesh's own
+constructors:
+  - **Fake bloom:** a per-node additive-blended halo sphere (a second child of the shell, radius
+    ~1.42x, `material.blending = 2` = AdditiveBlending, no depthWrite) that bleeds light outward.
+    Opacity scales with severity (SEV_GLOW; owned/goal get a floor) so the critical nodes glow the
+    hardest - reinforcing the severity-as-physics cue. A uniform sphere can't do gradient falloff
+    (that needs a sprite/shader we can't reach), so values are tuned low to read as a glow, not a
+    disc. Maintained in the same 400ms `_ensureCore` pass as the glowing core.
+  - **Atmosphere:** the WebGL background is set transparent (`backgroundColor('rgba(0,0,0,0)')`) and
+    a CSS layer behind it paints a sparse starfield (layered 1px radial-gradients) over a
+    centre-lit vignette (radial-gradient) - depth and mood with zero GPU cost and no post-process.
+Live reads `worstSev`; the report reads the `sev` baked onto each node. Pure front-end; no
+findings-contract or schema change. Verified both surfaces in-browser (glowing orbs, vignette
+depth, no console errors). Kept under GUI v1.35.0 (same in-progress animation version).

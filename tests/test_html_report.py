@@ -128,6 +128,13 @@ def test_render_tags_nodes_with_worst_severity():
     assert '"sev": "critical"' in html or '"sev":"critical"' in html
 
 
+def test_render_includes_depth_and_atmosphere():
+    html = html_report.render(_rep())
+    assert "__glow" in html and "SEV_GLOW" in html                # fake-bloom halo
+    assert "rgba(0,0,0,0)" in html                                # transparent WebGL background
+    assert "radial-gradient" in html                              # starfield + vignette
+
+
 def test_render_empty_report():
     html = html_report.render(Report(engagement="empty", target="none"))
     assert "No findings recorded." in html
