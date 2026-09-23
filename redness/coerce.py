@@ -80,7 +80,11 @@ def _ts() -> str:
 
 def _audit(loot_dir: str, target: str, listener: str, method: str, *,
            credentialed: bool, result: str) -> None:
-    """Append one line per coercion attempt / refusal for post-engagement de-confliction."""
+    """Log one coercion attempt / refusal for post-engagement de-confliction.
+
+    Two sinks: the detailed per-vector `coerce_audit.log` sidecar (human key=value lines) and
+    the unified `audit.log` timeline shared with scan/poison/spray/offensive actions.
+    """
     line = (f"{_ts()} target={target} listener={listener} method={method} "
             f"auth={'credentialed' if credentialed else 'uncredentialed'} result={result}")
     try:
@@ -89,6 +93,9 @@ def _audit(loot_dir: str, target: str, listener: str, method: str, *,
             fh.write(line + "\n")
     except OSError:
         pass
+    from . import audit
+    audit.record("coerce", loot_dir=loot_dir, target=target, listener=listener, method=method,
+                 credentialed=credentialed, result=result)
 
 
 # --------------------------------------------------------------------------- #

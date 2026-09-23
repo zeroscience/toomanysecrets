@@ -557,3 +557,19 @@ unchanged one. Severity moves are their own bucket (records the old severity) so
 differently from a fix. `DiffResult.regressed()` is true on any new finding or severity increase,
 and `cmd_diff` exits 2 when regressed so a retest can gate CI/scripts. No schema change; reuses
 `Report.from_json` / `Finding.to_dict`.
+
+## 2026-09-23 - Unified audit log (`loot/audit.log`)
+Added `redness/audit.py`: one timestamped JSONL timeline of every sensitive/active operation, so
+blue teams and our own de-confliction have a single file to answer "what did REDNESS do, when,
+against what?" `audit.record(event, *, loot_dir="loot", sink=None, **fields)` writes
+`{ts (ISO8601 UTC), event, **fields}` to `loot/audit.log`; an injected `sink` (tests, or a future
+bridge capture) gets the same dict instead of disk. Best-effort like the EventBus - an unwritable
+loot/ never breaks a run.
+
+Wiring: `scan` (scan-start/scan-done), `poison` (poison-start/poison-done), `spray`
+(spray-start/spray-done) now audit where they had nothing; offensive right-click actions
+(`actions.py`) route their existing arm/execute/refuse/result through it (retired the separate
+`offensive-audit.log`); `coerce` writes a structured `coerce` record to the unified log while
+keeping its detailed per-vector `coerce_audit.log` sidecar (its format is human-friendly and
+tested). Params only, never secrets: booleans like `credentialed`, counts, iface/target - no
+passwords or hashes. loot/ is gitignored, so the log never reaches git.

@@ -367,6 +367,9 @@ def cmd_scan(args) -> int:
         from .engines.sharehunt import SecretHuntEngine
         engines.append(SecretHuntEngine(content=args.hunt_content, loot_dir=args.loot_dir))
 
+    from . import audit
+    audit.record("scan-start", loot_dir=args.loot_dir, engagement=args.engagement,
+                 targets=len(targets), credentialed=bool(args.username), live=bool(args.live))
     report = run_scan(
         targets,
         username=args.username, password=args.password, nthash=args.hash,
@@ -374,6 +377,8 @@ def cmd_scan(args) -> int:
         engagement=args.engagement, engines=engines,
         discover=not args.no_discovery, listen_secs=args.listen,
     )
+    audit.record("scan-done", loot_dir=args.loot_dir, engagement=args.engagement,
+                 findings=len(report.findings))
 
     # Hash loot + optional cracking (AS-REP / Kerberoast). --no-crack hard-disables all
     # cracking (forces no wordlist AND no built-in fallback); otherwise the built-in list
@@ -482,6 +487,9 @@ def cmd_spray(args) -> int:
             webbrowser.open(url)
         time.sleep(1.2)
 
+    from . import audit
+    audit.record("spray-start", loot_dir=args.loot_dir, engagement=args.engagement,
+                 target=args.target, credentialed=credentialed, force=bool(args.force))
     report, res = run_spray(
         args.target, args.password,
         username=args.auth_user, auth_password=args.auth_pass, nthash=args.auth_hash,
@@ -489,6 +497,9 @@ def cmd_spray(args) -> int:
         margin=args.margin, force=args.force, confirm_force=_force_prompt,
         bus=bus, engagement=args.engagement, loot_dir=args.loot_dir,
     )
+    audit.record("spray-done", loot_dir=args.loot_dir, engagement=args.engagement,
+                 target=args.target, refused=res.refused, reason=res.reason,
+                 tested=res.tested, hits=len(res.hits))
 
     if res.refused:
         reasons = {
@@ -574,11 +585,16 @@ def cmd_poison(args) -> int:
 
     print(f"[*] Running Responder on {args.iface} for {args.duration}s (Ctrl+C to stop early)...")
     wl = None if args.no_crack else args.wordlist
+    from . import audit
+    audit.record("poison-start", loot_dir=args.loot_dir, engagement=args.engagement,
+                 iface=args.iface, duration=args.duration, analyze=bool(args.analyze))
     report, crackres = run_poison(
         args.iface, duration=args.duration, analyze=args.analyze, bus=bus,
         engagement=args.engagement, loot_dir=args.loot_dir, wordlist=wl,
         builtin=not args.no_crack,
     )
+    audit.record("poison-done", loot_dir=args.loot_dir, engagement=args.engagement,
+                 iface=args.iface, captured=len(crackres.creds), findings=len(report.findings))
 
     _report_crack(crackres, wordlist=wl)
     if not crackres.creds:
