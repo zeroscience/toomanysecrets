@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Retest diff (`redness diff`):** compare a baseline `findings.json` to a current
+  one and classify every finding as **new / fixed / unchanged / severity-changed** - the retest
+  deliverable after a remediation round. `redness/diff.py` is pure over the findings model
+  (identity = `id` + sorted `affected`, so the same issue on a different host reads as new+fixed,
+  not unchanged); severity moves record the old severity. `diff baseline.json current.json`
+  prints an operator summary, `--json` writes the classified delta, and the command exits `2` on a
+  regression (any new finding or severity increase) so retests can gate CI. No schema change. See
+  [docs/RETEST.md](docs/RETEST.md).
 - `2026-09-14` **Phase-3 offensive catalog (three right-click actions):** `redness/actions.py`
   adds **asrep-roast** (user node, `nxc ldap --asreproast` -> `asrep-roast-user` HIGH, no creds
   needed), **adcs-esc1** (template node, `certipy find`->`req`->`auth` with the CA auto-resolved

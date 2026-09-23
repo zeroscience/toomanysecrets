@@ -544,3 +544,16 @@ Because the two live in separate commands (`scan` vs `listen`), `run_scan` gaine
 report BEFORE the relay derivation, so a single command produces a relay map that connects
 poison -> relay -> target -> Domain Admin. `listen(emit_done=False)` when embedded so it does not
 prematurely signal DONE.
+
+## 2026-09-23 - Retest diff (`redness diff`): the retest deliverable
+Added `redness/diff.py` + a `diff` command to compare two `findings.json` (baseline vs current)
+and classify every finding as new / fixed / unchanged / severity-changed - the standard retest
+artifact a client expects after a remediation round. Pure over the findings model (no I/O, no
+tools), so it unit-tests against hand-built Reports and can also feed a future retest report.
+
+Finding identity is `(id, sorted(affected))` - the same stable id on the same host/account is the
+same issue; the same id on a *different* asset is correctly a new finding + a fixed one, not an
+unchanged one. Severity moves are their own bucket (records the old severity) so a downgrade reads
+differently from a fix. `DiffResult.regressed()` is true on any new finding or severity increase,
+and `cmd_diff` exits 2 when regressed so a retest can gate CI/scripts. No schema change; reuses
+`Report.from_json` / `Finding.to_dict`.
