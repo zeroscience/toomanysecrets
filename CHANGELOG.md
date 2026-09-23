@@ -5,6 +5,14 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Cinematic auto-tour of the attack path (GUI + HTML report):** the graph now plays
+  its own "how we'd reach Domain Admin" story - an establishing wide shot, then the camera flies
+  the attack/relay edges entry -> owned -> Domain Admin in order, lighting each with a particle
+  burst and a trail-following camera, pulsing owned nodes, and finishing on the goal with a pulse +
+  slow orbit. Auto-plays once on scan-complete (live) / after layout settles (report) when a path
+  to a goal exists; any drag/scroll skips it (operator intent wins), and the "Replay path to DA"
+  button still triggers it. Shared by `redness/live/web/index.html` and the self-contained HTML
+  report, so a client's offline report performs the same walk. GUI bumped to v1.34.0.
 - `2026-09-23` **Self-contained HTML report (`--html`):** one offline `.html` that mirrors the
   `.docx` (severity summary + every finding with impact/remediation/evidence/references) **and
   embeds the live 3D attack-graph** - `redness/report/html_report.py`. It inlines the already

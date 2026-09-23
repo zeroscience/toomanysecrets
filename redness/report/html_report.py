@@ -142,6 +142,16 @@ _TEMPLATE = """<!doctype html>
   #graphwrap { position:relative; height:62vh; min-height:360px; border-bottom:1px solid #1c2230;
     background:#0b0d12; }
   #graph { width:100%; height:100%; }
+  #rtour { position:absolute; top:14px; left:50%; transform:translateX(-50%) translateY(-8px);
+    z-index:5; background:rgba(20,8,10,.86); border:1px solid #7a1f1f; border-radius:20px;
+    padding:7px 15px; font-size:11.5px; letter-spacing:.08em; color:#ffd7d0; cursor:pointer;
+    opacity:0; transition:opacity .5s ease, transform .5s ease; box-shadow:0 4px 24px rgba(255,45,45,.25); }
+  #rtour.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #rtour .pip { display:inline-block; width:8px; height:8px; border-radius:50%; background:#ff3b3b;
+    margin-right:9px; vertical-align:middle; animation:rpip 1s ease-in-out infinite; }
+  #rtour .skip { color:#8a6b6b; }
+  @keyframes rpip { 0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(255,59,59,.6);}
+    50%{opacity:.5; box-shadow:0 0 0 6px rgba(255,59,59,0);} }
   #glegend { position:absolute; left:14px; bottom:12px; font-size:11px; color:#8a93a2;
     background:rgba(11,13,18,.7); border:1px solid #1c2230; border-radius:6px; padding:8px 10px;
     max-width:60%; }
@@ -195,6 +205,7 @@ _TEMPLATE = """<!doctype html>
 
 <div id="graphwrap">
   <div id="graph"></div>
+  <div id="rtour"><span class="pip"></span>AUTO-TOUR &nbsp;·&nbsp; tracing path to Domain Admin &nbsp;<span class="skip">click / drag to skip</span></div>
   <div id="glegend"><b>ATTACK GRAPH</b> &nbsp; drag to orbit, scroll to zoom.
     <span class="dot" style="background:#7c6cf0"></span>domain
     <span class="dot" style="background:#22c1a4"></span>host
@@ -227,7 +238,7 @@ _TEMPLATE = """<!doctype html>
     .nodeLabel(function(n){ return n.label + (n.sev ? ' - ' + n.sev.toUpperCase() : ''); })
     .nodeColor(function(n){ return (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
         : n.sev ? SEV_COLOR[n.sev] : (TYPE_COLOR[n.type] || '#9aa4b2'); })
-    .nodeVal(function(n){ return n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3; })
+    .nodeVal(function(n){ return n.val || (n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3); })
     .nodeResolution(20).nodeOpacity(0.3).nodeRelSize(5)
     .linkCurvature(function(l){ return l.attack ? 0.28 : 0.16; })
     .linkColor(function(l){ return l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
@@ -268,6 +279,64 @@ _TEMPLATE = """<!doctype html>
     G.width(w.clientWidth).height(w.clientHeight); }
   size(); window.addEventListener('resize', size);
   setTimeout(function(){ try { G.zoomToFit(600, 60); } catch(e){} }, 900);
+
+  // ---- cinematic auto-tour: fly the attack path entry -> owned -> Domain Admin ----
+  var highlight = new Set(), touring=false, tourAbort=false, tourPlayed=false, interacted=false;
+  G.linkColor(function(l){ return highlight.has(l) ? '#ffffff'
+        : l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)') : 'rgba(120,130,150,.35)'; })
+   .linkWidth(function(l){ return highlight.has(l) ? 5 : ((l.attack && !l.potential) ? 2.2 : 0); })
+   .linkDirectionalParticles(function(l){ return highlight.has(l) ? 8 : (l.attack ? (l.potential?2:5) : 2); });
+  function refresh(){ G.linkColor(G.linkColor()); }
+  var lid = function(x){ return (x && x.id!==undefined) ? x.id : x; };
+  var byId = new Map(); (DATA.nodes||[]).forEach(function(n){ byId.set(n.id, n); });
+  var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+  function order(){
+    var al = (G.graphData().links||[]).filter(function(l){ return l.attack; });
+    var depth = new Map();
+    var frontier = (G.graphData().nodes||[]).filter(function(n){ return n.type==='goal'; })
+                      .map(function(n){ return n.id; });
+    frontier.forEach(function(g){ depth.set(g,0); }); var d=0;
+    while(frontier.length){ var nx=[]; al.forEach(function(l){ var s=lid(l.source),t=lid(l.target);
+      if(frontier.indexOf(t)>=0 && !depth.has(s)){ depth.set(s,d+1); nx.push(s); } }); frontier=nx; d++; }
+    return al.slice().sort(function(a,b){ return (depth.get(lid(b.source))||0)-(depth.get(lid(a.source))||0); });
+  }
+  function camFor(s,t){ var D=160; if(!s||s.x===undefined) return {x:t.x,y:t.y,z:(t.z||0)+D};
+    var dx=t.x-s.x,dy=t.y-s.y,dz=(t.z||0)-(s.z||0),L=Math.hypot(dx,dy,dz)||1; dx/=L;dy/=L;dz/=L;
+    return {x:t.x-dx*D*0.65+55, y:t.y-dy*D*0.65+70, z:(t.z||0)-dz*D*0.65+D*0.9}; }
+  function pulse(n){ var base=n.type==='goal'?9:5, t=0;
+    var iv=setInterval(function(){ t+=0.4; n.val=base+Math.abs(Math.sin(t))*6; G.nodeVal(G.nodeVal());
+      if(t>Math.PI*3){ clearInterval(iv); n.val=undefined; G.nodeVal(G.nodeVal()); } }, 55); }
+  function orbitGoal(goal){ var r=150, start=performance.now();
+    (function spin(){ if(tourAbort||!touring) return; var e=(performance.now()-start)/1000; if(e>1.6) return;
+      var a=e*1.6; try{ G.cameraPosition({x:goal.x+Math.cos(a)*r, y:goal.y+45, z:(goal.z||0)+Math.sin(a)*r}); }catch(_){}
+      requestAnimationFrame(spin); })(); }
+  function toast(on){ var e=document.getElementById('rtour'); if(e) e.classList.toggle('show', on); }
+  function endTour(){ touring=false; tourAbort=false; highlight.clear(); refresh(); toast(false);
+    try{ G.zoomToFit(700,55); }catch(e){} }
+  function tour(auto){
+    if(touring) return; var seq=order(); if(!seq.length) return;
+    touring=true; tourAbort=false; tourPlayed=true; highlight.clear(); refresh(); toast(true);
+    try{ G.zoomToFit(900,70); }catch(e){}
+    (async function(){
+      await sleep(1250); if(tourAbort) return endTour();
+      for(var i=0;i<seq.length;i++){ if(tourAbort) return endTour(); var l=seq[i];
+        highlight.add(l); refresh(); var s=byId.get(lid(l.source)), t=byId.get(lid(l.target));
+        try{ for(var k=0;k<4;k++) G.emitParticles(l); }catch(e){}
+        if(s&&s.type==='owned') pulse(s);
+        if(t&&t.x!==undefined) G.cameraPosition(camFor(s,t), t, 1050);
+        await sleep(1080); }
+      if(tourAbort) return endTour();
+      var goal=(G.graphData().nodes||[]).find(function(n){ return n.type==='goal'; });
+      if(goal&&goal.x!==undefined){ G.cameraPosition({x:goal.x,y:goal.y+30,z:(goal.z||0)+150}, goal, 1000);
+        await sleep(350); if(tourAbort) return endTour(); pulse(goal); orbitGoal(goal); }
+      await sleep(1700); endTour();
+    })();
+  }
+  function interact(){ interacted=true; if(touring) tourAbort=true; }
+  try{ var rd=G.renderer().domElement; rd.addEventListener('pointerdown',interact,{passive:true});
+    rd.addEventListener('wheel',interact,{passive:true}); }catch(e){}
+  var th=document.getElementById('rtour'); if(th) th.onclick=function(){ tourAbort=true; };
+  setTimeout(function(){ if(!tourPlayed && !interacted) tour(true); }, 2800);   // auto-play once, after layout settles
 })();
 </script>
 </body></html>
