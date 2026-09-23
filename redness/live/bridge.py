@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import socket
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +26,32 @@ from queue import Empty, Queue
 from typing import Callable, Optional
 
 from ..events import Event, EventBus
+
+
+class _LiveHTTPServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer with a platform-aware address-reuse policy.
+
+    http.server.HTTPServer sets ``allow_reuse_address = 1`` unconditionally, which
+    maps to SO_REUSEADDR. On Windows SO_REUSEADDR does NOT mean "reuse a TIME_WAIT
+    port" (POSIX) - it lets a *second* socket bind a port another socket is already
+    using. With many short-lived servers on port 0 (the test suite), two of them
+    can then land on the same ephemeral port and requests get routed to the wrong
+    server or reset mid-flight (WinError 10054) - the transient bridge-test failures.
+
+    So: keep SO_REUSEADDR on POSIX (clean restart of the fixed production port past
+    TIME_WAIT), but on Windows take the port exclusively via SO_EXCLUSIVEADDRUSE so
+    the OS never hands it to anyone else.
+    """
+
+    daemon_threads = True
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            # Mutually exclusive with SO_REUSEADDR; allow_reuse_address is False on
+            # nt so the base server_bind() won't also set SO_REUSEADDR.
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def _web_dir() -> str:
@@ -130,7 +157,7 @@ class LiveServer:
     # -- HTTP server --------------------------------------------------------- #
     def start(self) -> str:
         handler = _make_handler(self)
-        self._httpd = ThreadingHTTPServer((self.host, self.port), handler)
+        self._httpd = _LiveHTTPServer((self.host, self.port), handler)
         # If port was 0, learn the actual bound port.
         self.port = self._httpd.server_address[1]
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
@@ -142,9 +169,16 @@ class LiveServer:
         return f"http://{self.host}:{self.port}/"
 
     def stop(self) -> None:
-        if self._httpd:
-            self._httpd.shutdown()
-            self._httpd.server_close()
+        # Deterministic, idempotent teardown: stop the serve loop, close the
+        # listening socket, then join the serve thread so the port is fully
+        # released before the next server (or test) binds.
+        httpd, self._httpd = self._httpd, None
+        if httpd is not None:
+            httpd.shutdown()
+            httpd.server_close()
+        thread, self._thread = self._thread, None
+        if thread is not None:
+            thread.join(timeout=5)
 
 
 def _make_handler(live: LiveServer):
@@ -213,14 +247,24 @@ def _make_handler(live: LiveServer):
             self.end_headers()
             self.wfile.write(body)
 
-        def _read_json(self):
-            length = int(self.headers.get("Content-Length", 0))
-            return json.loads(self.rfile.read(length) or b"{}")
+        def _drain_body(self) -> bytes:
+            """Read the whole request body so the socket receive buffer is empty.
 
-        def _handle_offensive(self, path):
+            An early error return (bad token, etc.) that closes the connection while
+            the request body is still unread makes Windows send an RST - the client
+            then sees a connection reset (WinError 10054) instead of our response.
+            Draining first keeps the close graceful. Returns the raw body bytes.
+            """
+            try:
+                length = int(self.headers.get("Content-Length", 0) or 0)
+            except ValueError:
+                length = 0
+            return self.rfile.read(length) if length > 0 else b""
+
+        def _handle_offensive(self, path, body: bytes):
             # Separate, more-privileged gate: the offensive channel must be enabled at launch
             # AND the caller must present the console-only offensive token. Neither the read
-            # token nor page access is enough.
+            # token nor page access is enough. (Body already drained by do_POST.)
             if not live.offensive_enabled:
                 self.send_error(403, "offensive channel disabled")
                 return
@@ -228,7 +272,7 @@ def _make_handler(live: LiveServer):
                 self.send_error(403, "bad offensive token")
                 return
             try:
-                params = self._read_json()
+                params = json.loads(body or b"{}")
             except (ValueError, json.JSONDecodeError):
                 self.send_error(400, "bad json")
                 return
@@ -255,8 +299,11 @@ def _make_handler(live: LiveServer):
 
         def do_POST(self):
             path = self.path.split("?", 1)[0]
+            # Always drain the request body first, before any token/route check that
+            # might error out early - see _drain_body() for why (Windows RST race).
+            body = self._drain_body()
             if path in ("/action/arm", "/action/execute"):
-                self._handle_offensive(path)
+                self._handle_offensive(path, body)
                 return
             handler = {"/scan": live.on_scan, "/action": live.on_action}.get(path)
             if path not in ("/scan", "/action"):
@@ -269,8 +316,7 @@ def _make_handler(live: LiveServer):
                 self.send_error(403, "bad token")           # cross-origin can't read the token
                 return
             try:
-                length = int(self.headers.get("Content-Length", 0))
-                params = json.loads(self.rfile.read(length) or b"{}")
+                params = json.loads(body or b"{}")
             except (ValueError, json.JSONDecodeError):
                 self.send_error(400, "bad json")
                 return
