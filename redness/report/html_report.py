@@ -139,8 +139,21 @@ _TEMPLATE = """<!doctype html>
   header { padding:22px 28px 14px; border-bottom:1px solid #1c2230; }
   header h1 { margin:0; font-size:17px; letter-spacing:.14em; color:#ff5252; }
   header .sub { color:#8a93a2; font-size:12.5px; margin-top:4px; }
+  /* Atmosphere: a sparse starfield over a centre-lit vignette, behind the transparent WebGL
+     canvas - depth + "ops console" mood without any post-processing pass. */
   #graphwrap { position:relative; height:62vh; min-height:360px; border-bottom:1px solid #1c2230;
-    background:#0b0d12; }
+    background:
+      radial-gradient(1.5px 1.5px at 12% 22%, rgba(255,255,255,.55), transparent),
+      radial-gradient(1px 1px at 28% 68%, rgba(180,200,255,.45), transparent),
+      radial-gradient(1px 1px at 46% 12%, rgba(255,255,255,.40), transparent),
+      radial-gradient(1.5px 1.5px at 63% 44%, rgba(255,235,220,.45), transparent),
+      radial-gradient(1px 1px at 78% 78%, rgba(255,255,255,.40), transparent),
+      radial-gradient(1px 1px at 88% 30%, rgba(200,215,255,.40), transparent),
+      radial-gradient(1px 1px at 35% 88%, rgba(255,255,255,.30), transparent),
+      radial-gradient(1.5px 1.5px at 72% 16%, rgba(255,255,255,.35), transparent),
+      radial-gradient(1px 1px at 8% 54%, rgba(255,255,255,.30), transparent),
+      radial-gradient(1px 1px at 55% 60%, rgba(255,255,255,.25), transparent),
+      radial-gradient(ellipse 120% 120% at 50% 42%, #171b24 0%, #0c0e15 48%, #05060a 100%); }
   #graph { width:100%; height:100%; }
   #rtour { position:absolute; top:14px; left:50%; transform:translateX(-50%) translateY(-8px);
     z-index:5; background:rgba(20,8,10,.86); border:1px solid #7a1f1f; border-radius:20px;
@@ -238,12 +251,13 @@ _TEMPLATE = """<!doctype html>
   var SEV_AMP  = { critical:0.30, high:0.19, medium:0.10, low:0.05, info:0 };
   var SEV_SPD  = { critical:3.3, high:2.6, medium:2.0, low:1.6, info:1.4 };
   var SEV_PULL = { critical:1.0, high:0.6, medium:0.28, low:0.08, info:0 };
+  var SEV_GLOW = { critical:0.18, high:0.12, medium:0.08, low:0.05, info:0.035 };
   function baseVal(n){
     var typeV = n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
     return typeV + (SEV_SIZE[n.sev] || 0);
   }
   var G = ForceGraph3D()(document.getElementById('graph'))
-    .backgroundColor('#0b0d12')
+    .backgroundColor('rgba(0,0,0,0)')          // transparent: the CSS starfield + vignette shows behind
     .graphData(DATA)
     .nodeLabel(function(n){ return n.label + (n.sev ? ' - ' + n.sev.toUpperCase() : ''); })
     .nodeColor(function(n){ return (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
@@ -308,6 +322,23 @@ _TEMPLATE = """<!doctype html>
       c.material.color.copy(col);
       if (c.material.color.offsetHSL) c.material.color.offsetHSL(0,-0.1,0.32);
       if (c.material.emissive){ c.material.emissive.copy(col); c.material.emissiveIntensity = 1.1; }
+    }
+    // fake bloom: an additive halo sphere bleeding light outward, brightness by severity
+    var glow = shell.children.find(function(x){ return x.__glow; });
+    if (!glow){
+      var Mesh2=shell.constructor, Geo2=shell.geometry.constructor, Mat2=shell.material.constructor;
+      var r2=(shell.geometry.parameters && shell.geometry.parameters.radius)||4;
+      try { var gm=new Mat2({transparent:true, opacity:0.11}); gm.blending=2;   // AdditiveBlending
+        if('depthWrite' in gm) gm.depthWrite=false;
+        glow=new Mesh2(new Geo2(r2*1.42,16,12), gm); glow.__glow=true; shell.add(glow);
+      } catch(e){ glow=null; }
+    }
+    if (glow && col && glow.material.color){
+      glow.material.color.copy(col);
+      if (glow.material.emissive) glow.material.emissive.copy(col);
+      var hv=(n.type==='owned'||n.type==='goal');
+      var g=SEV_GLOW[n.sev]||0.05; if(hv) g=Math.max(g, n.type==='goal'?0.18:0.14);
+      glow.material.opacity=g;
     }
   }
   (function loop(){

@@ -5,6 +5,13 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Depth & atmosphere (GUI + HTML report):** the graph now reads like an ops console,
+  not a wireframe demo. Each node gets a **fake-bloom glow halo** (an additive-blended sphere
+  bleeding light outward, brightness scaled by severity so criticals glow hardest) - real
+  post-processing bloom isn't bundled, so this is done with reachable three primitives. The WebGL
+  background is transparent over a CSS **starfield + centre-lit vignette** for depth. Pure
+  front-end; no contract/schema change. Shared by `redness/live/web/index.html` and the
+  self-contained HTML report.
 - `2026-09-23` **Severity as physics (GUI + HTML report):** a finding's worst severity now drives
   the node's behaviour - critical nodes **swell larger**, **throb harder and faster** (ambient
   breathing amplitude/speed scale with severity), and a custom force **pulls them toward the
