@@ -145,8 +145,13 @@ def cmd_demo(args) -> int:
 def cmd_report(args) -> int:
     with open(args.findings, encoding="utf-8") as fh:
         report = Report.from_json(fh.read())
-    docx_report.build(report, args.out)
-    print(f"[+] Wrote report -> {args.out}")
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Wrote report -> {args.out}")
+    if args.html:
+        from .report import html_report
+        html_report.build(report, args.html)
+        print(f"[+] Wrote HTML report -> {args.html}")
     return 0
 
 
@@ -397,6 +402,10 @@ def cmd_scan(args) -> int:
         with open(args.json, "w", encoding="utf-8") as fh:
             fh.write(report.to_json())
         print(f"[+] Findings JSON -> {args.json}")
+    if args.html:
+        from .report import html_report
+        html_report.build(report, args.html)
+        print(f"[+] HTML report -> {args.html}")
 
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
@@ -866,9 +875,10 @@ def main(argv=None) -> int:
     d.add_argument("--out", default="report.docx")
     d.set_defaults(func=cmd_demo)
 
-    rp = sub.add_parser("report", help="render a .docx from a findings.json")
+    rp = sub.add_parser("report", help="render a .docx and/or self-contained .html from a findings.json")
     rp.add_argument("findings")
-    rp.add_argument("--out", default="report.docx")
+    rp.add_argument("--out", default="report.docx", help="output .docx path ('' to skip)")
+    rp.add_argument("--html", help="also write a self-contained HTML report (graph + findings)")
     rp.set_defaults(func=cmd_report)
 
     df = sub.add_parser("diff", help="retest diff: compare a baseline findings.json to a current one")
@@ -923,6 +933,7 @@ def main(argv=None) -> int:
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
     sc.add_argument("--out", help="write a .docx report to this path")
     sc.add_argument("--json", help="write findings JSON to this path")
+    sc.add_argument("--html", help="write a self-contained HTML report (3D graph + findings)")
     sc.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     sc.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     sc.add_argument("--port", type=int, default=8765, help="live graph port")

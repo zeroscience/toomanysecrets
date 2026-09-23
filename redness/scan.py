@@ -104,6 +104,16 @@ def run_scan(
     report = Report(engagement=engagement, target=", ".join(targets))
     scanner = port_scanner or (lambda h: open_ports(h))
 
+    # Capture the exact node/edge stream so the HTML report can mirror the live graph. When no
+    # live bus is attached we still capture via an internal bus (the emits are cheap no-ops to
+    # any other consumer).
+    from .graphmodel import GraphCollector
+    _graph = GraphCollector()
+    if bus is None:
+        from .events import EventBus
+        bus = EventBus()
+    bus.subscribe(_graph.on_event)
+
     domain_label = domain or (targets[0] if targets else "scope")
     _emit(bus, EventKind.STATUS, message=f"Scan start: {len(targets)} target(s)")
     _emit(bus, EventKind.NODE, id=domain_label, label=domain_label, type="domain")
@@ -165,4 +175,7 @@ def run_scan(
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
     _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")
     _emit(bus, EventKind.DONE, engine="scan")
+
+    bus.unsubscribe(_graph.on_event)
+    report.meta["graph"] = _graph.data()
     return report

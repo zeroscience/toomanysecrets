@@ -5,6 +5,15 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-23` **Self-contained HTML report (`--html`):** one offline `.html` that mirrors the
+  `.docx` (severity summary + every finding with impact/remediation/evidence/references) **and
+  embeds the live 3D attack-graph** - `redness/report/html_report.py`. It inlines the already
+  vendored 3d-force-graph bundle, so a client just opens the file (no server, no network, no Word),
+  spins the graph, and watches attack paths light up to Domain Admin. `scan --html out.html` and
+  `report findings.json --html out.html`. To make it an exact mirror, `run_scan` now captures the
+  node/edge stream into `report.meta["graph"]` (`redness/graphmodel.py`), with a fallback that
+  reconstructs a graph from any older report. No new dependency, no schema change. See
+  [docs/HTML_REPORT.md](docs/HTML_REPORT.md).
 - `2026-09-23` **Unified audit log (`loot/audit.log`):** one timestamped JSONL timeline of every
   sensitive/active operation for blue-team de-confliction - `redness/audit.py`. `scan` / `poison`
   / `spray` now audit (start + done) where they logged nothing before; the offensive right-click
