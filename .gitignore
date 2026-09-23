@@ -10,6 +10,8 @@ dist/
 # Reports / engagement data - NEVER commit client output
 *.docx
 findings*.json
+/*.html
+/report*.html
 loot/
 output/
 *.ntds

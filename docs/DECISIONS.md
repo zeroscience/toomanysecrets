@@ -573,3 +573,22 @@ Wiring: `scan` (scan-start/scan-done), `poison` (poison-start/poison-done), `spr
 keeping its detailed per-vector `coerce_audit.log` sidecar (its format is human-friendly and
 tested). Params only, never secrets: booleans like `credentialed`, counts, iface/target - no
 passwords or hashes. loot/ is gitignored, so the log never reaches git.
+
+## 2026-09-23 - Self-contained HTML report (`--html`) + graph capture in report.meta
+Added `redness/report/html_report.py`: a single offline `.html` that mirrors the `.docx` content
+(severity summary + every finding with impact/remediation/evidence/references) AND embeds the same
+3D attack-graph the live GUI shows. It inlines the already-vendored 3d-force-graph bundle (MIT,
+bundles three) so the file needs no server and no network - a client just opens it, spins the
+graph, watches attack paths light up, and reads the findings. Colours/link styling are kept in
+sync with `live/web/index.html`. No new dependency (reuses the vendored lib); no schema change.
+
+To make the report an *exact* mirror, `run_scan` now captures the live node/edge event stream into
+`report.meta["graph"]` via `redness/graphmodel.GraphCollector` (an internal EventBus is used even
+without `--live`, so the capture is unconditional; the collector is unsubscribed before return).
+`report.meta` is free-form, so this is not a findings-contract change and needs no SCHEMA_VERSION
+bump. For a saved report that predates this (or the `report` command on an old findings.json),
+`graphmodel.graph_from_report` reconstructs a graph from the findings on a deep copy (the relay
+derivation appends findings, so we never mutate the caller's report just to draw it); affected
+assets anchor to the domain while the attack-path/relay overlay stays exact. `graph_for(report)`
+picks the captured graph when present, else the reconstruction. Wired to `scan --html` and
+`report --html`.
