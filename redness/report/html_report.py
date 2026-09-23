@@ -337,6 +337,56 @@ _TEMPLATE = """<!doctype html>
     rd.addEventListener('wheel',interact,{passive:true}); }catch(e){}
   var th=document.getElementById('rtour'); if(th) th.onclick=function(){ tourAbort=true; };
   setTimeout(function(){ if(!tourPlayed && !interacted) tour(true); }, 2800);   // auto-play once, after layout settles
+
+  // ---- compromise-spread shockwaves: a cascade rippling out from owned nodes along attack edges ----
+  var spreading = false;
+  function shockRing(n, color, dur, maxScale){
+    var shell = n && n.__threeObj;
+    if(!shell || !shell.geometry || !shell.material) return;
+    var Mesh=shell.constructor, Geo=shell.geometry.constructor, Mat=shell.material.constructor;
+    var r=(shell.geometry.parameters && shell.geometry.parameters.radius)||4, ring;
+    try {
+      var mat=new Mat({transparent:true, opacity:0.85, wireframe:true});
+      if(mat.color&&mat.color.set) mat.color.set(color);
+      if(mat.emissive){ mat.emissive.set(color); mat.emissiveIntensity=1.4; }
+      if('depthWrite' in mat) mat.depthWrite=false;
+      ring=new Mesh(new Geo(r,14,10), mat); ring.__shock=true; shell.add(ring);
+    } catch(e){ return; }
+    var t0=performance.now(), DUR=dur||900, MAX=maxScale||3.2;
+    var done=function(){ if(ring&&ring.parent){ try{ ring.parent.remove(ring);
+      ring.geometry.dispose(); ring.material.dispose(); }catch(e){} ring=null; } };
+    (function fr(now){ if(!ring) return; var k=Math.min(1,(now-t0)/DUR); var s=1+k*MAX; ring.scale.set(s,s,s);
+      if(ring.material) ring.material.opacity=0.85*(1-k); if(k<1) requestAnimationFrame(fr); else done(); })(t0);
+    setTimeout(done, DUR+500);
+  }
+  async function spreadWave(){
+    if(spreading||touring) return;
+    var gd=G.graphData();
+    var startIds=(gd.nodes||[]).filter(function(n){return n.type==='owned';}).map(function(n){return n.id;});
+    if(!startIds.length) return;
+    var attack=(gd.links||[]).filter(function(l){return l.attack;});
+    spreading=true;
+    var outBy=new Map(); attack.forEach(function(l){ var s=lid(l.source);
+      if(!outBy.has(s)) outBy.set(s,[]); outBy.get(s).push(l); });
+    var visited=new Set(startIds), frontier=startIds.slice();
+    frontier.forEach(function(id){ shockRing(byId.get(id), '#ff3b3b'); });
+    while(frontier.length){
+      if(touring) break;
+      var next=[];
+      frontier.forEach(function(id){ (outBy.get(id)||[]).forEach(function(l){
+        try{ for(var i=0;i<3;i++) G.emitParticles(l); }catch(e){}
+        var t=lid(l.target); if(!visited.has(t)){ visited.add(t); next.push(t); } }); });
+      if(!next.length) break;
+      await sleep(520);
+      next.forEach(function(id){ var n=byId.get(id); if(!n) return; var goal=n.type==='goal';
+        shockRing(n, goal?'#ffcf33':'#ff7a45', goal?1100:900, goal?4.2:3.2); });
+      frontier=next;
+    }
+    spreading=false;
+  }
+  setInterval(function(){ var gd=G.graphData();
+    if(!touring && !spreading && (gd.nodes||[]).some(function(n){return n.type==='owned';})) spreadWave();
+  }, 4200);
 })();
 </script>
 </body></html>

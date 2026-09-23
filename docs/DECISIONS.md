@@ -610,3 +610,19 @@ triggers it on demand. Shared across both surfaces: the live `redness/live/web/i
 self-contained HTML report (`redness/report/html_report.py`) run the same choreography, so the
 report a client opens performs the same "how we'd own you" walk offline. Pure front-end (camera +
 link highlight + particles); no findings-contract or schema change. GUI version 1.33.7 -> 1.34.0.
+
+## 2026-09-23 - Compromise-spread shockwaves (GUI + HTML report)
+Made domain takeover read as a visual cascade. A reusable `shockRing(node, colour, dur, maxScale)`
+adds a short-lived expanding+fading wireframe ring built from the node mesh's own three (its
+`.constructor`), marked `__shock` so it is independent of the discovery flash's `__ring`/`__flashing`
+guard - waves stack and coexist with a right-click flash. `spreadWave()` BFS-walks the compromise
+outward from every owned node along the attack edges: it erupts a red ring at the owned origins,
+then for each hop emits particles along the outgoing attack edges and, after the pulse travels
+(~520ms), rings the newly-reached nodes (orange while spreading, gold + bigger when it reaches the
+Domain Admin goal). An ambient interval (~4.2s) launches a wave whenever an owned node exists, and
+it is gated on the tour's `touring` flag so the cinematic auto-tour and the shockwaves never run at
+once. Shared verbatim (modulo the two files' variable names) between the live
+`redness/live/web/index.html` and the self-contained HTML report (`redness/report/html_report.py`),
+so a client's offline report shows the same cascade. Pure front-end (ring meshes + particles); no
+findings-contract or schema change. Verified both surfaces in-browser (rings cascade, gold burst at
+the goal, no console errors).
