@@ -158,6 +158,26 @@ Zero Science Lab · powered by Silly Security Inc.
   live bridge uses raw sockets and has had Windows-only races - so regressions there get caught
   automatically. Base install only (`pip install . pytest`); no engines/DC needed.
 
+### Fixed
+- `2026-09-24` **Flaky live-bridge tests on Windows (`WinError 10054`):** the offensive
+  bridge / GUI-scan tests failed transiently when the full suite ran repeatedly. Two
+  distinct Windows socket races, both fixed in `redness/live/bridge.py` without
+  changing any test assertion:
+  - **Early error returns reset the connection.** A gated `POST` (bad/empty token)
+    called `send_error(403)` *before* reading the request body; closing a socket with
+    an unread body makes Windows send an RST, so the client saw a connection reset
+    instead of the `403`. `do_POST` now drains the request body up-front (`_drain_body`)
+    before any token/route check, so the close is always graceful. (Dominant cause.)
+  - **Address-reuse port collisions.** `http.server` sets `allow_reuse_address = 1`
+    (SO_REUSEADDR) unconditionally; on Windows that lets a *second* socket bind a port
+    already in use, so two short-lived `port=0` servers could share one ephemeral port.
+    A new `_LiveHTTPServer` subclass takes the port exclusively on Windows
+    (`SO_EXCLUSIVEADDRUSE`, `allow_reuse_address = False`) while keeping SO_REUSEADDR on
+    POSIX for clean restarts of the fixed production port.
+  - `LiveServer.stop()` now joins the serve thread for deterministic, idempotent
+    teardown. Verified with a 1500-iteration bridge stress harness (23 anomalies -> 0)
+    and the suite looped 25x.
+
 ### Changed
 - `2026-09-04` **New Scan panel:** added an ✕ in the header to close/cancel the panel (e.g. if you
   opened it or a scope import by mistake) without starting a scan.
