@@ -241,6 +241,10 @@ const linkKeys = new Set();       // dedupe edges across replay/loop
 const seenFindings = new Set();   // dedupe findings across replay/loop
 const highlightLinks = new Set(); // edges lit during the "replay path to DA" cinematic
 const worstSev = new Map();       // node id -> worst severity string
+const neighbors = new Map();      // node id -> Set of directly-connected ids (hover-to-focus)
+let focusId = null;               // node under the cursor (hover-to-focus), or null
+const focusNodes = new Set();     // hovered node + its direct neighbors (kept bright)
+const focusLinks = new Set();     // links incident to the hovered node (kept bright)
 let findingCount = 0;
 
 const el = id => document.getElementById(id);
@@ -250,7 +254,8 @@ function refreshCounts(){ el('nnodes').textContent=nodes.length;
 const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(el('graph'))
   .backgroundColor('rgba(0,0,0,0)')          // transparent: the CSS starfield + vignette shows behind
   .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' - '+worstSev.get(n.id).toUpperCase():''}`)
-  .nodeColor(n => (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
+  .nodeColor(n => (focusId && !focusNodes.has(n.id)) ? 'rgba(90,100,120,.22)'   // hover-to-focus: dim the rest
+                  : (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || baseVal(n))
   .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
@@ -261,10 +266,15 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   // Attack-path edges are red and busy; potential (roastable, uncracked) leads are dimmer.
   // A link lit by the replay cinematic goes bright white and thick.
   .linkColor(l => highlightLinks.has(l) ? '#ffffff'
+                  : focusId ? (focusLinks.has(l) ? 'rgba(255,255,255,.85)' : 'rgba(120,130,150,.05)')
                   : l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
                              : 'rgba(120,130,150,.35)')
-  .linkWidth(l => highlightLinks.has(l) ? 5 : ((l.attack && !l.potential) ? 2.2 : 0))
-  .linkDirectionalParticles(l => highlightLinks.has(l) ? 8 : (l.attack ? (l.potential?2:5) : 2))
+  .linkWidth(l => highlightLinks.has(l) ? 5
+                  : focusId ? (focusLinks.has(l) ? 2 : 0)
+                  : ((l.attack && !l.potential) ? 2.2 : 0))
+  .linkDirectionalParticles(l => highlightLinks.has(l) ? 8
+                  : focusId ? (focusLinks.has(l) ? 4 : 0)
+                  : (l.attack ? (l.potential?2:5) : 2))
   .linkDirectionalParticleWidth(l => highlightLinks.has(l) ? 4 : (l.attack ? 2.6 : 1.6))
   .linkDirectionalParticleSpeed(l => l.attack ? 0.02 : 0.012);
 
@@ -340,6 +350,7 @@ function _ensureCore(n){
     const hv = (n.type === 'owned' || n.type === 'goal');
     let g = SEV_GLOW[worstSev.get(n.id)] || 0.05;
     if (hv) g = Math.max(g, n.type === 'goal' ? 0.18 : 0.14);
+    if (focusId && !focusNodes.has(n.id)) g *= 0.15;      // hover-to-focus: dim non-neighbors' glow
     if (!n.__flashing) glow.material.opacity = g;
   }
 }
@@ -396,6 +407,29 @@ function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.link
   .linkDirectionalParticles(Graph.linkDirectionalParticles())
   .linkDirectionalParticleWidth(Graph.linkDirectionalParticleWidth()); }
 
+// Hover-to-focus: hovering a node keeps it + its direct neighbors bright and dims everything
+// else (nodes, glow, links); mouse-out resets. Skipped while the replay cinematic is running so
+// the two don't fight. Repaints node colours + links + glow immediately (not on the 400ms tick).
+function applyFocus(){
+  Graph.nodeColor(Graph.nodeColor());              // repaint node colours (dim non-focus)
+  refreshLinks();                                  // repaint link colour/width/particles
+  for (const n of nodes) _ensureCore(n);           // re-dim glow cores now
+}
+function setFocus(node){
+  if (touring) return;                             // don't fight the "replay path to DA" cinematic
+  focusNodes.clear(); focusLinks.clear();
+  if (node){
+    focusId = node.id;
+    focusNodes.add(node.id);
+    for (const id of (neighbors.get(node.id) || [])) focusNodes.add(id);
+    for (const l of links){ if (_lid(l.source)===node.id || _lid(l.target)===node.id) focusLinks.add(l); }
+  } else {
+    focusId = null;
+  }
+  applyFocus();
+}
+Graph.onNodeHover(node => setFocus(node));
+
 // Keep the WebGL canvas sized to its container. ForceGraph3D reads the size once at init;
 // if the page loads while the pane is hidden/zero-sized (e.g. embedded), the canvas stays
 // 0x0. Size it explicitly and track changes so the graph always fills the view.
@@ -433,7 +467,11 @@ function addEdge(d){
   if(!nodeById.has(d.src)) addNode({id:d.src,label:d.src,type:'node'});
   if(!nodeById.has(d.dst)) addNode({id:d.dst,label:d.dst,type:'node'});
   links.push({ source:d.src, target:d.dst, label:d.label||'',
-    attack:!!d.attack, potential:!!d.potential, technique:d.technique||'' }); bump();
+    attack:!!d.attack, potential:!!d.potential, technique:d.technique||'' });
+  for (const [a,b] of [[d.src,d.dst],[d.dst,d.src]]){    // undirected adjacency for hover-to-focus
+    let s = neighbors.get(a); if(!s){ s = new Set(); neighbors.set(a,s); } s.add(b);
+  }
+  bump();
 }
 function applyFinding(f){
   const key = (f.id||f.title||'') + '|' + (f.affected||[]).join(',');
