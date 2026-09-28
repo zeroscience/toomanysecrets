@@ -745,7 +745,7 @@ async function cinematicTour(auto){
 function showTour(on){ const t = el('tourhud'); if (t) t.classList.toggle('show', on); }
 
 // User interaction cancels an in-progress tour and suppresses the one-shot auto-tour.
-function _interact(){ userInteracted = true; if (touring) tourAbort = true; }
+function _interact(){ userInteracted = true; if (touring) tourAbort = true; resetIdle(); }
 try {
   const rdom = Graph.renderer().domElement;
   rdom.addEventListener('pointerdown', _interact, { passive:true });
@@ -753,6 +753,47 @@ try {
 } catch(e){}
 if (el('tourhud')) el('tourhud').onclick = () => { tourAbort = true; };
 el('replaybtn').onclick = () => cinematicTour(false);
+
+// ---- Idle camera drift ----
+// When nothing's been touched for a few seconds, slowly orbit the graph; any input stops it
+// instantly. Kept separate from the userInteracted latch (which gates the one-shot auto-tour):
+// drift is repeatable and must never suppress the auto-tour, so plain mouse movement / keys /
+// touch reset drift only, while pointerdown / wheel also latch userInteracted (via _interact).
+const IDLE_MS = 5000;               // no input for this long -> start drifting
+const DRIFT_SPEED = 0.07;           // radians/second (~90s per orbit) - slow + cinematic
+let lastInteract = performance.now();
+let drifting = false;
+function stopDrift(){ drifting = false; }
+function resetIdle(){ lastInteract = performance.now(); stopDrift(); }
+function startDrift(){
+  if (drifting) return;
+  drifting = true;
+  let prev = performance.now();
+  (function drift(now){
+    if (!drifting || touring){ drifting = false; return; }
+    const dt = Math.min(0.05, (now - prev) / 1000); prev = now;   // clamp after a tab stall
+    const cam = Graph.cameraPosition();                           // orbit from the CURRENT position
+    const r = Math.hypot(cam.x, cam.z);                           // (self-corrects if zoomToFit reframes)
+    if (r > 1){                                                   // skip if ~over the centre
+      const a = Math.atan2(cam.z, cam.x) + DRIFT_SPEED * dt;      // advance the angle around origin
+      try { Graph.cameraPosition({ x: Math.cos(a) * r, y: cam.y, z: Math.sin(a) * r }); } catch(_){}
+    }
+    requestAnimationFrame(drift);
+  })(prev);
+}
+// Any input resets the idle timer + stops drift. pointerdown/wheel go through _interact (which
+// also latches userInteracted); movement/keys/touch reset drift only, so they never kill the
+// auto-tour.
+try {
+  const rdom = Graph.renderer().domElement;
+  rdom.addEventListener('pointermove', resetIdle, { passive:true });
+  rdom.addEventListener('touchstart', resetIdle, { passive:true });
+} catch(e){}
+document.addEventListener('keydown', resetIdle);
+setInterval(() => {
+  if (!drifting && !touring && nodes.length && !document.hidden
+      && performance.now() - lastInteract > IDLE_MS) startDrift();
+}, 1000);
 
 // Auto-play once when a scan completes and an attack path to Domain Admin exists - unless the
 // operator already grabbed the graph (their intent wins over the show).
