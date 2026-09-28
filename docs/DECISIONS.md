@@ -665,3 +665,24 @@ constructors:
 Live reads `worstSev`; the report reads the `sev` baked onto each node. Pure front-end; no
 findings-contract or schema change. Verified both surfaces in-browser (glowing orbs, vignette
 depth, no console errors). Kept under GUI v1.35.0 (same in-progress animation version).
+
+## 2026-09-28 - Delegation -> attack-path edges (unconstrained non-DC; RBCD deferred)
+Realizes the contract deferred in the 2026-08-27 delegation entry ("attack-path edges are
+paths.py's job, meta contract first"). `paths.py:delegation_edges()` turns `delegation-unconstrained`
+(HIGH, non-DC) findings into attack-path edges to the `Domain Admin` goal node, wired into
+`derive_attack_edges` so they flow through the existing graph + the GUI's client-side reachability
+walk (`links.filter(l => l.attack)` BFS). `delegation-unconstrained-dc` (INFO - a DC legitimately
+delegating) is ignored. Edges are `potential=True`: a preconditioned lead (you must gain SYSTEM on
+the host first), drawn dashed, marking nothing `owned` - so it never fabricates a proven path to DA.
+Backend-only: reuses the existing `AttackEdge`/EDGE-event contract that both the live GUI and
+graphmodel.py already render generically - no findings.py, GUI, or schema change. Issue #60 option 3.
+
+RBCD deferred (deliberately). Building `rbcd_edges()` offline is unsafe: `delegation-rbcd`'s
+`meta["to"]` is a list of SPNs (not host node-ids), RBCD's LDAP attribute
+(msDS-AllowedToActOnBehalfOfOtherIdentity) is the *inverse* of constrained delegation so the edge
+direction is likely principal->resource (not the account->to first sketched), and the
+`nxc --find-delegation` output the parser depends on is unverified offline. A wrong-direction edge
+corrupts the path-to-DA story, so it waits for the real-nxc Kali verification pass. When built:
+MAQ>0 double-guard (only when a machine-account-quota maq>0 finding is also present), SPN->host
+normalization, known-host guard (both endpoints already graph nodes), principal->resource direction.
+Correct direction > completeness. Contract-first, same as crack.py.

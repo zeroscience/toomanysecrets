@@ -47,7 +47,9 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
 - **Delegation abuse enum** - unconstrained / constrained / **RBCD**, plus **machine-account
   quota (MAQ)** and **gMSA / shadow credentials** readability. **BUILT** - `DelegationEngine` in
   the default scan; balanced severities; MAQ escalates to CRITICAL only with an AD CS ESC path
-  (cross-engine `adcs_present`). See docs/DELEGATION.md.
+  (cross-engine `adcs_present`). See docs/DELEGATION.md. Unconstrained (non-DC) now feeds
+  attack-path edges to Domain Admin (`paths.py`, issue #60 option 3); RBCD edges deferred to the
+  Kali verify pass.
 - **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
   reconsider, relay). Kali-native. **BUILT** - gated `redness coerce` command (never in `scan`);
   wraps nxc `coerce_plus`, per-vector `coercion-*` findings (CRITICAL on a DC), DC-validation +

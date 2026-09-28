@@ -57,8 +57,10 @@ MAQ finding.
 - **DC detection is best-effort** - a DC is recognised by the UAC SERVER_TRUST bit when present,
   else by a hostname-derived name hint; against an IP with no UAC in the output a DC could
   mis-flag as non-DC (HIGH vs INFO). Tighten against real output.
-- **Attack-path edges** (unconstrained-host -> DA) are `paths.py`'s job (Gjoko) and need a
-  `meta` contract first; the findings carry `meta["delegation"]` for future consumption.
+- **Attack-path edges** - `delegation-unconstrained` (non-DC) now feeds `paths.py:delegation_edges()`
+  as a `potential` edge to the Domain Admin goal (feat/delegation-paths, issue #60 option 3).
+  **RBCD edges deferred** to the real-nxc Kali pass: `meta["to"]` is SPN-valued and the direction is
+  the inverse of constrained delegation, unverifiable offline. See docs/DECISIONS.md (2026-09-28).
 
 ## Legal / ethics
 Authorized, in-scope engagements only. Read-only LDAP enumeration with the tested principal's
