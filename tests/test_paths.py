@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from redness import paths  # noqa: E402
+from redness.bloodhound import BHGraph  # noqa: E402
 from redness.events import EventBus, EventKind  # noqa: E402
 from redness.findings import Category, Finding, Report, Severity  # noqa: E402
 
@@ -74,6 +75,53 @@ def test_no_findings_no_paths():
     bus.subscribe(seen.append)
     assert paths.emit_attack_paths(bus, empty) == []
     assert seen == []
+
+
+# --- BloodHound reachability (pure; caller supplies the BHGraph + owned set) --- #
+def _bh():
+    g = BHGraph()
+    g.nodes = {"JDOE": "user", "HELPDESK": "group", "DOMAIN ADMINS": "group",
+               "DC01": "host", "BOB": "user", "FILESRV": "host"}
+    g.edges = [
+        ("JDOE", "HELPDESK", "MemberOf"),           # owned user -> group
+        ("HELPDESK", "DOMAIN ADMINS", "MemberOf"),  # group -> DA group (reaches DA)
+        ("HELPDESK", "DC01", "AdminTo"),            # group -> DC (dead-ends under v1 DA-group targets)
+        ("BOB", "FILESRV", "AdminTo"),              # entirely off-path (BOB not owned)
+    ]
+    return g
+
+
+def test_bloodhound_path_to_domain_admin():
+    edges = paths.bloodhound_paths(_bh(), {"JDOE"})
+    triples = {(e.src, e.dst, e.label) for e in edges}
+    assert ("JDOE", "HELPDESK", "MemberOf") in triples
+    assert ("HELPDESK", "DOMAIN ADMINS", "MemberOf") in triples
+    assert ("DOMAIN ADMINS", paths.GOAL, "escalates to Domain Admin") in triples  # terminal -> goal
+    assert all(e.potential for e in edges)                       # potential=True
+    # off-path excluded: AdminTo-DC leg dead-ends (v1 targets = DA groups); BOB never starts owned
+    assert ("HELPDESK", "DC01", "AdminTo") not in triples
+    assert not any(e.src == "BOB" or e.dst == "FILESRV" for e in edges)
+
+
+def test_bloodhound_no_owned_or_no_path():
+    assert paths.bloodhound_paths(_bh(), set()) == []            # nothing owned
+    assert paths.bloodhound_paths(_bh(), {"BOB"}) == []          # owned, but no path to a DA group
+
+
+def test_bloodhound_explicit_da_target_lights_dc_path():
+    # override targets to include the DC -> the AdminTo-DC leg lights (how DC/high-value
+    # targeting will work once ingestion captures it)
+    edges = paths.bloodhound_paths(_bh(), {"JDOE"}, da_targets={"DC01"})
+    triples = {(e.src, e.dst, e.label) for e in edges}
+    assert ("JDOE", "HELPDESK", "MemberOf") in triples
+    assert ("HELPDESK", "DC01", "AdminTo") in triples
+    assert ("DC01", paths.GOAL, "escalates to Domain Admin") in triples
+
+
+def test_bloodhound_no_da_group_no_edges():
+    g = _bh()
+    del g.nodes["DOMAIN ADMINS"]                  # no name-matched DA target present
+    assert paths.bloodhound_paths(g, {"JDOE"}) == []
 
 
 if __name__ == "__main__":
