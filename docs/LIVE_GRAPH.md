@@ -7,7 +7,7 @@
 While REDNESS enumerates, show a live, animated 3D graph: the domain at the center,
 hosts / users / shares / CA templates spawning as nodes, edges lighting up as each
 protocol is probed, nodes flaring red the instant a misconfig (ESC1, SMB signing,
-AS-REP…) is confirmed. It's a scan you can *watch*.
+AS-REP...) is confirmed. It's a scan you can *watch*.
 
 ## Why it's cheap to support (we already did the hard part)
 Every engine normalizes to `Finding` and can **stream** events onto an `EventBus`
@@ -26,13 +26,13 @@ report can drive a live view. Nothing about the batch pipeline changes.
 |--------|--------|---------------|
 | NODE   | id, label, type, meta | a domain / host / user / share / template / CA |
 | EDGE   | src, dst, label | relationship or "which ESC/finding links them" |
-| PROBE  | target, test | *currently testing X* → pulse/animate that node |
+| PROBE  | target, test | *currently testing X* -> pulse/animate that node |
 | FINDING| finding (dict) | color the node by `severity`; open a detail card |
 | STATUS | message | log line / progress toast |
 | DONE   | engine | stop the spinner for that engine |
 
-Node `type` → color/shape; `finding.severity` → node emissive color
-(critical=deep red … info=grey, matching the report's palette).
+Node `type` -> color/shape; `finding.severity` -> node emissive color
+(critical=deep red ... info=grey, matching the report's palette).
 
 ## Recommended stack (when we build it)
 - **Transport:** a thin bridge subscribes to the bus and pushes events as JSON frames

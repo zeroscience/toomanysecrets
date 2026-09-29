@@ -7,7 +7,7 @@
 
 ## 0. Stand up a lab (pick one)
 - **[GOAD - Game of Active Directory](https://github.com/Orange-Cyberdefense/GOAD)** - a
-  ready-made vulnerable AD forest (ESC templates, roastable accounts, no SMB signing…).
+  ready-made vulnerable AD forest (ESC templates, roastable accounts, no SMB signing...).
   Best coverage for exercising every engine. Heavier to deploy.
 - **A throwaway Windows Server DC VM** - `Install-ADDSForest`, add a couple users, mark one
   `Do not require Kerberos preauth` (AS-REP), give one an SPN (Kerberoast), stand up AD CS
@@ -31,14 +31,14 @@ DC=10.10.0.10 DOMAIN=acme.local USER=jdoe PASS='Password1' \
 IFACE=eth0 WORDLIST=/usr/share/wordlists/rockyou.txt \
 ./scripts/smoke.sh
 ```
-It runs `doctor` → `scan` (writes report + findings JSON) → prints a severity/category
-summary → a **passive** `poison --analyze` (no poisoning). Add `--live` to any step to watch
+It runs `doctor` -> `scan` (writes report + findings JSON) -> prints a severity/category
+summary -> a **passive** `poison --analyze` (no poisoning). Add `--live` to any step to watch
 the 3D graph.
 
 ## 3. What to verify per engine (the real test)
 Run credentialed **and** uncredentialed (drop `-u/-p`) to see both surfaces.
 
-| Engine | Command flag path | Expect on a vulnerable lab | ✅ / notes |
+| Engine | Command flag path | Expect on a vulnerable lab | [x] / notes |
 |--------|-------------------|-----------------------------|-----------|
 | SMB (nxc) | `scan --target DC` | `smb-signing-not-required`, maybe `smbv1-enabled`, `smb-null-or-guest-auth`, shares | |
 | LDAP/Kerberos (nxc) | `scan ... -u -p -d` | `enum-domain-users`, `krb-asrep-roastable`, `krb-kerberoastable` (+ hashes in loot/) | |
@@ -55,7 +55,7 @@ on the segment - only in the isolated lab, `--iface` pinned, time-boxed, after t
   impact + remediation; enumeration appendix present.
 - **Findings JSON** (`--json`): re-render with `redness report smoke-findings.json --out r.docx`
   (round-trips the schema).
-- **Live graph** (`--live`): domain → hosts/users/shares/CA/templates spawn; nodes recolor by
+- **Live graph** (`--live`): domain -> hosts/users/shares/CA/templates spawn; nodes recolor by
   severity; cracked creds show up (currently via report, not yet streamed to the graph).
 - **Loot** (`loot/`): `krb5asrep.txt` / `krb5tgs.txt` / `netntlmv2.txt` are valid hashcat input
   (`hashcat -m 18200/13100/5600 loot/<file> rockyou.txt`).

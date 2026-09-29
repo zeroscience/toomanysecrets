@@ -1,7 +1,7 @@
 # REDNESS
 
-**v1.33.7** - Zero Science Lab · powered by Silly Security Inc.
-Developed by **Anja Ivanovska** & **Gjoko Krstic** - anja@zeroscience.mk · gjoko@zeroscience.mk
+**v1.33.7** - Zero Science Lab | powered by Silly Security Inc.
+Developed by **Anja Ivanovska** & **Gjoko Krstic** - anja@zeroscience.mk | gjoko@zeroscience.mk
 
 > Working codename - the tool may be renamed later.
 
@@ -47,7 +47,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | Command | What it does |
 |---------|--------------|
 | `redness doctor` | Report which engines/tools are installed and how to enable the rest |
-| `redness scan` | Run the engines against one/many targets → report + live graph (+ crack) |
+| `redness scan` | Run the engines against one/many targets -> report + live graph (+ crack) |
 | `redness gui` | **Native desktop window** (Windows/Linux) around the live 3D graph |
 | `redness live` | The same UI in a browser (`--demo` for simulated data) |
 | `redness listen` | Passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP) - hosts, devices, poisonable names |
@@ -56,7 +56,7 @@ The attacks are a solved problem (NetExec, Impacket, Certipy, BloodHound). What 
 | `redness report` | Re-render a `.docx` from a saved `findings.json` |
 | `redness demo` | Render a sample report, no DC needed |
 
-## Install (git clone → one command → `redness`)
+## Install (git clone -> one command -> `redness`)
 
 **Linux / Kali** (recommended operator box - `nxc` runs natively here):
 ```bash
@@ -138,7 +138,7 @@ redness/
     base.py netexec.py ldap.py certipy.py tls.py responder.py
   report/         # List[Finding] -> .docx  (Gjoko)
   live/           # 3D GUI: SSE bridge + web UI + demo driver
-docs/             # DECISIONS · GUI · NETNTLM · VALIDATION · LIVE_GRAPH · screenshots
+docs/             # DECISIONS | GUI | NETNTLM | VALIDATION | LIVE_GRAPH | screenshots
 packaging/        # PyInstaller specs (lean + self-contained) + installers
 ```
 See [CHANGELOG.md](CHANGELOG.md) for what's new and [docs/](docs/) for design notes

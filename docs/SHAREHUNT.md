@@ -4,7 +4,7 @@
 > Tier 1 #3). Owner: **anjaiv** (engines area). Read `CLAUDE.md`, `docs/DECISIONS.md`,
 > and `docs/ROADMAP.md` first, then this.
 >
-> ⚠️ **This introduces a schema change** (`Category.SECRET` + `SCHEMA_VERSION` bump +
+> ! **This introduces a schema change** (`Category.SECRET` + `SCHEMA_VERSION` bump +
 > `scan.py:_node_type`). `findings.py` is the contract between engines (anjaiv) and
 > reporting/graph (Gjoko) - **the schema change and the `meta["secrets"]` shape need
 > Gjoko's review before merge**, and must stay compatible with the attack-path graph
@@ -43,13 +43,13 @@ Two phases:
 `redness/findings.py` gains a category, and `redness/scan.py` a node type:
 1. **`Category.SECRET = "secret"`** - secrets are not inherently SMB-specific, and the
    attack-path graph needs a distinct node type to render credential findings. Bump
-   **`SCHEMA_VERSION` `1.0.0` → `1.1.0`** (additive; a consumer that predates it must tolerate
+   **`SCHEMA_VERSION` `1.0.0` -> `1.1.0`** (additive; a consumer that predates it must tolerate
    an unknown category). Log it in `docs/DECISIONS.md`.
-2. **`scan.py:_node_type`** - map `secret` → a new `"secret"` node type (today: adcs→template,
-   kerberos→user, smb+`\`→share, enum→user, else host). The GUI must color/shape the new node
+2. **`scan.py:_node_type`** - map `secret` -> a new `"secret"` node type (today: adcs->template,
+   kerberos->user, smb+`\`->share, enum->user, else host). The GUI must color/shape the new node
    type (Gjoko / `web/`); until then a `secret` node renders with the default styling.
 
-Because both files are the engine↔reporting contract, **coordinate before merging**, same as
+Because both files are the engine<->reporting contract, **coordinate before merging**, same as
 the crack.py contract in docs/NETNTLM.md.
 
 ## The contract with `paths.py` - `meta["secrets"]`
@@ -102,7 +102,7 @@ distinct.
 ## Safety / gating
 - **Opt-in flags**, never in `default_engines()`: `--hunt-secrets` (Phase 1, filename only) and
   `--hunt-content` (Phase 2, downloads + content regex - the intrusive one).
-- **Redaction** as above; downloaded files → git-ignored `loot/`.
+- **Redaction** as above; downloaded files -> git-ignored `loot/`.
 - Only spiders shares the tested principal can already read (nxc uses the supplied creds); no
   privilege escalation, no writes.
 

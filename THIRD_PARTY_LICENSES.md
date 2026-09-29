@@ -19,8 +19,8 @@ travel with any REDNESS distribution.
 | Component | License | Where |
 |-----------|---------|-------|
 | **3d-force-graph** (Vasco Asturiano) | MIT | `redness/live/web/vendor/3d-force-graph.min.js` |
-| ↳ bundles **three.js** (three.js authors) | MIT | (inside the minified file) |
-| ↳ bundles **d3-force / d3-* modules** (Mike Bostock) | ISC / BSD-3-Clause | (inside the minified file) |
+| -> bundles **three.js** (three.js authors) | MIT | (inside the minified file) |
+| -> bundles **d3-force / d3-* modules** (Mike Bostock) | ISC / BSD-3-Clause | (inside the minified file) |
 
 The full MIT text and copyright for the vendored bundle live alongside it in
 `redness/live/web/vendor/3d-force-graph.LICENSE.txt`.

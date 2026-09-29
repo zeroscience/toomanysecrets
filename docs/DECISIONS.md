@@ -31,7 +31,7 @@ findings most-severe-first with impact/remediation/evidence, enumeration appendi
 
 ## 2026-08-10 - Certipy engine parses JSON, not text
 `certipy find -json` emits a per-object "[!] Vulnerabilities" map. We parse that
-(robust) rather than scrape the text report. ESC1–ESC16 mapped to severity+remediation;
+(robust) rather than scrape the text report. ESC1-ESC16 mapped to severity+remediation;
 unknown ESCs default HIGH. Parsing pure + testable (tests/test_certipy_parse.py).
 
 ## 2026-08-10 - EventBus seam for a future live 3D graph
@@ -172,7 +172,7 @@ writes `--out`, with the banner/hints on **stderr** so `> lure.html` redirects c
 It's a helper, not an Engine: it produces an artifact, not Findings - no scan/default_engines
 involvement, no doctor check, no network/subprocess. Capture reuses Phase 1 wholesale: the
 victim's coerced SMB auth lands in the same Responder listener (run `redness poison` normally)
-→ parse_responder_log → build_findings (`netntlm-captured`) → crack (`netntlmv2`). So
+-> parse_responder_log -> build_findings (`netntlm-captured`) -> crack (`netntlmv2`). So
 **findings.py and crack.py are untouched** and no new findings are defined. "Flag if signing
 isn't enforced" reuses the existing `smb-signing-not-required` finding via `scan`. Deferred: a
 poisoning-off `--capture-only` listen mode on `poison` (needs Kali validation that Responder

@@ -16,7 +16,7 @@ These turn the graph from an *enumeration picture* into an *attack-path map*, an
 "one place" actually offensive. This is the moat.
 
 1. **Attack-path edges in the graph** *(Gjoko)* - draw the *relationships that matter*:
-   `user -Kerberoastable→ hash -cracked→ password -local admin on→ host -→ Domain Admin`.
+   `user -Kerberoastable-> hash -cracked-> password -local admin on-> host --> Domain Admin`.
    BloodHound-style reachability, but **live and 3D** as findings land. Pull the raw edges
    from a **BloodHound collection** (`nxc ldap --bloodhound`) and/or derive them from our own
    findings. *This is the single most differentiating feature.*
@@ -50,7 +50,7 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
   (cross-engine `adcs_present`). See docs/DELEGATION.md. Unconstrained (non-DC) now feeds
   attack-path edges to Domain Admin (`paths.py`, issue #60 option 3); RBCD edges deferred to the
   Kali verify pass.
-- **Coercion** - PetitPotam / PrinterBug / DFSCoerce → feeds `trigger`/`poison` (and, if we ever
+- **Coercion** - PetitPotam / PrinterBug / DFSCoerce -> feeds `trigger`/`poison` (and, if we ever
   reconsider, relay). Kali-native. **BUILT** - gated `redness coerce` command (never in `scan`);
   wraps nxc `coerce_plus`, per-vector `coercion-*` findings (CRITICAL on a DC), DC-validation +
   uncredentialed double-gate + `loot/coerce_audit.log`. See docs/COERCION.md.
@@ -83,4 +83,4 @@ Steady, high-value coverage. Mostly Anja's engine lane; each is a small wrapper 
 
 ## Then: the fun part
 Once capability is deep, the GUI/animation pass - smoother, more organic motion, OS-adaptive
-node shapes, themes (docs/GUI.md "future"). Capability first, polish second. 😉
+node shapes, themes (docs/GUI.md "future"). Capability first, polish second. ;)

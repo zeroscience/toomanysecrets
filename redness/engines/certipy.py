@@ -1,4 +1,4 @@
-"""Certipy engine - AD CS (certificate services) misconfigurations, ESC1–ESC16.
+"""Certipy engine - AD CS (certificate services) misconfigurations, ESC1-ESC16.
 
 Certipy's `find` command emits structured JSON with a per-object
 `"[!] Vulnerabilities"` map ({"ESC1": "<why>"}). We parse that into normalized

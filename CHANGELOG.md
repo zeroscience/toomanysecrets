@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https://keepachangelog.com).
-Zero Science Lab · powered by Silly Security Inc.
+Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
@@ -194,7 +194,12 @@ Zero Science Lab · powered by Silly Security Inc.
     and the suite looped 25x.
 
 ### Changed
-- `2026-09-04` **New Scan panel:** added an ✕ in the header to close/cancel the panel (e.g. if you
+- `2026-09-29` **ASCII-only glyphs across the codebase:** replaced every non-ASCII character in
+  source and docs with a plain-keyboard equivalent (arrows -> `->`, en/em-dashes -> `-`, middot
+  separators -> `|`, ellipses -> `...`, the GUI's play/close/plus/flag/warning glyphs -> `>` / `x`
+  / `+` / `[!]` / `!`, box-drawing -> `-`/`|`, emoji dropped). 16 files; verified the live GUI and
+  HTML report still render and the suite stays green.
+- `2026-09-04` **New Scan panel:** added an x in the header to close/cancel the panel (e.g. if you
   opened it or a scope import by mistake) without starting a scan.
 - `2026-09-04` **Trimmed the CLI banners:** dropped the "Authorized, in-scope engagements only /
   assume written authorization" boilerplate from the `spray` / `poison` / `coerce` / `trigger`
@@ -233,11 +238,11 @@ Zero Science Lab · powered by Silly Security Inc.
 - **Engines** (orchestrate, don't reimplement): SMB (NetExec) - signing, SMBv1,
   null/guest (incl. the `Null Auth:True` banner field), shares; LDAP (NetExec) -
   users, AS-REP roast, Kerberoast (hashes captured to loot); ADCS (Certipy) -
-  ESC1–ESC17; TLS (stdlib) - legacy protocols, weak ciphers, cert expiry/self-signed.
+  ESC1-ESC17; TLS (stdlib) - legacy protocols, weak ciphers, cert expiry/self-signed.
 - **`scan`** command - one/many targets (`--target` / `--targets` scope file),
   aggregated `.docx` report + `findings.json`, optional `--live` 3D graph.
 - **Offline cracking** (`crack.py`) - captured AS-REP/Kerberoast/NetNTLMv2 hashes written
-  to hashcat-ready loot files; `--wordlist` cracks via hashcat/john → CRITICAL
+  to hashcat-ready loot files; `--wordlist` cracks via hashcat/john -> CRITICAL
   `credential-cracked` findings.
 - **`poison`** command - intrusive NetNTLMv2 capture via Responder (LLMNR/NBT-NS),
   gated (`--iface`, `--duration`, `type YES`/`--yes`, passive `--analyze`).

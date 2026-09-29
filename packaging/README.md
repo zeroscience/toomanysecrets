@@ -15,7 +15,7 @@ pyinstaller --clean --noconfirm packaging/redness.spec
 
 ## Requirements / gotchas
 
-- **Python ≥ 3.10.1** (3.11 / 3.12 recommended). Python **3.10.0** has a bug in the
+- **Python >= 3.10.1** (3.11 / 3.12 recommended). Python **3.10.0** has a bug in the
   standard-library `dis` module that makes PyInstaller's analysis crash with
   `IndexError: tuple index out of range` in `_get_const_info`. Fixed in 3.10.1 -
   upgrade if you hit it (`python --version` to check).
