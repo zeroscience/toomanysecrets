@@ -5,6 +5,21 @@ Zero Science Lab · powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-09-28` **Hover-to-focus + idle camera drift (GUI):** hovering a node keeps it and its
+  direct (1-hop) neighbours and their links bright and dims everything else (nodes grey, glow cores
+  x0.15, non-incident links near-invisible); mouse-out resets. After ~5s with no input the camera
+  slowly orbits the graph (~90s/rev) from its current position, and any input stops it instantly.
+  Both layer under the "Replay path to DA" cinematic (focus is skipped during a tour; idle drift is
+  kept separate from the auto-tour latch so it never suppresses the one-shot tour). Front-end only
+  (`redness/live/web/index.html`); no contract/schema change. GUI bumped to v1.36.0. (anjaiv, #80)
+- `2026-09-28` **Delegation attack-path edges (unconstrained, non-DC):** `paths.py:delegation_edges()`
+  turns `delegation-unconstrained` (HIGH, non-DC) findings into `host -> Domain Admin` attack edges
+  so delegation shows on the attack map, not just as findings. `potential=True` (a preconditioned
+  lead: gain SYSTEM on the host first) so it never fabricates a proven path and marks nothing owned;
+  `delegation-unconstrained-dc` (INFO, a DC legitimately delegating) is ignored. RBCD edges are
+  deliberately deferred to the real-nxc Kali verification pass (SPN-valued meta + inverse direction,
+  unverifiable offline). Backend-only, reuses the existing AttackEdge/EDGE contract; no findings.py
+  or schema change. Issue #60 option 3. (anjaiv, #79)
 - `2026-09-23` **Depth & atmosphere (GUI + HTML report):** the graph now reads like an ops console,
   not a wireframe demo. Each node gets a **fake-bloom glow halo** (an additive-blended sphere
   bleeding light outward, brightness scaled by severity so criticals glow hardest) - real
