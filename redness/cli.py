@@ -321,7 +321,7 @@ def cmd_gui(args) -> int:
     _print_offensive_banner(server)
     try:
         import webview                                    # pywebview
-        webview.create_window("REDNESS · Zero Science Lab", url, width=1360, height=900)
+        webview.create_window("REDNESS | Zero Science Lab", url, width=1360, height=900)
         webview.start()                                   # blocks until the window closes
     except ImportError:
         import webbrowser

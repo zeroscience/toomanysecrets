@@ -126,13 +126,13 @@
 </head>
 <body>
 <div id="graph"></div>
-<div id="tourhud"><span class="pip"></span>AUTO-TOUR &nbsp;·&nbsp; tracing path to Domain Admin &nbsp;<span class="skip">click / drag to skip</span></div>
+<div id="tourhud"><span class="pip"></span>AUTO-TOUR &nbsp;|&nbsp; tracing path to Domain Admin &nbsp;<span class="skip">click / drag to skip</span></div>
 
 <div id="hud" class="panel">
   <div id="brand"><img src="/logo.svg" alt="ZeroScience"><span id="ver">v1.36.0</span></div>
   <h1>REDNESS</h1>
-  <div class="tagline">Zero Science Lab · powered by Silly Security Inc.</div>
-  <div class="sub">live enumeration · <span id="conn">connecting…</span></div>
+  <div class="tagline">Zero Science Lab | powered by Silly Security Inc.</div>
+  <div class="sub">live enumeration | <span id="conn">connecting...</span></div>
   <div id="counts">
     <span>nodes <b id="nnodes">0</b></span>
     <span>edges <b id="nedges">0</b></span>
@@ -157,12 +157,12 @@
   <div class="row"><span class="dot" style="background:#ffcf33"></span>Domain Admin (goal)</div>
   <div class="row"><span class="dot" style="background:#ff884d"></span>NTLM relay</div>
   <div class="row"><span class="dot" style="background:#ff3737"></span>attack / relay path</div>
-  <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">▶ Replay path to DA</button>
+  <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">> Replay path to DA</button>
 </div>
 
-<button id="scantoggle" class="hidden">＋ New scan</button>
+<button id="scantoggle" class="hidden">+ New scan</button>
 <div id="scanpanel" class="panel">
-  <h2><span class="x" id="scanclose" title="Cancel">✕</span>NEW SCAN</h2>
+  <h2><span class="x" id="scanclose" title="Cancel">x</span>NEW SCAN</h2>
   <textarea id="targets" placeholder="targets - one IP / hostname / CIDR per line&#10;10.10.0.15&#10;dc01.acme.local"></textarea>
   <input type="file" id="scopefile" accept=".txt" title="Load a scope .txt">
   <div class="row2">
@@ -179,9 +179,9 @@
 
 <div id="about" class="modal" onclick="if(event.target===this)hideModal('about')">
   <div class="card">
-    <span class="x" onclick="hideModal('about')">✕</span>
+    <span class="x" onclick="hideModal('about')">x</span>
     <h2>REDNESS</h2>
-    <div class="brandline">v1.36.0 · Zero Science Lab · powered by Silly Security Inc.</div>
+    <div class="brandline">v1.36.0 | Zero Science Lab | powered by Silly Security Inc.</div>
     <p>Red-team orchestrator for Active Directory and Windows. It drives NetExec, Impacket and
     Certipy, folds what they find into one model, and shows it as a live 3D graph and a Word report.</p>
     <p>SMB, LDAP, Kerberos and AD CS enumeration with or without creds; shares, users, ESC
@@ -189,7 +189,7 @@
     NetNTLMv2 capture via LLMNR/NBT-NS poisoning. It all lands in loot, the report and the graph.</p>
     <div class="grid">
       <span class="k">Developed by</span><span>Anja Ivanovska &amp; Gjoko Krstic</span>
-      <span class="k">Contact</span><span><a href="mailto:anja@zeroscience.mk">anja@zeroscience.mk</a> · <a href="mailto:gjoko@zeroscience.mk">gjoko@zeroscience.mk</a></span>
+      <span class="k">Contact</span><span><a href="mailto:anja@zeroscience.mk">anja@zeroscience.mk</a> | <a href="mailto:gjoko@zeroscience.mk">gjoko@zeroscience.mk</a></span>
       <span class="k">Version</span><span>1.36.0</span>
     </div>
   </div>
@@ -197,11 +197,11 @@
 
 <div id="usage" class="modal" onclick="if(event.target===this)hideModal('usage')">
   <div class="card">
-    <span class="x" onclick="hideModal('usage')">✕</span>
+    <span class="x" onclick="hideModal('usage')">x</span>
     <h2>USAGE</h2>
     <div class="brandline">command reference - full docs on the wiki (coming soon)</div>
     <p><code>redness doctor</code> - check which engines/tools are installed.</p>
-    <p><code>redness gui</code> - this native window · <code>redness live</code> - browser graph.</p>
+    <p><code>redness gui</code> - this native window | <code>redness live</code> - browser graph.</p>
     <p><code>redness scan --targets examples/scope.txt -u USER -p PASS -d DOMAIN --wordlist rockyou.txt --out report.docx --live</code><br>
        run the engines against one or many targets (scope file = one IP/host/CIDR per line),
        capture &amp; crack hashes, write the report, stream the graph.</p>
@@ -498,7 +498,7 @@ const logEl = el('log');
 function log(msg, cls){
   const line = document.createElement('div');
   line.className = 'line ' + (cls||'');
-  line.textContent = '› ' + msg;
+  line.textContent = '> ' + msg;
   logEl.appendChild(line); logEl.scrollTop = logEl.scrollHeight;
   while(logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
 }
@@ -541,7 +541,7 @@ if (SCAN_ENABLED) {
       username: el('s_user').value || null,
       password: el('s_pass').value || null,
       domain: el('s_domain').value || null };
-    const btn = el('startbtn'); btn.disabled = true; btn.textContent = 'Scanning…';
+    const btn = el('startbtn'); btn.disabled = true; btn.textContent = 'Scanning...';
     try {
       const res = await fetch('/scan', { method:'POST',
         headers: { 'Content-Type':'application/json', 'X-REDNESS-Token': CSRF },
@@ -562,7 +562,7 @@ function showNodeMenu(node, event){
   const acts = ACTIONS_CATALOG.filter(a => (a.node_types||[]).includes(node.type));
   let html = `<div class="ctxhead">${node.label||node.id}</div>`;
   html += acts.length
-    ? acts.map(a => `<div class="ctxitem${a.offensive?' ctxoff':''}" data-a="${a.id}">${a.offensive?'⚠ ':''}${a.label}</div>`).join('')
+    ? acts.map(a => `<div class="ctxitem${a.offensive?' ctxoff':''}" data-a="${a.id}">${a.offensive?'! ':''}${a.label}</div>`).join('')
     : `<div class="ctxnone">no actions for this node yet</div>`;
   ctx.innerHTML = html;
   ctx.style.left = Math.min(event.clientX, window.innerWidth - 230) + 'px';
@@ -579,7 +579,7 @@ Graph.onNodeRightClick((node, event) => showNodeMenu(node, event));
 document.addEventListener('click', e => { if (!ctx.contains(e.target)) ctx.classList.remove('show'); });
 
 async function runAction(actionId, node) {
-  log(`action: ${actionId} → ${node.id}`, 'sev-low');
+  log(`action: ${actionId} -> ${node.id}`, 'sev-low');
   flashNewUntil = Date.now() + 12000;         // flash any nodes this action discovers
   const body = { action: actionId, target: node.id,
     username: el('s_user') && el('s_user').value || null,
@@ -599,7 +599,7 @@ async function runAction(actionId, node) {
 let OFFENSIVE_TOKEN = '';
 async function armAndExecute(actionId, node){
   if (!OFFENSIVE_TOKEN)
-    OFFENSIVE_TOKEN = (prompt('Paste the offensive token shown in the console (redness … --enable-offensive):')||'').trim();
+    OFFENSIVE_TOKEN = (prompt('Paste the offensive token shown in the console (redness ... --enable-offensive):')||'').trim();
   if (!OFFENSIVE_TOKEN) { log('offensive token required', 'sev-high'); return; }
   const creds = { username: el('s_user') && el('s_user').value || null,
                   password: el('s_pass') && el('s_pass').value || null,
@@ -622,7 +622,7 @@ async function armAndExecute(actionId, node){
                  'X-Redness-Confirm': actionId },
       body: JSON.stringify(Object.assign({ action: actionId, target: node.id, arm_token: arm.arm_token }, creds)) });
     if (!r.ok) { log(`execute rejected (${r.status})`, 'sev-high'); return; }
-    log(`offensive: ${actionId} → ${node.id} (armed + confirmed)`, 'sev-critical');
+    log(`offensive: ${actionId} -> ${node.id} (armed + confirmed)`, 'sev-critical');
   } catch (err) { log('execute request failed: '+err, 'sev-high'); }
 }
 
@@ -717,8 +717,8 @@ async function cinematicTour(auto){
   if (!order.length){ if (!auto) log('no attack path to tour yet - run a scan first', 'sev-low'); return; }
   touring = true; tourAbort = false; tourPlayed = true;
   highlightLinks.clear(); refreshLinks(); showTour(true);
-  log(auto ? '▶ auto-tour: how we reach Domain Admin...'
-           : '▶ replaying path to Domain Admin...', 'sev-critical');
+  log(auto ? '> auto-tour: how we reach Domain Admin...'
+           : '> replaying path to Domain Admin...', 'sev-critical');
   if (nodes.length) Graph.zoomToFit(900, 70);           // establishing shot
   await sleep(1250); if (tourAbort) return endTour();
   for (const l of order){
@@ -736,7 +736,7 @@ async function cinematicTour(auto){
     Graph.cameraPosition({ x:goal.x, y:goal.y + 30, z:(goal.z||0) + 150 }, goal, 1000);
     await sleep(350); if (tourAbort) return endTour();
     pulseNode(goal); orbitGoal(goal);
-    log('⚑ Domain Admin reached.', 'sev-critical');
+    log('[!] Domain Admin reached.', 'sev-critical');
   }
   await sleep(1700);
   endTour();
