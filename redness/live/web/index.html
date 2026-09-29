@@ -241,6 +241,10 @@ const linkKeys = new Set();       // dedupe edges across replay/loop
 const seenFindings = new Set();   // dedupe findings across replay/loop
 const highlightLinks = new Set(); // edges lit during the "replay path to DA" cinematic
 const worstSev = new Map();       // node id -> worst severity string
+const neighbors = new Map();      // node id -> Set of directly-connected ids (hover-to-focus)
+let focusId = null;               // node under the cursor (hover-to-focus), or null
+const focusNodes = new Set();     // hovered node + its direct neighbors (kept bright)
+const focusLinks = new Set();     // links incident to the hovered node (kept bright)
 let findingCount = 0;
 
 const el = id => document.getElementById(id);
@@ -250,7 +254,8 @@ function refreshCounts(){ el('nnodes').textContent=nodes.length;
 const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(el('graph'))
   .backgroundColor('rgba(0,0,0,0)')          // transparent: the CSS starfield + vignette shows behind
   .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' - '+worstSev.get(n.id).toUpperCase():''}`)
-  .nodeColor(n => (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
+  .nodeColor(n => (focusId && !focusNodes.has(n.id)) ? 'rgba(90,100,120,.22)'   // hover-to-focus: dim the rest
+                  : (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || baseVal(n))
   .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
@@ -261,10 +266,15 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   // Attack-path edges are red and busy; potential (roastable, uncracked) leads are dimmer.
   // A link lit by the replay cinematic goes bright white and thick.
   .linkColor(l => highlightLinks.has(l) ? '#ffffff'
+                  : focusId ? (focusLinks.has(l) ? 'rgba(255,255,255,.85)' : 'rgba(120,130,150,.05)')
                   : l.attack ? (l.potential?'rgba(255,120,90,.6)':'rgba(255,55,55,.9)')
                              : 'rgba(120,130,150,.35)')
-  .linkWidth(l => highlightLinks.has(l) ? 5 : ((l.attack && !l.potential) ? 2.2 : 0))
-  .linkDirectionalParticles(l => highlightLinks.has(l) ? 8 : (l.attack ? (l.potential?2:5) : 2))
+  .linkWidth(l => highlightLinks.has(l) ? 5
+                  : focusId ? (focusLinks.has(l) ? 2 : 0)
+                  : ((l.attack && !l.potential) ? 2.2 : 0))
+  .linkDirectionalParticles(l => highlightLinks.has(l) ? 8
+                  : focusId ? (focusLinks.has(l) ? 4 : 0)
+                  : (l.attack ? (l.potential?2:5) : 2))
   .linkDirectionalParticleWidth(l => highlightLinks.has(l) ? 4 : (l.attack ? 2.6 : 1.6))
   .linkDirectionalParticleSpeed(l => l.attack ? 0.02 : 0.012);
 
@@ -340,6 +350,7 @@ function _ensureCore(n){
     const hv = (n.type === 'owned' || n.type === 'goal');
     let g = SEV_GLOW[worstSev.get(n.id)] || 0.05;
     if (hv) g = Math.max(g, n.type === 'goal' ? 0.18 : 0.14);
+    if (focusId && !focusNodes.has(n.id)) g *= 0.15;      // hover-to-focus: dim non-neighbors' glow
     if (!n.__flashing) glow.material.opacity = g;
   }
 }
@@ -396,6 +407,29 @@ function refreshLinks(){ Graph.linkWidth(Graph.linkWidth()).linkColor(Graph.link
   .linkDirectionalParticles(Graph.linkDirectionalParticles())
   .linkDirectionalParticleWidth(Graph.linkDirectionalParticleWidth()); }
 
+// Hover-to-focus: hovering a node keeps it + its direct neighbors bright and dims everything
+// else (nodes, glow, links); mouse-out resets. Skipped while the replay cinematic is running so
+// the two don't fight. Repaints node colours + links + glow immediately (not on the 400ms tick).
+function applyFocus(){
+  Graph.nodeColor(Graph.nodeColor());              // repaint node colours (dim non-focus)
+  refreshLinks();                                  // repaint link colour/width/particles
+  for (const n of nodes) _ensureCore(n);           // re-dim glow cores now
+}
+function setFocus(node){
+  if (touring) return;                             // don't fight the "replay path to DA" cinematic
+  focusNodes.clear(); focusLinks.clear();
+  if (node){
+    focusId = node.id;
+    focusNodes.add(node.id);
+    for (const id of (neighbors.get(node.id) || [])) focusNodes.add(id);
+    for (const l of links){ if (_lid(l.source)===node.id || _lid(l.target)===node.id) focusLinks.add(l); }
+  } else {
+    focusId = null;
+  }
+  applyFocus();
+}
+Graph.onNodeHover(node => setFocus(node));
+
 // Keep the WebGL canvas sized to its container. ForceGraph3D reads the size once at init;
 // if the page loads while the pane is hidden/zero-sized (e.g. embedded), the canvas stays
 // 0x0. Size it explicitly and track changes so the graph always fills the view.
@@ -433,7 +467,11 @@ function addEdge(d){
   if(!nodeById.has(d.src)) addNode({id:d.src,label:d.src,type:'node'});
   if(!nodeById.has(d.dst)) addNode({id:d.dst,label:d.dst,type:'node'});
   links.push({ source:d.src, target:d.dst, label:d.label||'',
-    attack:!!d.attack, potential:!!d.potential, technique:d.technique||'' }); bump();
+    attack:!!d.attack, potential:!!d.potential, technique:d.technique||'' });
+  for (const [a,b] of [[d.src,d.dst],[d.dst,d.src]]){    // undirected adjacency for hover-to-focus
+    let s = neighbors.get(a); if(!s){ s = new Set(); neighbors.set(a,s); } s.add(b);
+  }
+  bump();
 }
 function applyFinding(f){
   const key = (f.id||f.title||'') + '|' + (f.affected||[]).join(',');
@@ -707,7 +745,7 @@ async function cinematicTour(auto){
 function showTour(on){ const t = el('tourhud'); if (t) t.classList.toggle('show', on); }
 
 // User interaction cancels an in-progress tour and suppresses the one-shot auto-tour.
-function _interact(){ userInteracted = true; if (touring) tourAbort = true; }
+function _interact(){ userInteracted = true; if (touring) tourAbort = true; resetIdle(); }
 try {
   const rdom = Graph.renderer().domElement;
   rdom.addEventListener('pointerdown', _interact, { passive:true });
@@ -715,6 +753,47 @@ try {
 } catch(e){}
 if (el('tourhud')) el('tourhud').onclick = () => { tourAbort = true; };
 el('replaybtn').onclick = () => cinematicTour(false);
+
+// ---- Idle camera drift ----
+// When nothing's been touched for a few seconds, slowly orbit the graph; any input stops it
+// instantly. Kept separate from the userInteracted latch (which gates the one-shot auto-tour):
+// drift is repeatable and must never suppress the auto-tour, so plain mouse movement / keys /
+// touch reset drift only, while pointerdown / wheel also latch userInteracted (via _interact).
+const IDLE_MS = 5000;               // no input for this long -> start drifting
+const DRIFT_SPEED = 0.07;           // radians/second (~90s per orbit) - slow + cinematic
+let lastInteract = performance.now();
+let drifting = false;
+function stopDrift(){ drifting = false; }
+function resetIdle(){ lastInteract = performance.now(); stopDrift(); }
+function startDrift(){
+  if (drifting) return;
+  drifting = true;
+  let prev = performance.now();
+  (function drift(now){
+    if (!drifting || touring){ drifting = false; return; }
+    const dt = Math.min(0.05, (now - prev) / 1000); prev = now;   // clamp after a tab stall
+    const cam = Graph.cameraPosition();                           // orbit from the CURRENT position
+    const r = Math.hypot(cam.x, cam.z);                           // (self-corrects if zoomToFit reframes)
+    if (r > 1){                                                   // skip if ~over the centre
+      const a = Math.atan2(cam.z, cam.x) + DRIFT_SPEED * dt;      // advance the angle around origin
+      try { Graph.cameraPosition({ x: Math.cos(a) * r, y: cam.y, z: Math.sin(a) * r }); } catch(_){}
+    }
+    requestAnimationFrame(drift);
+  })(prev);
+}
+// Any input resets the idle timer + stops drift. pointerdown/wheel go through _interact (which
+// also latches userInteracted); movement/keys/touch reset drift only, so they never kill the
+// auto-tour.
+try {
+  const rdom = Graph.renderer().domElement;
+  rdom.addEventListener('pointermove', resetIdle, { passive:true });
+  rdom.addEventListener('touchstart', resetIdle, { passive:true });
+} catch(e){}
+document.addEventListener('keydown', resetIdle);
+setInterval(() => {
+  if (!drifting && !touring && nodes.length && !document.hidden
+      && performance.now() - lastInteract > IDLE_MS) startDrift();
+}, 1000);
 
 // Auto-play once when a scan completes and an attack path to Domain Admin exists - unless the
 // operator already grabbed the graph (their intent wins over the show).
