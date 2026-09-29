@@ -194,6 +194,10 @@ Zero Science Lab | powered by Silly Security Inc.
     and the suite looped 25x.
 
 ### Changed
+- `2026-09-29` **Vendored-lib provenance + security note:** recorded in `THIRD_PARTY_LICENSES.md`
+  that the vendored `3d-force-graph` is **1.80.0** (current latest; bundles three.js r183), with a
+  dated review confirming no known applicable CVEs and a reminder that a vendored bundle is not
+  covered by `npm audit` and must be re-checked by hand on a bump.
 - `2026-09-29` **ASCII-only glyphs across the codebase:** replaced every non-ASCII character in
   source and docs with a plain-keyboard equivalent (arrows -> `->`, en/em-dashes -> `-`, middot
   separators -> `|`, ellipses -> `...`, the GUI's play/close/plus/flag/warning glyphs -> `>` / `x`
