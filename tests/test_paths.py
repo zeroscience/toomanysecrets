@@ -66,6 +66,45 @@ def test_emit_streams_owned_goal_and_attack_edges():
     assert any(not e.data.get("potential") for e in attack_edges)  # cracked + ESC
 
 
+def _deleg_report():
+    r = Report(engagement="t", target="acme.local")
+    r.findings = [
+        Finding(id="delegation-unconstrained", title="Unconstrained delegation on non-DC",
+                severity=Severity.HIGH, category=Category.LDAP,
+                affected=["WS01", "APP02"], meta={"delegation": "unconstrained"}),
+        Finding(id="delegation-unconstrained-dc", title="Unconstrained delegation on DC",
+                severity=Severity.INFO, category=Category.LDAP,
+                affected=["DC01"], meta={"delegation": "unconstrained", "expected": True}),
+    ]
+    return r
+
+
+def test_delegation_unconstrained_non_dc_edges_to_da():
+    edges = paths.delegation_edges(_deleg_report(), "acme.local")
+    by_src = {e.src: e for e in edges}
+    # each non-DC unconstrained host -> Domain Admin, as a potential lead
+    assert set(by_src) == {"WS01", "APP02"}
+    for e in edges:
+        assert e.dst == paths.GOAL and e.potential is True
+        assert e.label == "can impersonate any user to" and e.technique == "T1558"
+    # the DC's unconstrained delegation (INFO/expected) produces NO edge
+    assert "DC01" not in by_src
+
+
+def test_delegation_edges_flow_through_derive_and_emit():
+    r = _deleg_report()
+    edges = paths.derive_attack_edges(r, "acme.local")
+    assert ("WS01", paths.GOAL, True) in {(e.src, e.dst, e.potential) for e in edges}
+    seen = []
+    bus = EventBus()
+    bus.subscribe(seen.append)
+    paths.emit_attack_paths(bus, r, domain="acme.local")
+    goal = [e for e in seen if e.kind is EventKind.NODE and e.data.get("type") == "goal"]
+    deleg = [e for e in seen if e.kind is EventKind.EDGE
+             and e.data.get("label") == "can impersonate any user to"]
+    assert goal and len(deleg) == 2 and all(e.data.get("potential") for e in deleg)
+
+
 def test_no_findings_no_paths():
     empty = Report(engagement="t", target="x")
     assert paths.derive_attack_edges(empty) == []

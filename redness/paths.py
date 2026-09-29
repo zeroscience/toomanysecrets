@@ -56,6 +56,30 @@ def roastable_accounts(report: Report) -> set[str]:
     return out
 
 
+def delegation_edges(report: Report, domain: str = "domain") -> list[AttackEdge]:
+    """Attack edges derived from delegation findings.
+
+    Unconstrained delegation on a **non-DC** host -> Domain Admin: whoever gains SYSTEM on such a
+    host can capture the TGT of any account that authenticates to it (including a coerced DC) and
+    escalate to DA. Only `delegation-unconstrained` (HIGH, non-DC) yields an edge;
+    `delegation-unconstrained-dc` (INFO - a DC legitimately delegating) is deliberately ignored.
+    It is a *preconditioned* lead (you must own the host first), so `potential=True` - drawn as a
+    lead, never a proven path, and it marks nothing `owned`.
+
+    RBCD edges are intentionally NOT built here yet: `delegation-rbcd`'s `meta["to"]` is a list of
+    SPNs (not host node-ids), its direction is the inverse of constrained delegation, and the
+    `nxc --find-delegation` format is unverified offline - see docs/DECISIONS.md. Deferred to the
+    real-nxc Kali verification pass so we don't draw a dead or backwards edge on the attack map.
+    """
+    edges: list[AttackEdge] = []
+    for f in report.findings:
+        if f.id == "delegation-unconstrained":          # non-DC only; -dc is a separate INFO id
+            for host in f.affected:
+                edges.append(AttackEdge(host, GOAL, "can impersonate any user to",
+                                        "T1558", potential=True))
+    return edges
+
+
 def adcs_da_targets(report: Report) -> list[tuple[str, int]]:
     """(template-or-CA, esc-number) for AD CS findings that escalate to Domain Admin."""
     out: list[tuple[str, int]] = []
@@ -80,6 +104,7 @@ def derive_attack_edges(report: Report, domain: str = "domain") -> list[AttackEd
                                 potential=True))
     for target, esc in adcs_da_targets(report):         # domain-takeover primitive
         edges.append(AttackEdge(target, GOAL, f"AD CS ESC{esc}", "T1649"))
+    edges += delegation_edges(report, domain)            # unconstrained (non-DC) -> DA lead
     return edges
 
 
