@@ -25,6 +25,15 @@ travel with any REDNESS distribution.
 The full MIT text and copyright for the vendored bundle live alongside it in
 `redness/live/web/vendor/3d-force-graph.LICENSE.txt`.
 
+> **Version & security review (2026-09-29).** Vendored **3d-force-graph 1.80.0** - the current
+> latest on npm - which bundles **three.js r183 (0.183)** and the d3-force modules. r183 satisfies
+> the library's own peer range (`three >=0.179 <1`). No known applicable CVEs: the only three.js
+> advisories are `CVE-2022-0177` (XSS, **withdrawn**) and `CVE-2020-28496` (DoS, affects
+> `< 0.125.0`, patched long before r183); GitHub's advisory DB lists nothing for `3d-force-graph`
+> or its deps (`three-forcegraph`, `three-render-objects`, `kapsule`, `d3-force-3d`, `accessor-fn`).
+> Because it is vendored (a committed minified bundle, not an npm dependency), `npm audit` does NOT
+> cover it - re-check by hand against npm + the GitHub advisory DB when bumping the bundle.
+
 ### Bundled into `redness-full.exe` (only when that self-contained exe is built/shipped)
 | Component | License | Note |
 |-----------|---------|------|
