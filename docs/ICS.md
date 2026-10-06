@@ -28,6 +28,15 @@ they?":
 | **EtherNet/IP (CIP)** | TCP 44818 | List Identity (0x63) | `enip-exposed` (HIGH), `enip-device-identity` (INFO: vendor/product/rev/serial/state) |
 | **Modbus/TCP** | TCP 502 | Read Device Identification (fn 0x2B/0x0E) | `modbus-exposed` (HIGH), `modbus-device-identity` (INFO) |
 | **BACnet/IP** | UDP 47808 | Who-Is -> I-Am | `bacnet-exposed` (MEDIUM), `bacnet-device-identity` (INFO: device instance + vendor) |
+| **DNP3** | TCP 20000 | Request Link Status (fn 0x09) | `dnp3-exposed` (HIGH), `dnp3-outstation` (INFO: outstation address) when it replies |
+| **HART-IP** | TCP 5094 | Session Initiate | `hart-ip-exposed` (HIGH) |
+
+For DNP3 and HART-IP the engines confirm presence and (for DNP3) discover the outstation address;
+reading full device attributes - DNP3 Group 0 (vendor/firmware/model) and the HART-IP field-device
+roster via HART Command 0 - rides the application/session layer and needs a real device, so it is
+deferred to the gated enumeration tier + a real-device verify pass (same contract-first caution as
+RBCD). For DNP3, a listening port is already the exposure; a Link Status reply upgrades it to
+confirmed with the outstation address.
 
 Every OT finding is `Category.ICS` and carries `meta["protocol"]`, `meta["purdue"]` (Purdue model
 level), and `meta["device"]` (vendor/product/revision/serial) when identity was read. The headline
@@ -55,9 +64,10 @@ the first three protocols:
 
 ## Roadmap (next in the OT pack)
 
-- **DNP3** (TCP/UDP 20000) - Request Link Status + Read Device Attributes; flag missing DNP3 Secure
-  Authentication. Needs the DNP3 CRC-16.
-- **HART-IP** (TCP/UDP 5094) - Command 0 identity + the field-device roster behind a gateway.
+- **Device attributes** - DNP3 Group 0 (vendor/firmware/model) and the HART-IP field-device roster
+  (HART Command 0); gated enumeration tiers with a real-device verify pass.
+- **Enumeration tiers** - Modbus unit-id sweep (serial RTUs behind a gateway) and the DNP3
+  outstation-address scan, each behind its own explicit opt-in.
 - **Graph:** OT-specific node types (`plc` / `rtu` / `gateway` / `field-device`) grouped by Purdue
   level, and an `IT host -> reachable controller -> Process Impact` attack path (the OT analog of
   path-to-Domain-Admin) when one scan reaches both IT and OT (a segmentation failure).

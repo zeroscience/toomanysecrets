@@ -5,6 +5,14 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **ICS pack: DNP3 + HART-IP engines.** Extends `scan --ics` to the SCADA/process
+  layer. **DNP3** (TCP 20000) sends a read-only Request Link Status; a listening port is
+  `dnp3-exposed` (HIGH) and a Link Status reply adds `dnp3-outstation` (INFO) with the discovered
+  outstation address. **HART-IP** (TCP 5094) sends a read-only Session Initiate -> `hart-ip-exposed`
+  (HIGH). Both are opt-in + port-gated like the rest of the pack; full device attributes (DNP3
+  Group 0, HART Command 0 roster) and the outstation-address scan are deferred to the gated
+  enumeration tier + a real-device verify pass. Includes the DNP3 CRC-16. 12 more tests (30 total)
+  + a real-socket smoke. See [docs/ICS.md](docs/ICS.md).
 - `2026-10-06` **ICS / OT field-protocol pack (`scan --ics`):** first expansion beyond AD - read-only
   enumeration of industrial control systems. Three engines: **EtherNet/IP (CIP)** List Identity
   (TCP 44818), **Modbus/TCP** Read Device Identification (TCP 502), and **BACnet/IP** Who-Is/I-Am

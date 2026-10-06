@@ -60,6 +60,8 @@ redness/
     enip.py       #   EtherNet/IP (CIP) List Identity (TCP 44818)  [Category.ICS; opt-in scan --ics]
     modbus.py     #   Modbus/TCP Read Device Identification (TCP 502)  [Category.ICS; opt-in]
     bacnet.py     #   BACnet/IP Who-Is/I-Am (UDP 47808)  [Category.ICS; opt-in]
+    dnp3.py       #   DNP3 Request Link Status + outstation addr (TCP 20000)  [Category.ICS; opt-in]
+    hartip.py     #   HART-IP Session Initiate presence (TCP 5094)  [Category.ICS; opt-in]
   report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
