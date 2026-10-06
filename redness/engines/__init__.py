@@ -10,7 +10,11 @@ from .remote import RdpEngine, WinRMEngine, MssqlEngine
 from .ftp import FtpEngine
 from .http_ad import HttpEngine
 from .snmp import SnmpEngine
+from .enip import EnipEngine
+from .modbus import ModbusEngine
+from .bacnet import BacnetEngine
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
-           "MssqlEngine", "FtpEngine", "HttpEngine", "SnmpEngine"]
+           "MssqlEngine", "FtpEngine", "HttpEngine", "SnmpEngine",
+           "EnipEngine", "ModbusEngine", "BacnetEngine"]

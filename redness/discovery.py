@@ -35,8 +35,10 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "ftp": (21,),
     "http": (80, 443),                 # AD web surfaces (/certsrv = ESC8, OWA)
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
-    # NOTE: "snmp" is intentionally absent - UDP/161 is invisible to a TCP connect-scan,
-    # so the SNMP engine is left un-gated (runs whenever snmpwalk is installed).
+    "enip": (44818,),                  # EtherNet/IP (CIP) List Identity  [opt-in: scan --ics]
+    "modbus": (502,),                  # Modbus/TCP Read Device Identification  [opt-in: scan --ics]
+    # NOTE: "snmp" (UDP/161) and "bacnet" (UDP/47808) are intentionally absent - UDP is invisible
+    # to a TCP connect-scan, so those engines are left un-gated (run whenever they are enabled).
 }
 
 # Ports we connect-scan by default: the union of ENGINE_PORTS plus a few context ports we

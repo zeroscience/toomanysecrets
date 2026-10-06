@@ -26,7 +26,7 @@ in ROADMAP are essentially complete; next focus is GUI/animation polish (docs/GU
 ## Layout
 ```
 redness/
-  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.0.0)
+  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.2.0)
   events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus; captures meta["graph"])
   diff.py         # retest diff: baseline vs current findings.json -> new/fixed/unchanged/changed
@@ -56,6 +56,10 @@ redness/
     ftp.py        #   nxc ftp: anonymous login + exposure/banner
     http_ad.py    #   AD web surfaces (stdlib): /certsrv = ESC8, OWA/EWS, server banner
     snmp.py       #   default SNMP communities via snmpwalk (public=HIGH, private=CRITICAL)
+    ics_common.py #   OT/ICS shared: read-only socket probes + exposure/inventory finding builder
+    enip.py       #   EtherNet/IP (CIP) List Identity (TCP 44818)  [Category.ICS; opt-in scan --ics]
+    modbus.py     #   Modbus/TCP Read Device Identification (TCP 502)  [Category.ICS; opt-in]
+    bacnet.py     #   BACnet/IP Who-Is/I-Am (UDP 47808)  [Category.ICS; opt-in]
   report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
@@ -99,6 +103,7 @@ python -m redness.cli live --demo                        # streaming simulated d
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --targets examples/scope.txt --json out.json --html report.html  # docx/json/html outputs
+python -m redness.cli scan --target 10.20.0.0/24 --ics --live   # read-only OT probes (EtherNet/IP, Modbus, BACnet)
 python -m redness.cli diff baseline.json retest.json     # retest diff (new/fixed/unchanged/changed; exit 2 on regression)
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
 python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider shares for secrets (--hunt-content = read file contents)

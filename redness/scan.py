@@ -36,6 +36,17 @@ def default_engines() -> list[Engine]:
             SnmpEngine(), TLSEngine()]
 
 
+def ics_engines() -> list[Engine]:
+    """OT/ICS field-protocol engines - opt-in only (`scan --ics`), never in the default scan.
+
+    All send a SINGLE read-only identity request and are port-gated by discovery (except BACnet,
+    which is UDP and un-gated). OT kit is fragile, so touching it is an explicit choice, not a
+    default - hence the separate helper. See docs/ICS.md.
+    """
+    from .engines import BacnetEngine, EnipEngine, ModbusEngine
+    return [EnipEngine(), ModbusEngine(), BacnetEngine()]
+
+
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:
     if bus is not None:
         bus.publish(Event(kind=kind, data=data, engine=engine))
