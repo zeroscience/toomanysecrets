@@ -686,3 +686,33 @@ corrupts the path-to-DA story, so it waits for the real-nxc Kali verification pa
 MAQ>0 double-guard (only when a machine-account-quota maq>0 finding is also present), SPN->host
 normalization, known-host guard (both endpoints already graph nodes), principal->resource direction.
 Correct direction > completeness. Contract-first, same as crack.py.
+
+## 2026-10-06 - Category.ICS: OT field-protocol pack (SCHEMA_VERSION 1.2.0)
+First expansion beyond AD: enumerate industrial control systems (OT). Contract-first, so this is
+the one deliberate change to findings.py.
+
+**SCHEMA_VERSION 1.1.0 -> 1.2.0** (additive): new `Category.ICS` for OT/ICS findings. A consumer
+predating it must tolerate an unknown category string (the report/graph already render generically
+by severity, so nothing breaks). ICS findings carry `meta["protocol"]`, `meta["purdue"]` (Purdue
+model level 0-3), and `meta["device"]` (vendor/product/revision/serial) when identity was read.
+
+**Engines (read-only, single request each):** `engines/enip.py` (EtherNet/IP List Identity, TCP
+44818), `engines/modbus.py` (Modbus Read Device Identification, TCP 502), `engines/bacnet.py`
+(BACnet Who-Is/I-Am, UDP 47808). Shared helpers + the exposure/inventory finding builder live in
+`engines/ics_common.py`. Pure parsers (struct unpacking of each wire format) + injected socket
+probes, unit-tested against hand-built packets; a real-socket smoke confirmed the live path.
+
+**OT-safe by construction (the whole pitch):** each engine sends ONE read-only identity request -
+never writes a coil/register/point or changes controller state. The pack is **opt-in** (`scan
+--ics`), not in `default_engines()`, because touching fragile OT is an explicit scope decision; the
+TCP engines are **port-gated** by discovery (`ENGINE_PORTS` gains enip/modbus; BACnet is UDP so it
+is un-gated like SNMP). The louder enumeration tiers (Modbus unit-id sweep, DNP3 address scan, HART
+wireless roster) are deferred behind their own future opt-in. Standard finding is `*-exposed`
+(unauthenticated control protocol reachable) + an INFO `*-device-identity` inventory. See
+docs/ICS.md.
+
+**Deferred (next):** DNP3 (needs the DNP3 CRC-16) and HART-IP engines; OT graph node types
+(plc/rtu/gateway/field-device) grouped by Purdue level; and an `IT -> controller -> Process Impact`
+attack path (the OT analog of path-to-DA) in a new ot.py mirroring paths.py/relay.py. Longer-term
+non-AD directions raised with this: printers, IoT (MQTT/CoAP), capture integration
+(Wireshark/Stratoshark), and wireless detection.

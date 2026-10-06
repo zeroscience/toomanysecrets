@@ -371,6 +371,10 @@ def cmd_scan(args) -> int:
     if args.hunt_secrets or args.hunt_content:   # opt-in: spider shares for secrets (needs nxc)
         from .engines.sharehunt import SecretHuntEngine
         engines.append(SecretHuntEngine(content=args.hunt_content, loot_dir=args.loot_dir))
+    if args.ics:                                 # opt-in: read-only OT field-protocol probes
+        from .scan import ics_engines
+        engines += ics_engines()
+        print("[*] OT/ICS probes enabled (read-only, port-gated): EtherNet/IP, Modbus, BACnet.")
 
     from . import audit
     audit.record("scan-start", loot_dir=args.loot_dir, engagement=args.engagement,
@@ -924,6 +928,9 @@ def main(argv=None) -> int:
                     help="spider readable SMB shares for secrets (Snaffler-style; needs nxc; opt-in)")
     sc.add_argument("--hunt-content", action="store_true",
                     help="also download candidates and scan file contents (Phase 2; more intrusive; implies --hunt-secrets)")
+    sc.add_argument("--ics", action="store_true",
+                    help="opt-in OT/ICS field-protocol probes (EtherNet/IP, Modbus, BACnet); "
+                         "read-only identity queries, port-gated")
     sc.add_argument("--no-discovery", action="store_true",
                     help="run every available engine on every host (skip the TCP service "
                          "connect-scan that otherwise dispatches only relevant engines)")

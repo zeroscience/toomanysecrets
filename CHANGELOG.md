@@ -5,6 +5,17 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-06` **ICS / OT field-protocol pack (`scan --ics`):** first expansion beyond AD - read-only
+  enumeration of industrial control systems. Three engines: **EtherNet/IP (CIP)** List Identity
+  (TCP 44818), **Modbus/TCP** Read Device Identification (TCP 502), and **BACnet/IP** Who-Is/I-Am
+  (UDP 47808). Each sends ONE read-only identity request (never writes a coil/register/point),
+  emits a `*-exposed` finding (an unauthenticated control protocol is reachable) plus an INFO
+  `*-device-identity` inventory (vendor/product/revision/serial). New `Category.ICS`
+  (**SCHEMA_VERSION 1.1.0 -> 1.2.0**, additive) with `meta["protocol"]` / `meta["purdue"]` /
+  `meta["device"]`. OT-safe by construction: opt-in (off by default), port-gated (TCP engines run
+  only when the port is open), louder enumeration tiers deferred. Pure parsers unit-tested against
+  hand-built packets (18 tests) + a real-socket smoke. See [docs/ICS.md](docs/ICS.md). DNP3 + HART-IP
+  and OT graph node types / attack paths are the next steps.
 - `2026-09-28` **Hover-to-focus + idle camera drift (GUI):** hovering a node keeps it and its
   direct (1-hop) neighbours and their links bright and dims everything else (nodes grey, glow cores
   x0.15, non-incident links near-invisible); mouse-out resets. After ~5s with no input the camera
