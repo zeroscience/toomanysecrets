@@ -43,8 +43,8 @@ def ics_engines() -> list[Engine]:
     which is UDP and un-gated). OT kit is fragile, so touching it is an explicit choice, not a
     default - hence the separate helper. See docs/ICS.md.
     """
-    from .engines import BacnetEngine, EnipEngine, ModbusEngine
-    return [EnipEngine(), ModbusEngine(), BacnetEngine()]
+    from .engines import (BacnetEngine, Dnp3Engine, EnipEngine, HartIpEngine, ModbusEngine)
+    return [EnipEngine(), ModbusEngine(), BacnetEngine(), Dnp3Engine(), HartIpEngine()]
 
 
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:

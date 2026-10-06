@@ -166,6 +166,91 @@ def test_build_whois():
     assert build_whois() == bytes([0x81, 0x0A, 0x00, 0x08, 0x01, 0x00, 0x10, 0x08])
 
 
+# --------------------------------------------------------------------------- #
+# DNP3 - Request Link Status / Link Status
+# --------------------------------------------------------------------------- #
+from redness.engines import Dnp3Engine, HartIpEngine  # noqa: E402
+from redness.engines.dnp3 import (build_request_link_status, dnp3_crc,  # noqa: E402
+                                  parse_link_frame)
+from redness.engines.hartip import build_session_initiate, parse_hartip  # noqa: E402
+
+
+def _link_status(outstation=1024, master=1):
+    """A valid outstation Link Status reply frame (func 0x0B, DIR=0/PRM=0), with CRC."""
+    header = bytes([0x05, 0x64, 0x05, 0x0B]) + struct.pack("<HH", master, outstation)
+    return header + struct.pack("<H", dnp3_crc(header[2:]))
+
+
+def test_dnp3_crc_is_deterministic_and_little_endian():
+    frame = build_request_link_status(dest=1024, src=1)
+    assert frame[:2] == b"\x05\x64" and len(frame) == 10
+    # the appended CRC matches dnp3_crc over LEN..SRC (bytes 2..7)
+    assert struct.unpack_from("<H", frame, 8)[0] == dnp3_crc(frame[2:8])
+
+
+def test_parse_link_frame():
+    f = parse_link_frame(_link_status(outstation=2051, master=3))
+    assert f["func"] == 0x0B and f["func_name"] == "Link Status"
+    assert f["src_addr"] == 2051 and f["dest_addr"] == 3
+
+
+def test_parse_link_frame_rejects_non_dnp3():
+    assert parse_link_frame(b"\x00\x00" + b"\x00" * 10) is None
+    assert parse_link_frame(b"\x05\x64") is None            # too short
+
+
+def test_dnp3_engine_confirmed_outstation():
+    fs = Dnp3Engine(runner=lambda host: (True, _link_status(outstation=2051))).run(_tgt())
+    assert [f.id for f in fs] == ["dnp3-exposed", "dnp3-outstation"]
+    assert fs[0].severity is Severity.HIGH and "2051" in fs[1].title
+
+
+def test_dnp3_engine_port_open_no_reply_is_exposure_only():
+    fs = Dnp3Engine(runner=lambda host: (True, b"")).run(_tgt())
+    assert [f.id for f in fs] == ["dnp3-exposed"]
+
+
+def test_dnp3_engine_not_connected_no_findings():
+    assert Dnp3Engine(runner=lambda host: (False, b"")).run(_tgt()) == []
+
+
+# --------------------------------------------------------------------------- #
+# HART-IP - Session Initiate
+# --------------------------------------------------------------------------- #
+def _hartip_response(msg_type=1, msg_id=0):
+    return struct.pack(">BBBBHH", 1, msg_type, msg_id, 0, 1, 8)
+
+
+def test_build_session_initiate_header():
+    req = build_session_initiate()
+    assert req[0] == 1 and req[1] == 0 and req[2] == 0            # version, request, session-init
+
+
+def test_parse_hartip():
+    hdr = parse_hartip(_hartip_response())
+    assert hdr["version"] == 1 and hdr["msg_type"] == 1 and hdr["msg_id"] == 0
+
+
+def test_parse_hartip_rejects_non_hartip():
+    assert parse_hartip(struct.pack(">BBBBHH", 9, 1, 0, 0, 1, 8)) is None   # bad version
+    assert parse_hartip(b"\x01\x01") is None                                # too short
+
+
+def test_hartip_engine_confirmed():
+    fs = HartIpEngine(runner=lambda host: (True, _hartip_response())).run(_tgt())
+    assert [f.id for f in fs] == ["hart-ip-exposed"]
+    assert "confirmed" in fs[0].evidence[0].detail.lower()
+
+
+def test_hartip_engine_port_open_no_reply():
+    fs = HartIpEngine(runner=lambda host: (True, b"")).run(_tgt())
+    assert [f.id for f in fs] == ["hart-ip-exposed"]
+
+
+def test_hartip_engine_not_connected():
+    assert HartIpEngine(runner=lambda host: (False, b"")).run(_tgt()) == []
+
+
 if __name__ == "__main__":
     passed = 0
     for name, fn in sorted(globals().items()):

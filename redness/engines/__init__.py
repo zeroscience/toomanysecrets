@@ -13,8 +13,10 @@ from .snmp import SnmpEngine
 from .enip import EnipEngine
 from .modbus import ModbusEngine
 from .bacnet import BacnetEngine
+from .dnp3 import Dnp3Engine
+from .hartip import HartIpEngine
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
            "MssqlEngine", "FtpEngine", "HttpEngine", "SnmpEngine",
-           "EnipEngine", "ModbusEngine", "BacnetEngine"]
+           "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine"]

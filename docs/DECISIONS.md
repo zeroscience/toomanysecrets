@@ -716,3 +716,21 @@ docs/ICS.md.
 attack path (the OT analog of path-to-DA) in a new ot.py mirroring paths.py/relay.py. Longer-term
 non-AD directions raised with this: printers, IoT (MQTT/CoAP), capture integration
 (Wireshark/Stratoshark), and wireless detection.
+
+## 2026-10-07 - ICS pack: DNP3 + HART-IP engines (no schema change; still 1.2.0)
+Extended the OT pack (Category.ICS, 1.2.0) to the SCADA/process layer. No findings-contract change
+- reuses the exposure/inventory shape from ics_common.py. `engines/dnp3.py`: a read-only data-link
+Request Link Status (func 0x09) to the self-address 0xFFFC; includes the DNP3 CRC-16 (reflected
+poly 0xA6BC, final complement). A listening TCP/20000 is `dnp3-exposed`; a Link Status reply adds
+`dnp3-outstation` with the discovered outstation/master addresses. `engines/hartip.py`: a read-only
+HART-IP Session Initiate; a listening TCP/5094 (reply or not) is `hart-ip-exposed`.
+
+Both use a new `ics_common.tcp_connect` that returns (connected, reply) so a listening port
+(exposure) is distinguished from a protocol confirmation (reply) - no false negatives when an
+outstation only answers to its specific address or a gateway needs a full session. Full device
+identity (DNP3 Group 0 device attributes; HART Command 0 identity + the gateway's field-device
+roster) and the DNP3 outstation-address scan / Modbus unit-id sweep are deliberately deferred to
+the gated enumeration tier + a real-device verify pass, because they ride the application/session
+layer and public captures are scarce - correctness over completeness, same as RBCD. Both engines
+are opt-in (`scan --ics`) and port-gated (ENGINE_PORTS gains dnp3 20000, hart-ip 5094). Parsers
+unit-tested against hand-built frames + a real-socket smoke.

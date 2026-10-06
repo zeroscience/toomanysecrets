@@ -374,7 +374,8 @@ def cmd_scan(args) -> int:
     if args.ics:                                 # opt-in: read-only OT field-protocol probes
         from .scan import ics_engines
         engines += ics_engines()
-        print("[*] OT/ICS probes enabled (read-only, port-gated): EtherNet/IP, Modbus, BACnet.")
+        print("[*] OT/ICS probes enabled (read-only, port-gated): EtherNet/IP, Modbus, BACnet, "
+              "DNP3, HART-IP.")
 
     from . import audit
     audit.record("scan-start", loot_dir=args.loot_dir, engagement=args.engagement,
@@ -929,8 +930,8 @@ def main(argv=None) -> int:
     sc.add_argument("--hunt-content", action="store_true",
                     help="also download candidates and scan file contents (Phase 2; more intrusive; implies --hunt-secrets)")
     sc.add_argument("--ics", action="store_true",
-                    help="opt-in OT/ICS field-protocol probes (EtherNet/IP, Modbus, BACnet); "
-                         "read-only identity queries, port-gated")
+                    help="opt-in OT/ICS field-protocol probes (EtherNet/IP, Modbus, BACnet, DNP3, "
+                         "HART-IP); read-only identity queries, port-gated")
     sc.add_argument("--no-discovery", action="store_true",
                     help="run every available engine on every host (skip the TCP service "
                          "connect-scan that otherwise dispatches only relevant engines)")

@@ -49,6 +49,23 @@ def tcp_probe(host: str, port: int, payload: bytes, *, timeout: float = 4.0,
         return b""
 
 
+def tcp_connect(host: str, port: int, payload: bytes, *, timeout: float = 4.0,
+                recv: int = 4096) -> tuple[bool, bytes]:
+    """Like tcp_probe but reports (connected, reply). Lets an engine distinguish a listening port
+    (exposure) from a protocol confirmation (a reply). The reply is b'' if nothing came back."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s:
+            s.settimeout(timeout)
+            if payload:
+                s.sendall(payload)
+            try:
+                return True, s.recv(recv)
+            except OSError:
+                return True, b""
+    except OSError:
+        return False, b""
+
+
 def udp_probe(host: str, port: int, payload: bytes, *, timeout: float = 4.0,
               recv: int = 4096) -> bytes:
     """One read-only UDP request/response. Returns the reply bytes, or b'' on any failure."""

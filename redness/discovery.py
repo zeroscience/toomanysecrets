@@ -37,6 +37,8 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
     "enip": (44818,),                  # EtherNet/IP (CIP) List Identity  [opt-in: scan --ics]
     "modbus": (502,),                  # Modbus/TCP Read Device Identification  [opt-in: scan --ics]
+    "dnp3": (20000,),                  # DNP3 Request Link Status  [opt-in: scan --ics]
+    "hart-ip": (5094,),                # HART-IP Session Initiate  [opt-in: scan --ics]
     # NOTE: "snmp" (UDP/161) and "bacnet" (UDP/47808) are intentionally absent - UDP is invisible
     # to a TCP connect-scan, so those engines are left un-gated (run whenever they are enabled).
 }
