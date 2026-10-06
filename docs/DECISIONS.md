@@ -734,3 +734,29 @@ the gated enumeration tier + a real-device verify pass, because they ride the ap
 layer and public captures are scarce - correctness over completeness, same as RBCD. Both engines
 are opt-in (`scan --ics`) and port-gated (ENGINE_PORTS gains dnp3 20000, hart-ip 5094). Parsers
 unit-tested against hand-built frames + a real-socket smoke.
+
+## 2026-10-07 - OT graph + Process Impact attack path (ot.py)
+The OT analog of path-to-Domain-Admin, so the ICS pack has a visual story in the graph + report.
+`redness/ot.py` mirrors paths.py/relay.py: pure derivation from the ICS findings, separate from
+emission. No findings-contract change (the one derived finding, `ot-it-segmentation`, is
+Category.ICS, already 1.2.0).
+
+Two derivations. (1) **Process Impact** - every exposed OT controller draws a dashed
+`controller -> Process Impact` edge (`potential=True`: the capability is proven by exposure, the
+impact is not exercised) to a synthetic `Process Impact` goal node (graph type `process`). (2)
+**IT/OT segmentation failure** - when one scan produced both IT/AD findings (SMB/LDAP/ADCS/... not
+ENUM) and OT controllers, `IT / Enterprise -> controller` is drawn solid (proven reachability) and
+an `ot-it-segmentation` CRITICAL finding is added. So the story reads
+`IT / Enterprise -> controller -> Process Impact`, the exact shape of `entry -> owned -> DA`.
+
+Wired after emit_relay_paths in run_scan (appends the finding to the real report) and in
+graphmodel.graph_from_report (on the deep copy, so an old findings.json re-derives without
+mutating the caller). Each OT host is re-typed to its controller role (plc/rtu/gateway/controller
+by protocol + Purdue level); impact techniques reference MITRE ATT&CK for ICS (T0831/T0836/T0835).
+
+GUI + HTML report: new TYPE_COLOR entries (plc/rtu/gateway/controller amber/orange, Process Impact
+magenta), a `GOAL_TYPES` set so the auto-tour, replay, sizing, breathing and shockwave treat
+`process` as a goal exactly like `goal`, `addNode` upgrades a generic host to its OT type, and
+legend rows for OT controller + Process Impact. Verified both surfaces in-browser (OT nodes +
+Process Impact render, normal AD path unaffected, no console errors). Next: the gated enumeration
+tier (DNP3 Group 0 / HART roster / address+unit sweeps) on a real-device verify pass.

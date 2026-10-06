@@ -182,6 +182,9 @@ def run_scan(
     # Correlate coercion + missing signing + ESC8 (+ LLMNR/NBT-NS poisoning) into relay chains.
     from .relay import emit_relay_paths
     emit_relay_paths(bus, report, domain=domain_label)
+    # OT: exposed controllers -> Process Impact, and IT/OT segmentation failure (no-op without ICS).
+    from .ot import emit_ot_paths
+    emit_ot_paths(bus, report, domain=domain_label)
 
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
     _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")

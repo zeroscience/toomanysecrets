@@ -225,6 +225,8 @@ _TEMPLATE = """<!doctype html>
     <span class="dot" style="background:#ff2d2d"></span>owned
     <span class="dot" style="background:#ff884d"></span>relay
     <span class="dot" style="background:#ffcf33"></span>Domain Admin
+    <span class="dot" style="background:#ff9f1c"></span>OT controller
+    <span class="dot" style="background:#ff006e"></span>Process Impact
     &nbsp; red edges = attack paths.</div>
 </div>
 
@@ -242,7 +244,10 @@ _TEMPLATE = """<!doctype html>
   var TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff', share:'#e08a55',
     ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a', group:'#a78bfa', ou:'#94a3b8',
     gpo:'#64748b', container:'#64748b', secret:'#ec4899', owned:'#ff2d2d', goal:'#ffcf33',
-    relay:'#ff884d' };
+    relay:'#ff884d',
+    plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
+    'field-device':'#90be6d', process:'#ff006e' };          // OT controllers + Process Impact goal
+  var GOAL_TYPES = { goal:1, process:1 };                   // Domain Admin + OT Process Impact
   var SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c', low:'#6fcf97',
     info:'#8a93a2' };
   // Severity as physics: worse findings swell larger, throb harder/faster, and are pulled toward
@@ -253,14 +258,14 @@ _TEMPLATE = """<!doctype html>
   var SEV_PULL = { critical:1.0, high:0.6, medium:0.28, low:0.08, info:0 };
   var SEV_GLOW = { critical:0.18, high:0.12, medium:0.08, low:0.05, info:0.035 };
   function baseVal(n){
-    var typeV = n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
+    var typeV = GOAL_TYPES[n.type]?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
     return typeV + (SEV_SIZE[n.sev] || 0);
   }
   var G = ForceGraph3D()(document.getElementById('graph'))
     .backgroundColor('rgba(0,0,0,0)')          // transparent: the CSS starfield + vignette shows behind
     .graphData(DATA)
     .nodeLabel(function(n){ return n.label + (n.sev ? ' - ' + n.sev.toUpperCase() : ''); })
-    .nodeColor(function(n){ return (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
+    .nodeColor(function(n){ return (n.type==='owned'||GOAL_TYPES[n.type]) ? TYPE_COLOR[n.type]
         : n.sev ? SEV_COLOR[n.sev] : (TYPE_COLOR[n.type] || '#9aa4b2'); })
     .nodeVal(function(n){ return n.val || baseVal(n); })
     .nodeResolution(20).nodeOpacity(0.3).nodeRelSize(5)
@@ -336,7 +341,7 @@ _TEMPLATE = """<!doctype html>
     if (glow && col && glow.material.color){
       glow.material.color.copy(col);
       if (glow.material.emissive) glow.material.emissive.copy(col);
-      var hv=(n.type==='owned'||n.type==='goal');
+      var hv=(n.type==='owned'||GOAL_TYPES[n.type]);
       var g=SEV_GLOW[n.sev]||0.05; if(hv) g=Math.max(g, n.type==='goal'?0.18:0.14);
       glow.material.opacity=g;
     }
@@ -364,7 +369,7 @@ _TEMPLATE = """<!doctype html>
   function order(){
     var al = (G.graphData().links||[]).filter(function(l){ return l.attack; });
     var depth = new Map();
-    var frontier = (G.graphData().nodes||[]).filter(function(n){ return n.type==='goal'; })
+    var frontier = (G.graphData().nodes||[]).filter(function(n){ return GOAL_TYPES[n.type]; })
                       .map(function(n){ return n.id; });
     frontier.forEach(function(g){ depth.set(g,0); }); var d=0;
     while(frontier.length){ var nx=[]; al.forEach(function(l){ var s=lid(l.source),t=lid(l.target);
@@ -397,7 +402,7 @@ _TEMPLATE = """<!doctype html>
         if(t&&t.x!==undefined) G.cameraPosition(camFor(s,t), t, 1050);
         await sleep(1080); }
       if(tourAbort) return endTour();
-      var goal=(G.graphData().nodes||[]).find(function(n){ return n.type==='goal'; });
+      var goal=(G.graphData().nodes||[]).find(function(n){ return GOAL_TYPES[n.type]; });
       if(goal&&goal.x!==undefined){ G.cameraPosition({x:goal.x,y:goal.y+30,z:(goal.z||0)+150}, goal, 1000);
         await sleep(350); if(tourAbort) return endTour(); pulse(goal); orbitGoal(goal); }
       await sleep(1700); endTour();
@@ -449,7 +454,7 @@ _TEMPLATE = """<!doctype html>
         var t=lid(l.target); if(!visited.has(t)){ visited.add(t); next.push(t); } }); });
       if(!next.length) break;
       await sleep(520);
-      next.forEach(function(id){ var n=byId.get(id); if(!n) return; var goal=n.type==='goal';
+      next.forEach(function(id){ var n=byId.get(id); if(!n) return; var goal=GOAL_TYPES[n.type];
         shockRing(n, goal?'#ffcf33':'#ff7a45', goal?1100:900, goal?4.2:3.2); });
       frontier=next;
     }

@@ -68,6 +68,9 @@ the first three protocols:
   (HART Command 0); gated enumeration tiers with a real-device verify pass.
 - **Enumeration tiers** - Modbus unit-id sweep (serial RTUs behind a gateway) and the DNP3
   outstation-address scan, each behind its own explicit opt-in.
-- **Graph:** OT-specific node types (`plc` / `rtu` / `gateway` / `field-device`) grouped by Purdue
-  level, and an `IT host -> reachable controller -> Process Impact` attack path (the OT analog of
-  path-to-Domain-Admin) when one scan reaches both IT and OT (a segmentation failure).
+- **Graph (BUILT):** OT-specific node types (`plc` / `rtu` / `gateway` / `controller`) and a
+  **`Process Impact`** goal node (the OT analog of Domain Admin). Each exposed controller draws a
+  dashed `controller -> Process Impact` lead, and when one scan reaches both IT and OT - a Purdue
+  **segmentation failure** - a solid `IT / Enterprise -> controller` edge plus an `ot-it-segmentation`
+  CRITICAL finding. Derived in `redness/ot.py` (mirrors paths.py/relay.py); the auto-tour and
+  replay reach the Process Impact goal just like Domain Admin. See docs/DECISIONS.md (2026-10-07).

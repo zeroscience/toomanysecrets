@@ -5,6 +5,16 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **OT graph + Process Impact attack path:** the ICS pack now has a visual story -
+  `redness/ot.py` (mirrors paths.py/relay.py) draws the OT analog of path-to-Domain-Admin. Each
+  exposed OT controller gets a dashed `controller -> Process Impact` lead to a new **Process
+  Impact** goal node, and when one scan reaches both IT/AD and OT - a Purdue **segmentation
+  failure** - a solid `IT / Enterprise -> controller` edge plus an `ot-it-segmentation` CRITICAL
+  finding (`IT / Enterprise -> controller -> Process Impact`, the shape of entry -> owned -> DA).
+  OT hosts are re-typed to their controller role (plc/rtu/gateway/controller by protocol + Purdue
+  level); the GUI + HTML report get OT node colors, legend rows, and the auto-tour/replay now reach
+  the Process Impact goal like Domain Admin. No schema change. 7 tests; verified both surfaces
+  in-browser. See [docs/ICS.md](docs/ICS.md).
 - `2026-10-07` **ICS pack: DNP3 + HART-IP engines.** Extends `scan --ics` to the SCADA/process
   layer. **DNP3** (TCP 20000) sends a read-only Request Link Status; a listening port is
   `dnp3-exposed` (HIGH) and a Link Status reply adds `dnp3-outstation` (INFO) with the discovered
