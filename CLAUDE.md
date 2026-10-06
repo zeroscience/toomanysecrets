@@ -36,6 +36,7 @@ redness/
   scope.py        # parse --targets scope file (IP/host/CIDR per line, # comments)
   paths.py        # derive attack-path edges from findings (owned/roastable/ADCS -> Domain Admin)
   relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
+  ot.py           # derive OT paths: exposed controller -> "Process Impact" + IT/OT segmentation
   mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce

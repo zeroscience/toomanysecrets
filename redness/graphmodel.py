@@ -89,6 +89,8 @@ def graph_from_report(report: Report) -> dict:
         _emit_finding_graph(bus, domain_label, domain_label, f)
     emit_attack_paths(bus, rep, domain=domain_label)
     emit_relay_paths(bus, rep, domain=domain_label)          # appends to the copy only
+    from .ot import emit_ot_paths
+    emit_ot_paths(bus, rep, domain=domain_label)             # OT controllers -> Process Impact
     return gc.data()
 
 

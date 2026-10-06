@@ -156,6 +156,8 @@
   <div class="row"><span class="dot" style="background:#ff2d2d"></span>owned (compromised)</div>
   <div class="row"><span class="dot" style="background:#ffcf33"></span>Domain Admin (goal)</div>
   <div class="row"><span class="dot" style="background:#ff884d"></span>NTLM relay</div>
+  <div class="row"><span class="dot" style="background:#ff9f1c"></span>OT controller (PLC / RTU / gateway)</div>
+  <div class="row"><span class="dot" style="background:#ff006e"></span>Process Impact (OT goal)</div>
   <div class="row"><span class="dot" style="background:#ff3737"></span>attack / relay path</div>
   <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">> Replay path to DA</button>
 </div>
@@ -219,9 +221,15 @@
 const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
   share:'#e08a55', ca:'#f4d06a', template:'#f4d06a', adcs:'#f4d06a',
   group:'#a78bfa', ou:'#94a3b8', gpo:'#64748b', container:'#64748b', secret:'#ec4899',
-  owned:'#ff2d2d', goal:'#ffcf33', relay:'#ff884d' };   // owned=compromised, goal=DA, relay=NTLM relay
+  owned:'#ff2d2d', goal:'#ffcf33', relay:'#ff884d',     // owned=compromised, goal=DA, relay=NTLM relay
+  // OT/ICS: controllers by Purdue role, and the Process Impact goal (OT analog of Domain Admin).
+  plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
+  'field-device':'#90be6d', process:'#ff006e' };
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
+// Goal node types (Domain Admin + OT Process Impact) and OT controller types (can upgrade a host).
+const GOAL_TYPES = new Set(['goal', 'process']);
+const OT_DEVICE = new Set(['plc', 'rtu', 'gateway', 'controller', 'field-device']);
 const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
 // Severity as physics: worse findings swell larger, throb harder + faster, and are pulled
 // toward the centre so the most critical stuff clusters and draws the eye.
@@ -231,7 +239,7 @@ const SEV_SPD  = { critical:3.3, high:2.6, medium:2.0, low:1.6, info:1.4 };  // 
 const SEV_PULL = { critical:1.0, high:0.6, medium:0.28, low:0.08, info:0 };  // centre-pull weight
 const SEV_GLOW = { critical:0.18, high:0.12, medium:0.08, low:0.05, info:0.035 };  // halo brightness (additive)
 function baseVal(n){
-  const typeV = n.type==='goal'?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
+  const typeV = GOAL_TYPES.has(n.type)?9 : n.type==='domain'?8 : n.type==='owned'?5 : 3;
   return typeV + (SEV_SIZE[worstSev.get(n.id)] || 0);
 }
 
@@ -255,7 +263,7 @@ const Graph = ForceGraph3D({ rendererConfig: { preserveDrawingBuffer: true } })(
   .backgroundColor('rgba(0,0,0,0)')          // transparent: the CSS starfield + vignette shows behind
   .nodeLabel(n => `${n.label}${worstSev.has(n.id)?' - '+worstSev.get(n.id).toUpperCase():''}`)
   .nodeColor(n => (focusId && !focusNodes.has(n.id)) ? 'rgba(90,100,120,.22)'   // hover-to-focus: dim the rest
-                  : (n.type==='owned'||n.type==='goal') ? TYPE_COLOR[n.type]
+                  : (n.type==='owned'||GOAL_TYPES.has(n.type)) ? TYPE_COLOR[n.type]
                   : worstSev.has(n.id) ? SEV_COLOR[worstSev.get(n.id)] : (TYPE_COLOR[n.type]||'#9aa4b2'))
   .nodeVal(n => n.__val || baseVal(n))
   .nodeResolution(20)                 // smooth, round orbs instead of faceted "balls"
@@ -347,9 +355,9 @@ function _ensureCore(n){
   if (glow && c && glow.material.color){
     glow.material.color.copy(c);
     if (glow.material.emissive) glow.material.emissive.copy(c);
-    const hv = (n.type === 'owned' || n.type === 'goal');
+    const hv = (n.type === 'owned' || GOAL_TYPES.has(n.type));
     let g = SEV_GLOW[worstSev.get(n.id)] || 0.05;
-    if (hv) g = Math.max(g, n.type === 'goal' ? 0.18 : 0.14);
+    if (hv) g = Math.max(g, GOAL_TYPES.has(n.type) ? 0.18 : 0.14);
     if (focusId && !focusNodes.has(n.id)) g *= 0.15;      // hover-to-focus: dim non-neighbors' glow
     if (!n.__flashing) glow.material.opacity = g;
   }
@@ -452,6 +460,7 @@ function addNode(d){
   if(existing){
     // a node can be "upgraded" to a compromise/goal state (owned/goal win over its type)
     if((d.type==='owned'||d.type==='goal') && existing.type!==d.type){ existing.type=d.type; bump(); }
+    else if(OT_DEVICE.has(d.type) && (existing.type==='host'||existing.type==='node') && existing.type!==d.type){ existing.type=d.type; bump(); }  // re-type a host to its OT controller role
     return;
   }
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
@@ -636,7 +645,7 @@ let touring = false, tourAbort = false, tourPlayed = false, userInteracted = fal
 function replayOrder(){
   const al = links.filter(l => l.attack);
   const depth = new Map();                                // steps from a node to the goal
-  let frontier = nodes.filter(n => n.type === 'goal').map(n => n.id);
+  let frontier = nodes.filter(n => GOAL_TYPES.has(n.type)).map(n => n.id);
   frontier.forEach(g => depth.set(g, 0));
   let d = 0;
   while (frontier.length){
@@ -665,7 +674,7 @@ function _ambientPulse(){
   const t = performance.now() / 1000;
   for (const n of nodes){
     if (n.__burst) continue;                                     // a tour/replay pulse owns the size
-    const hv = (n.type === 'goal' || n.type === 'owned');
+    const hv = (GOAL_TYPES.has(n.type) || n.type === 'owned');
     const sev = worstSev.get(n.id);
     let amp = SEV_AMP[sev] || 0;
     let spd = SEV_SPD[sev] || 1.8;
@@ -731,7 +740,7 @@ async function cinematicTour(auto){
     await sleep(1080);
   }
   if (tourAbort) return endTour();
-  const goal = nodes.find(n => n.type === 'goal');
+  const goal = nodes.find(n => GOAL_TYPES.has(n.type));
   if (goal && goal.x !== undefined){
     Graph.cameraPosition({ x:goal.x, y:goal.y + 30, z:(goal.z||0) + 150 }, goal, 1000);
     await sleep(350); if (tourAbort) return endTour();
@@ -799,7 +808,7 @@ setInterval(() => {
 // operator already grabbed the graph (their intent wins over the show).
 function maybeAutoTour(){
   if (tourPlayed || userInteracted || touring) return;
-  if (!links.some(l => l.attack) || !nodes.some(n => n.type === 'goal')) return;
+  if (!links.some(l => l.attack) || !nodes.some(n => GOAL_TYPES.has(n.type))) return;
   setTimeout(() => { if (!tourPlayed && !userInteracted && !touring) cinematicTour(true); }, 1600);
 }
 
@@ -865,7 +874,7 @@ async function spreadWave(){
     if (!next.length) break;
     await sleep(520);                                              // let the pulse travel the edge
     next.forEach(id => { const n = nodeById.get(id); if (!n) return;
-      const goal = n.type === 'goal';
+      const goal = GOAL_TYPES.has(n.type);
       shockRing(n, goal ? '#ffcf33' : '#ff7a45', goal ? 1100 : 900, goal ? 4.2 : 3.2); });
     frontier = next;
   }
