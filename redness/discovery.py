@@ -36,6 +36,11 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "http": (80, 443),                 # AD web surfaces (/certsrv = ESC8, OWA)
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
     "mqtt": (1883,),                   # MQTT anonymous-access check (default scan)
+    "redis": (6379,),                  # Redis unauth INFO (default scan)
+    "mongodb": (27017,),               # MongoDB no-auth listDatabases (default scan)
+    "elasticsearch": (9200,),          # Elasticsearch unauth GET / (default scan)
+    "memcached": (11211,),             # Memcached stats (default scan)
+    "ipp": (631,),                     # Printer/IPP HTTP banner (default scan)
     "enip": (44818,),                  # EtherNet/IP (CIP) List Identity  [opt-in: scan --ics]
     "modbus": (502,),                  # Modbus/TCP Read Device Identification  [opt-in: scan --ics]
     "dnp3": (20000,),                  # DNP3 Request Link Status  [opt-in: scan --ics]

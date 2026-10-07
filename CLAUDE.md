@@ -65,6 +65,7 @@ redness/
     hartip.py     #   HART-IP Session Initiate presence (TCP 5094)  [Category.ICS; opt-in]
     mqtt.py       #   MQTT anonymous-access check (TCP 1883)  [Category.IOT; default scan]
     coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
+    netsvc.py     #   exposed services: Redis/Mongo/Elasticsearch/Memcached/printer(IPP)  [Category.SERVICE]
   report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
