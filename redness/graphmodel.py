@@ -91,6 +91,8 @@ def graph_from_report(report: Report) -> dict:
     emit_relay_paths(bus, rep, domain=domain_label)          # appends to the copy only
     from .ot import emit_ot_paths
     emit_ot_paths(bus, rep, domain=domain_label)             # OT controllers -> Process Impact
+    from .graphtypes import emit_service_nodes
+    emit_service_nodes(bus, rep)                             # re-type IoT/service hosts
     return gc.data()
 
 

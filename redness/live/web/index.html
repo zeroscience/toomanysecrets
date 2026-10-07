@@ -88,6 +88,11 @@
     padding:4px 10px; cursor:pointer; font:11px ui-monospace,monospace; letter-spacing:.06em; }
   .hbtn:hover { border-color:#ff5252; color:#fff; }
   .hbtn.on { background:#ff5252; color:#0b0d12; border-color:#ff5252; font-weight:700; }
+  /* world-map territory labels (HTML overlay, projected from the 3D board) */
+  #maplabels { position:fixed; inset:0; pointer-events:none; z-index:15; }
+  .maplabel { position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+    font:11px ui-monospace,monospace; letter-spacing:.22em; color:#cdd6e4;
+    text-shadow:0 0 8px #000, 0 0 3px #000; opacity:.82; }
   /* modal overlay - retro-futuristic card */
   .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(4,6,10,.72); backdrop-filter:blur(3px); z-index:50; }
@@ -160,6 +165,7 @@
   <div class="row"><span class="dot" style="background:#ff884d"></span>NTLM relay</div>
   <div class="row"><span class="dot" style="background:#ff9f1c"></span>OT controller (PLC / RTU / gateway)</div>
   <div class="row"><span class="dot" style="background:#ff006e"></span>Process Impact (OT goal)</div>
+  <div class="row"><span class="dot" style="background:#48cae4"></span>IoT / service (broker / db / printer)</div>
   <div class="row"><span class="dot" style="background:#ff3737"></span>attack / relay path</div>
   <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">> Replay path to DA</button>
 </div>
@@ -226,12 +232,16 @@ const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
   owned:'#ff2d2d', goal:'#ffcf33', relay:'#ff884d',     // owned=compromised, goal=DA, relay=NTLM relay
   // OT/ICS: controllers by Purdue role, and the Process Impact goal (OT analog of Domain Admin).
   plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
-  'field-device':'#90be6d', process:'#ff006e' };
+  'field-device':'#90be6d', process:'#ff006e',
+  // IoT / exposed services
+  broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2' };
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
-// Goal node types (Domain Admin + OT Process Impact) and OT controller types (can upgrade a host).
+// Goal node types (Domain Admin + OT Process Impact) and the specific roles a generic host can be
+// upgraded to (OT controllers + IoT/service kinds).
 const GOAL_TYPES = new Set(['goal', 'process']);
-const OT_DEVICE = new Set(['plc', 'rtu', 'gateway', 'controller', 'field-device']);
+const OT_DEVICE = new Set(['plc', 'rtu', 'gateway', 'controller', 'field-device',
+                           'broker', 'database', 'printer', 'iot']);
 const SEV_RANK = { info:0, low:1, medium:2, high:3, critical:4 };
 // Severity as physics: worse findings swell larger, throb harder + faster, and are pulled
 // toward the centre so the most critical stuff clusters and draws the eye.
@@ -896,17 +906,25 @@ setInterval(() => {
 // toggling off releases the nodes and resumes the organic graph.
 let mapMode = false;
 const _discs = [];
+const _mapLabels = [];
+// Territories laid out like continents across a world board (roughly NW -> E -> S hemisphere).
 const CONTINENTS = [
-  { name:'Directory', cx:-240, cz:-30, color:0x2b3a67,
+  { name:'DIRECTORY', cx:-300, cz:-70, color:0x2b3a67,
     types:['domain','host','user','share','template','ca','adcs','secret','group','ou','gpo','container'] },
-  { name:'Compromise', cx:40, cz:-210, color:0x6a1b1b,
+  { name:'COMPROMISE', cx:70, cz:-240, color:0x6a1b1b,
     types:['owned','goal','relay'] },
-  { name:'OT / ICS', cx:250, cz:80, color:0x6b4410,
+  { name:'OT / ICS', cx:320, cz:40, color:0x6b4410,
     types:['plc','rtu','gateway','controller','field-device','process'] },
+  { name:'IoT / SERVICES', cx:-50, cz:240, color:0x0f4a52,
+    types:['broker','database','printer','iot'] },
 ];
-const _DEFAULT_CONT = { name:'Other', cx:-30, cz:200, color:0x333a4e, types:[] };
+const _DEFAULT_CONT = { name:'OTHER', cx:230, cz:270, color:0x333a4e, types:[] };
 const _contFor = {}; CONTINENTS.forEach(c => c.types.forEach(t => _contFor[t] = c));
 const _slotCounter = new Map();
+// How tall a piece "stands" on the board, by role (Risk-army feel: important = taller).
+const _PIECE_H = { goal:40, process:40, owned:26, relay:18,
+  plc:12, rtu:12, gateway:12, controller:12, 'field-device':10, broker:12, database:12,
+  printer:10, iot:10, domain:16 };
 
 function _continentOf(n){ return _contFor[n.type] || _DEFAULT_CONT; }
 
@@ -918,7 +936,7 @@ function _slot(cont){                                 // golden-angle phyllotaxi
 function _target(n){
   if (n.__mapTarget) return n.__mapTarget;
   const c = _continentOf(n), s = _slot(c);
-  n.__mapTarget = { x: c.cx + s.dx, y: (n.type==='goal'||n.type==='process') ? 22 : 0, z: c.cz + s.dz };
+  n.__mapTarget = { x: c.cx + s.dx, y: (_PIECE_H[n.type] || 2), z: c.cz + s.dz };
   return n.__mapTarget;
 }
 function _elasticOut(k){
@@ -939,42 +957,72 @@ function mapPlace(n, animate){
   const t = _target(n);
   if (animate) wobbleIn(n, t); else { n.fx = t.x; n.fy = t.y; n.fz = t.z; }
 }
+function _flatSphere(Mesh, Geo, Mat, R, color, opacity, y, cx, cz, wire){
+  const mat = new Mat({ transparent:true, opacity:opacity, wireframe:!!wire });
+  if (mat.color && mat.color.setHex) mat.color.setHex(color);
+  if ('depthWrite' in mat) mat.depthWrite = false;
+  const d = new Mesh(new Geo(R, wire ? 32 : 28, wire ? 2 : 24), mat);
+  d.position.set(cx, y, cz); d.scale.set(1, 0.02, 1);         // flatten -> a board disc
+  d.__disc = true; Graph.scene().add(d); _discs.push(d);
+  return d;
+}
 function _buildDiscs(){
   _clearDiscs();
   const any = nodes.find(x => x.__threeObj);
   if (!any) return;
   const Mesh = any.__threeObj.constructor, Geo = any.__threeObj.geometry.constructor,
         Mat = any.__threeObj.material.constructor;
+  try {
+    // the ocean / world board under everything, plus two faint graticule rings for a map feel
+    _flatSphere(Mesh, Geo, Mat, 620, 0x0a1324, 0.5, -16, -10, 20);
+    _flatSphere(Mesh, Geo, Mat, 300, 0x24436b, 0.08, -14, -10, 20, true);
+    _flatSphere(Mesh, Geo, Mat, 520, 0x24436b, 0.06, -14, -10, 20, true);
+  } catch(e){}
   for (const c of CONTINENTS.concat([_DEFAULT_CONT])){
     const count = nodes.filter(n => _continentOf(n) === c).length;
     if (!count) continue;
     const R = Math.max(70, 19 * Math.sqrt(count) + 44);
-    try {
-      const mat = new Mat({ transparent:true, opacity:0.16 });
-      if (mat.color && mat.color.setHex) mat.color.setHex(c.color);
-      if ('depthWrite' in mat) mat.depthWrite = false;
-      const disc = new Mesh(new Geo(R, 28, 24), mat);
-      disc.position.set(c.cx, -8, c.cz); disc.scale.set(1, 0.03, 1);   // flat sphere -> board disc
-      disc.__disc = true; Graph.scene().add(disc); _discs.push(disc);
-    } catch(e){}
+    try { _flatSphere(Mesh, Geo, Mat, R, c.color, 0.22, -10, c.cx, c.cz); } catch(e){}
   }
 }
 function _clearDiscs(){
   for (const d of _discs){ try { Graph.scene().remove(d); d.geometry.dispose(); d.material.dispose(); } catch(e){} }
   _discs.length = 0;
 }
+// HTML overlay labels floating over each territory (projected from 3D each frame).
+function _buildLabels(){
+  _clearLabels();
+  let host = el('maplabels');
+  if (!host){ host = document.createElement('div'); host.id = 'maplabels'; document.body.appendChild(host); }
+  for (const c of CONTINENTS){
+    if (!nodes.some(n => _continentOf(n) === c)) continue;
+    const d = document.createElement('div'); d.className = 'maplabel'; d.textContent = c.name;
+    host.appendChild(d); _mapLabels.push({ el:d, c:c });
+  }
+  (function tick(){
+    if (!mapMode) return;
+    for (const L of _mapLabels){
+      try {
+        const p = Graph.graph2ScreenCoords(L.c.cx, 2, L.c.cz);
+        if (p){ L.el.style.left = p.x + 'px'; L.el.style.top = p.y + 'px'; L.el.style.display = 'block'; }
+      } catch(e){ L.el.style.display = 'none'; }
+    }
+    requestAnimationFrame(tick);
+  })();
+}
+function _clearLabels(){ for (const L of _mapLabels){ try { L.el.remove(); } catch(e){} } _mapLabels.length = 0; }
 function enterMap(){
   mapMode = true; userInteracted = true; tourAbort = true; stopDrift();
   _slotCounter.clear(); nodes.forEach(n => { n.__mapTarget = null; });
   nodes.forEach(n => mapPlace(n, true));
   Graph.linkCurvature(l => l.attack ? 0.5 : 0.3);     // arcs ride higher over the board
-  refreshLinks(); _buildDiscs();
+  refreshLinks(); _buildDiscs(); _buildLabels();
   try { Graph.d3ReheatSimulation(); } catch(e){}      // tick so the fixed positions take effect
-  setTimeout(() => { try { Graph.cameraPosition({ x:0, y:380, z:380 }, { x:0, y:-20, z:0 }, 1200); } catch(e){} }, 60);
+  setTimeout(() => { try { Graph.cameraPosition({ x:0, y:600, z:560 }, { x:0, y:-20, z:20 }, 1200); } catch(e){} }, 60);
   const b = el('mapbtn'); if (b){ b.textContent = '# Graph view'; b.classList.add('on'); }
 }
 function exitMap(){
-  mapMode = false; _clearDiscs();
+  mapMode = false; _clearDiscs(); _clearLabels();
   nodes.forEach(n => { n.fx = undefined; n.fy = undefined; n.fz = undefined; n.__mapTarget = null; });
   Graph.linkCurvature(l => l.attack ? 0.28 : 0.16); refreshLinks();
   try { Graph.d3ReheatSimulation && Graph.d3ReheatSimulation(); } catch(e){}

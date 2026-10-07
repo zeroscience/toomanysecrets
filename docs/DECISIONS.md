@@ -841,3 +841,21 @@ change. v1 verified in-browser (nodes spread to territories, arcs span the board
 clean, no console errors). Follow-ons: territory labels, OT/IoT/service node typing so those get
 their own territories, tuning the continent layout toward a true world-map silhouette, and porting
 the mode to the HTML report (static wobble-on-load).
+
+## 2026-10-07 - World-map view v2: labels, continents, service node types, pieces, report port
+Polished the Risk-style map (all surfaces). (1) Territory LABELS: HTML overlays projected from the
+3D board each frame via graph2ScreenCoords. (2) World-map SILHOUETTE: continents spread wider (NW
+Directory -> top Compromise -> E OT/ICS -> S IoT/Services), over a large ocean "board" disc plus
+two faint wireframe graticule rings (flattened spheres built from node mesh constructors). (3) More
+TERRITORIES: a new graphtypes.py re-types IoT/service hosts to broker/database/printer/iot (mirrors
+ot.py; wired after emit_ot_paths in run_scan + graph_from_report), so they form their own continent
+instead of recoloring the host; added to TYPE_COLOR + the upgradable-host set + legend. (4) PIECES
+STAND: per-type board height (_PIECE_H) so goals/owned stand taller like Risk armies. (5) Report
+PORT: the same map module + a "# Map" toggle in the HTML report (static wobble-on-load), so the
+offline deliverable carries the view.
+
+No findings-contract/schema change (the new node types are graph-only strings). Both surfaces
+verified in-browser (four labeled territories, ocean/graticule, standing pieces, arcs across the
+board, clean toggle back, no console errors). 3 backend tests; node --check clean on index.html and
+the rendered report. Still experimental/tunable (continent geometry, a true coastline texture would
+need a reachable canvas texture).
