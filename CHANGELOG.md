@@ -258,6 +258,9 @@ Zero Science Lab | powered by Silly Security Inc.
     and the suite looped 25x.
 
 ### Changed
+- `2026-10-08` **New REDNESS logo** (orbital/atom mark on a transparent background). Replaces the
+  placeholder ZeroScience wordmark in the live GUI brand (`web/logo.png`) and is embedded as a
+  self-contained data-URI in the HTML report header. (Old `logo.svg` removed.)
 - `2026-09-29` **Vendored-lib provenance + security note:** recorded in `THIRD_PARTY_LICENSES.md`
   that the vendored `3d-force-graph` is **1.80.0** (current latest; bundles three.js r183), with a
   dated review confirming no known applicable CVEs and a reminder that a vendored bundle is not
