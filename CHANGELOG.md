@@ -5,6 +5,7 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **World-map / Risk-style territory view (live GUI, experimental).** A second layout toggled with the "Map view" button (default stays the organic force graph): nodes land in fixed **territories by type** (Directory / Compromise / OT-ICS / Other) across a tilted board, each freshly discovered node **wobbles** into its slot, and attack paths arc high over the board like Risk connection lines. Pure front-end; no schema change. See docs/DECISIONS.md.
 - `2026-10-07` **SSH crypto/version audit.** `engines/ssh_audit.py` reads the SSH banner and the
   server's KEXINIT algorithm offer and flags weak key-exchange (SHA-1/group1/14-sha1), ciphers (CBC
   /3des/arcfour/blowfish), MACs (md5/sha1/-96), and host keys (ssh-rsa/ssh-dss): `ssh-server`
