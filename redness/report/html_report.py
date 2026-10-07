@@ -21,12 +21,24 @@ from ..graphmodel import graph_for
 _SEV_ORDER = [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]
 _SEV_COLOR = {"critical": "#ff4d4d", "high": "#ff7a45", "medium": "#f2c94c",
               "low": "#6fcf97", "info": "#8a93a2"}
+_LOGO = os.path.join(os.path.dirname(__file__), "..", "live", "web", "logo.png")
 _VENDOR = os.path.join(os.path.dirname(__file__), "..", "live", "web", "vendor",
                        "3d-force-graph.min.js")
 
 
 def _esc(s: str) -> str:
     return html.escape(str(s or ""))
+
+
+def _logo_img() -> str:
+    """The REDNESS logo as a self-contained data-URI <img>, or '' if it can't be read."""
+    try:
+        import base64
+        with open(_LOGO, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode("ascii")
+        return f'<img class="logo" src="data:image/png;base64,{b64}" alt="REDNESS">'
+    except OSError:
+        return ""
 
 
 def _sev_by_node(report: Report) -> dict[str, str]:
@@ -107,6 +119,7 @@ def render(report: Report) -> str:
         vendor = ""
 
     tmpl = _TEMPLATE
+    tmpl = tmpl.replace("<!--__LOGO__-->", _logo_img())
     tmpl = tmpl.replace("__ENGAGEMENT__", _esc(report.engagement))
     tmpl = tmpl.replace("__TARGET__", _esc(report.target))
     tmpl = tmpl.replace("__TOTAL__", str(total))
@@ -136,7 +149,9 @@ _TEMPLATE = """<!doctype html>
   html,body { margin:0; background:#0b0d12; color:#e6e6e6;
     font:14px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   a { color:#ff7a45; text-decoration:none; } a:hover { text-decoration:underline; }
-  header { padding:22px 28px 14px; border-bottom:1px solid #1c2230; }
+  header { padding:22px 28px 14px; border-bottom:1px solid #1c2230; display:flex;
+    align-items:center; gap:16px; }
+  header img.logo { height:46px; width:auto; flex:none; }
   header h1 { margin:0; font-size:17px; letter-spacing:.14em; color:#ff5252; }
   header .sub { color:#8a93a2; font-size:12.5px; margin-top:4px; }
   /* Atmosphere: a sparse starfield over a centre-lit vignette, behind the transparent WebGL
@@ -221,8 +236,11 @@ _TEMPLATE = """<!doctype html>
 </style></head>
 <body>
 <header>
-  <h1>REDNESS ASSESSMENT REPORT</h1>
-  <div class="sub">__ENGAGEMENT__ &nbsp;|&nbsp; scope: __TARGET__ &nbsp;|&nbsp; __TOTAL__ finding(s)</div>
+  <!--__LOGO__-->
+  <div>
+    <h1>REDNESS ASSESSMENT REPORT</h1>
+    <div class="sub">__ENGAGEMENT__ &nbsp;|&nbsp; scope: __TARGET__ &nbsp;|&nbsp; __TOTAL__ finding(s)</div>
+  </div>
 </header>
 
 <div id="graphwrap">

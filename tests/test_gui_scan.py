@@ -92,8 +92,10 @@ def test_logo_served():
     srv = LiveServer(EventBus(), port=0)
     url = srv.start()
     try:
-        body = urllib.request.urlopen(url + "logo.svg", timeout=3).read().decode()
-        assert "<svg" in body and "ZeroScience" in body
+        resp = urllib.request.urlopen(url + "logo.png", timeout=3)
+        data = resp.read()
+        assert data[:8] == b"\x89PNG\r\n\x1a\n"                # a real PNG
+        assert resp.headers.get("Content-Type") == "image/png"
     finally:
         srv.stop()
 
