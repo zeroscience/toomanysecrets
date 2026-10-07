@@ -427,6 +427,56 @@ def cmd_scan(args) -> int:
     return 0
 
 
+def cmd_capture(args) -> int:
+    """Passive capture analysis: drive tshark over a pcap or a live interface for findings."""
+    from .capture import is_available, run_capture
+    if not is_available():
+        print("[!] tshark (Wireshark CLI) is not installed / not on PATH.", file=sys.stderr)
+        print("    Install Wireshark, or on Kali:  sudo apt install tshark", file=sys.stderr)
+        return 2
+    live = bool(args.iface)
+    source = args.iface or args.pcap
+    if not source:
+        print("[!] pass --pcap FILE or --iface IFACE.", file=sys.stderr)
+        return 2
+    if live:
+        print(f"[*] Capturing on {args.iface} for {args.duration}s via tshark "
+              "(authorized traffic only)...")
+    else:
+        print(f"[*] Analyzing {args.pcap} via tshark...")
+    report = run_capture(source, live=live, duration=args.duration, engagement=args.engagement)
+    _print_summary(report)
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+    return 0
+
+
+def cmd_wireless(args) -> int:
+    """Wi-Fi survey: flag open and weak-encryption networks in range via the OS wireless tool."""
+    from .wireless import is_available, run_wireless
+    if not is_available():
+        tool = "netsh" if sys.platform.startswith("win") else "nmcli"
+        print(f"[!] {tool} is not available - cannot enumerate Wi-Fi on this host.",
+              file=sys.stderr)
+        return 2
+    print("[*] Surveying Wi-Fi networks in range (read-only; no transmit/deauth/crack)...")
+    report = run_wireless(engagement=args.engagement)
+    _print_summary(report)
+    if args.out:
+        docx_report.build(report, args.out)
+        print(f"[+] Report -> {args.out}")
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {args.json}")
+    return 0
+
+
 _SPRAY_BANNER = (
     "\n=====================================================================\n"
     " REDNESS spray - password spraying (INTRUSIVE)\n"
@@ -1044,6 +1094,25 @@ def main(argv=None) -> int:
     li.add_argument("--port", type=int, default=8765, help="live graph port")
     li.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     li.set_defaults(func=cmd_listen)
+
+    cp = sub.add_parser("capture",
+                        help="passive capture analysis via tshark (pcap or live iface): cleartext "
+                             "credentials + plaintext protocols")
+    cp.add_argument("--pcap", help="analyze an existing capture file")
+    cp.add_argument("--iface", help="capture live on this interface (authorized traffic only)")
+    cp.add_argument("--duration", type=int, default=60, help="live capture seconds (default: 60)")
+    cp.add_argument("--engagement", default="REDNESS capture")
+    cp.add_argument("--out", help="write a .docx report to this path")
+    cp.add_argument("--json", help="write findings JSON to this path")
+    cp.set_defaults(func=cmd_capture)
+
+    wf = sub.add_parser("wifi",
+                        help="Wi-Fi survey: flag open / weak-encryption networks in range "
+                             "(read-only; netsh on Windows, nmcli on Linux)")
+    wf.add_argument("--engagement", default="REDNESS wireless")
+    wf.add_argument("--out", help="write a .docx report to this path")
+    wf.add_argument("--json", help="write findings JSON to this path")
+    wf.set_defaults(func=cmd_wireless)
 
     tr = sub.add_parser("trigger",
                         help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")

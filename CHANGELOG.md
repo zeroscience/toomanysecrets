@@ -5,6 +5,14 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **Passive capture + wireless recon (`redness capture` / `redness wifi`).** Two new
+  passive surfaces that orchestrate native tools. **capture** drives tshark over a pcap or a live
+  interface (`-z credentials` + `-z io,phs`) -> `cleartext-credentials` (CRITICAL) and
+  `cleartext-protocols` (MEDIUM). **wifi** drives netsh (Windows) / nmcli (Linux) to survey Wi-Fi
+  in range -> `wireless-open` (MEDIUM), `wireless-weak-encryption` (HIGH, WEP/WPA1/TKIP), and an
+  inventory. Both read-only (analyze authorized traffic; list visible SSIDs - no transmit/deauth/
+  crack); no schema change (reuse PASSWORD/CONFIG). Pure parsers, 11 tests. See
+  [docs/CAPTURE.md](docs/CAPTURE.md).
 - `2026-10-07` **OT enumeration tier (`scan --ics-enum`):** the gated, louder OT sweep.
   `ModbusSweepEngine` maps the serial RTUs behind a Modbus/TCP gateway (unit-id sweep ->
   `modbus-gateway-units`) and `Dnp3ScanEngine` enumerates a DNP3 segment (outstation-address scan
