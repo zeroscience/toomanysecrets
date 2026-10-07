@@ -5,6 +5,11 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **SSH crypto/version audit.** `engines/ssh_audit.py` reads the SSH banner and the
+  server's KEXINIT algorithm offer and flags weak key-exchange (SHA-1/group1/14-sha1), ciphers (CBC
+  /3des/arcfour/blowfish), MACs (md5/sha1/-96), and host keys (ssh-rsa/ssh-dss): `ssh-server`
+  (INFO) + `ssh-weak-crypto` (MEDIUM). Read-only (no authentication); default scan, port-gated to
+  TCP/22. No schema change. 6 tests + a real-socket smoke.
 - `2026-10-07` **Passive capture + wireless recon (`redness capture` / `redness wifi`).** Two new
   passive surfaces that orchestrate native tools. **capture** drives tshark over a pcap or a live
   interface (`-z credentials` + `-z io,phs`) -> `cleartext-credentials` (CRITICAL) and

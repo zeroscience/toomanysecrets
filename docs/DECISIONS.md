@@ -813,3 +813,12 @@ Both read-only (analyze authorized traffic; list visible SSIDs - no transmit/dea
 tested core is the pure parsers over captured tshark/netsh/nmcli output; the tool argv is
 best-effort and flagged for a field-verify pass (same honest-leftover pattern as the nxc flags).
 Deferred: Stratoshark (syscall/log capture), pcad endpoint inventory, BSSID geolocation.
+
+## 2026-10-07 - SSH crypto/version audit (Category.CONFIG; no schema change)
+`engines/ssh_audit.py` reads the SSH identification banner and the server's unauthenticated
+SSH_MSG_KEXINIT (the algorithm offer) and flags weak key-exchange (SHA-1 / group1/14-sha1), ciphers
+(CBC modes / 3des / arcfour / blowfish / cast128), MACs (md5 / sha1 / -96 / umac-64) and host-key
+types (ssh-rsa SHA-1 sig / ssh-dss). Read-only: never authenticates, just reads the banner + the
+KEXINIT every client receives. `ssh-server` (INFO banner) + `ssh-weak-crypto` (MEDIUM). Pure
+parsers (banner regex + KEXINIT name-list layout) unit-tested + real-socket smoke; in the default
+scan, port-gated to TCP/22. No schema change (reuses Category.CONFIG).

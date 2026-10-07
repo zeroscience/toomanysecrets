@@ -19,6 +19,7 @@ from .mqtt import MqttEngine
 from .coap import CoapEngine
 from .netsvc import (RedisEngine, MongoEngine, ElasticsearchEngine, MemcachedEngine, PrinterEngine)
 from .ics_enum import ModbusSweepEngine, Dnp3ScanEngine
+from .ssh_audit import SshEngine
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
@@ -26,4 +27,4 @@ __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "L
            "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine",
            "MqttEngine", "CoapEngine",
            "RedisEngine", "MongoEngine", "ElasticsearchEngine", "MemcachedEngine", "PrinterEngine",
-           "ModbusSweepEngine", "Dnp3ScanEngine"]
+           "ModbusSweepEngine", "Dnp3ScanEngine", "SshEngine"]

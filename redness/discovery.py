@@ -35,6 +35,7 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "ftp": (21,),
     "http": (80, 443),                 # AD web surfaces (/certsrv = ESC8, OWA)
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
+    "ssh": (22,),                      # SSH banner + weak-crypto audit (default scan)
     "mqtt": (1883,),                   # MQTT anonymous-access check (default scan)
     "redis": (6379,),                  # Redis unauth INFO (default scan)
     "mongodb": (27017,),               # MongoDB no-auth listDatabases (default scan)
