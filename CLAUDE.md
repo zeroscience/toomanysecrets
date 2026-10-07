@@ -63,6 +63,7 @@ redness/
     bacnet.py     #   BACnet/IP Who-Is/I-Am (UDP 47808)  [Category.ICS; opt-in]
     dnp3.py       #   DNP3 Request Link Status + outstation addr (TCP 20000)  [Category.ICS; opt-in]
     hartip.py     #   HART-IP Session Initiate presence (TCP 5094)  [Category.ICS; opt-in]
+    ics_enum.py   #   OT enumeration tier: Modbus unit sweep + DNP3 addr scan  [scan --ics-enum]
     mqtt.py       #   MQTT anonymous-access check (TCP 1883)  [Category.IOT; default scan]
     coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
     netsvc.py     #   exposed services: Redis/Mongo/Elasticsearch/Memcached/printer(IPP)  [Category.SERVICE]

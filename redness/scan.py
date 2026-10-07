@@ -38,15 +38,23 @@ def default_engines() -> list[Engine]:
             RedisEngine(), MongoEngine(), ElasticsearchEngine(), MemcachedEngine(), PrinterEngine()]
 
 
-def ics_engines() -> list[Engine]:
+def ics_engines(enum: bool = False) -> list[Engine]:
     """OT/ICS field-protocol engines - opt-in only (`scan --ics`), never in the default scan.
 
     All send a SINGLE read-only identity request and are port-gated by discovery (except BACnet,
     which is UDP and un-gated). OT kit is fragile, so touching it is an explicit choice, not a
-    default - hence the separate helper. See docs/ICS.md.
+    default - hence the separate helper. When `enum` (`scan --ics-enum`), the Modbus and DNP3
+    engines are swapped for the louder *sweep* variants that map units/outstations behind a
+    gateway/segment - still read-only, but a broad sweep can upset fragile kit. See docs/ICS.md.
     """
     from .engines import (BacnetEngine, Dnp3Engine, EnipEngine, HartIpEngine, ModbusEngine)
-    return [EnipEngine(), ModbusEngine(), BacnetEngine(), Dnp3Engine(), HartIpEngine()]
+    engines: list[Engine] = [EnipEngine(), BacnetEngine(), HartIpEngine()]
+    if enum:
+        from .engines.ics_enum import Dnp3ScanEngine, ModbusSweepEngine
+        engines += [ModbusSweepEngine(), Dnp3ScanEngine()]
+    else:
+        engines += [ModbusEngine(), Dnp3Engine()]
+    return engines
 
 
 def _emit(bus: Optional[EventBus], kind: EventKind, engine: str = "scan", **data) -> None:

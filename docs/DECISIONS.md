@@ -787,3 +787,15 @@ Memcached stats (memcached-exposed HIGH; no auth by design), printer HTTP banner
 631 added to ENGINE_PORTS). Read-only: no data is dumped and nothing is written - keyspace/collection
 sampling and full IPP Get-Printer-Attributes are deferred to a gated tier. Pure parsers over a raw
 HTTP helper + injected probes; unit-tested + real-socket smoke. See docs/SERVICES.md.
+
+## 2026-10-07 - OT enumeration tier (scan --ics-enum)
+The gated, louder OT tier. `engines/ics_enum.py` reuses the already-tested parsers:
+`ModbusSweepEngine` sweeps Modbus unit ids (default 1..16) to map serial RTUs behind a Modbus/TCP
+gateway (`modbus-gateway-units` INFO with per-unit identity), and `Dnp3ScanEngine` sends Request
+Link Status across outstation addresses (default self-address + common addrs) to enumerate a DNP3
+segment (`dnp3-segment` INFO with the outstation addresses). Still read-only (identity / link
+status only, never writes a point), but a broad sweep can upset fragile outstations, so it lives
+behind its own opt-in `--ics-enum` (implies --ics) with a loud stderr warning; ranges widen via the
+constructor. In `ics_engines(enum=True)` the single Modbus/DNP3 engines are swapped for the sweep
+variants. No schema change. Still deferred to a real-device verify pass: DNP3 Group 0 device
+attributes and the HART-IP field-device roster (application/session layer, scarce captures).
