@@ -35,12 +35,14 @@ ENGINE_PORTS: dict[str, tuple[int, ...]] = {
     "ftp": (21,),
     "http": (80, 443),                 # AD web surfaces (/certsrv = ESC8, OWA)
     "tls": (443, 636, 3269, 5986),     # the TLS endpoints the TLS engine probes
+    "mqtt": (1883,),                   # MQTT anonymous-access check (default scan)
     "enip": (44818,),                  # EtherNet/IP (CIP) List Identity  [opt-in: scan --ics]
     "modbus": (502,),                  # Modbus/TCP Read Device Identification  [opt-in: scan --ics]
     "dnp3": (20000,),                  # DNP3 Request Link Status  [opt-in: scan --ics]
     "hart-ip": (5094,),                # HART-IP Session Initiate  [opt-in: scan --ics]
-    # NOTE: "snmp" (UDP/161) and "bacnet" (UDP/47808) are intentionally absent - UDP is invisible
-    # to a TCP connect-scan, so those engines are left un-gated (run whenever they are enabled).
+    # NOTE: "snmp" (UDP/161), "bacnet" (UDP/47808) and "coap" (UDP/5683) are intentionally absent -
+    # UDP is invisible to a TCP connect-scan, so those engines are left un-gated (run whenever
+    # they are enabled).
 }
 
 # Ports we connect-scan by default: the union of ENGINE_PORTS plus a few context ports we

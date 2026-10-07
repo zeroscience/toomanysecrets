@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Optional
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 
 
 class Severity(str, Enum):
@@ -42,6 +42,8 @@ class Category(str, Enum):
     SECRET = "secret"      # credential material found on shares (share secret-hunting)
     ENUM = "enum"          # informational enumeration (users, shares, hosts)
     ICS = "ics"            # industrial control systems / OT field protocols (Modbus/CIP/DNP3/...)
+    IOT = "iot"            # IoT / messaging protocols (MQTT, CoAP)
+    SERVICE = "service"    # exposed/unauthenticated network services (Redis/Mongo/printers/...)
 
 
 @dataclass

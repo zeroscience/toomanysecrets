@@ -18,7 +18,7 @@ def _tgt(host="10.0.0.5"):
 # contract
 # --------------------------------------------------------------------------- #
 def test_schema_bumped_and_category_ics():
-    assert SCHEMA_VERSION == "1.2.0"
+    assert SCHEMA_VERSION >= "1.2.0"
     assert Category.ICS.value == "ics"
 
 

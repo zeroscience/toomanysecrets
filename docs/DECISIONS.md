@@ -760,3 +760,17 @@ magenta), a `GOAL_TYPES` set so the auto-tour, replay, sizing, breathing and sho
 legend rows for OT controller + Process Impact. Verified both surfaces in-browser (OT nodes +
 Process Impact render, normal AD path unaffected, no console errors). Next: the gated enumeration
 tier (DNP3 Group 0 / HART roster / address+unit sweeps) on a real-device verify pass.
+
+## 2026-10-07 - Category.IOT + Category.SERVICE (SCHEMA_VERSION 1.3.0); MQTT + CoAP
+Expanding past OT toward a general network-PT tool. Contract-first: **SCHEMA_VERSION 1.2.0 -> 1.3.0**
+(additive) adds `Category.IOT` (MQTT/CoAP) and `Category.SERVICE` (exposed unauthenticated
+services - used by the next batch: Redis/Mongo/Elasticsearch/Memcached/printers). Both additive; a
+pre-1.3.0 consumer tolerates the unknown category (render is generic).
+
+`engines/mqtt.py`: read-only anonymous MQTT 3.1.1 CONNECT; `mqtt-anonymous` (HIGH) when the broker
+accepts a no-credential connect (anyone can subscribe to `#`), else `mqtt-exposed` (INFO). We do
+NOT subscribe/read topics (gated follow-on). `engines/coap.py`: read-only CoAP GET
+/.well-known/core; `coap-exposed` (MEDIUM) with the resource list. Both in the default scan - MQTT
+port-gated (TCP 1883), CoAP un-gated (UDP 5683, one GET per host like SNMP/BACnet). Pure parsers
+unit-tested + real-socket smoke. These are standard network-service checks, so default (not opt-in
+like the fragile OT pack). See docs/IOT.md.

@@ -15,8 +15,11 @@ from .modbus import ModbusEngine
 from .bacnet import BacnetEngine
 from .dnp3 import Dnp3Engine
 from .hartip import HartIpEngine
+from .mqtt import MqttEngine
+from .coap import CoapEngine
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
            "MssqlEngine", "FtpEngine", "HttpEngine", "SnmpEngine",
-           "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine"]
+           "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine",
+           "MqttEngine", "CoapEngine"]

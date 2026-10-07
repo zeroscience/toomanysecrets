@@ -26,7 +26,7 @@ in ROADMAP are essentially complete; next focus is GUI/animation polish (docs/GU
 ## Layout
 ```
 redness/
-  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.2.0)
+  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.3.0)
   events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus; captures meta["graph"])
   diff.py         # retest diff: baseline vs current findings.json -> new/fixed/unchanged/changed
@@ -63,6 +63,8 @@ redness/
     bacnet.py     #   BACnet/IP Who-Is/I-Am (UDP 47808)  [Category.ICS; opt-in]
     dnp3.py       #   DNP3 Request Link Status + outstation addr (TCP 20000)  [Category.ICS; opt-in]
     hartip.py     #   HART-IP Session Initiate presence (TCP 5094)  [Category.ICS; opt-in]
+    mqtt.py       #   MQTT anonymous-access check (TCP 1883)  [Category.IOT; default scan]
+    coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
   report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving

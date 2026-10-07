@@ -5,6 +5,13 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **IoT engines: MQTT + CoAP** (expansion past OT toward a general network-PT tool).
+  **MQTT** (TCP 1883): a read-only anonymous CONNECT; `mqtt-anonymous` (HIGH) when the broker
+  accepts a no-credential connect (anyone can subscribe to every topic), else `mqtt-exposed`
+  (INFO). **CoAP** (UDP 5683): a read-only GET `/.well-known/core`; `coap-exposed` (MEDIUM) with
+  the device's resource list. New `Category.IOT` + `Category.SERVICE` (**SCHEMA_VERSION 1.2.0 ->
+  1.3.0**, additive). Both run in the default scan (MQTT port-gated, CoAP un-gated UDP). 10 tests +
+  a real-socket smoke. See [docs/IOT.md](docs/IOT.md).
 - `2026-10-07` **OT graph + Process Impact attack path:** the ICS pack now has a visual story -
   `redness/ot.py` (mirrors paths.py/relay.py) draws the OT analog of path-to-Domain-Admin. Each
   exposed OT controller gets a dashed `controller -> Process Impact` lead to a new **Process
