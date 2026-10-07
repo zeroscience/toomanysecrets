@@ -87,6 +87,7 @@
   .hbtn { background:#151a22; color:#c9d1d9; border:1px solid #232a36; border-radius:5px;
     padding:4px 10px; cursor:pointer; font:11px ui-monospace,monospace; letter-spacing:.06em; }
   .hbtn:hover { border-color:#ff5252; color:#fff; }
+  .hbtn.on { background:#ff5252; color:#0b0d12; border-color:#ff5252; font-weight:700; }
   /* modal overlay - retro-futuristic card */
   .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(4,6,10,.72); backdrop-filter:blur(3px); z-index:50; }
@@ -142,6 +143,7 @@
   <div id="hudbtns">
     <button class="hbtn" onclick="showModal('about')">About</button>
     <button class="hbtn" onclick="showModal('usage')">Usage</button>
+    <button class="hbtn" id="mapbtn" title="Toggle the world-map territory view"># Map view</button>
   </div>
 </div>
 
@@ -452,7 +454,7 @@ function bump(){
   Graph.graphData({ nodes, links }); refreshCounts();
   // Debounced auto-fit so the camera always frames the growing graph.
   clearTimeout(fitTimer);
-  fitTimer = setTimeout(() => { if(nodes.length) Graph.zoomToFit(500, 40); }, 350);
+  fitTimer = setTimeout(() => { if(nodes.length && !mapMode) Graph.zoomToFit(500, 40); }, 350);
 }
 
 function addNode(d){
@@ -465,6 +467,8 @@ function addNode(d){
   }
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
   nodeById.set(d.id, n); nodes.push(n); bump();
+  // In map view, a freshly discovered node wobbles into its territory.
+  if (mapMode) setTimeout(() => mapPlace(n, true), 90);
   // If this node appeared right after a right-click action, flash it so the operator
   // can see it's newly discovered (a new IP/host the action turned up).
   if (Date.now() < flashNewUntil) flashNewNode(n);
@@ -779,7 +783,7 @@ function startDrift(){
   drifting = true;
   let prev = performance.now();
   (function drift(now){
-    if (!drifting || touring){ drifting = false; return; }
+    if (!drifting || touring || mapMode){ drifting = false; return; }
     const dt = Math.min(0.05, (now - prev) / 1000); prev = now;   // clamp after a tab stall
     const cam = Graph.cameraPosition();                           // orbit from the CURRENT position
     const r = Math.hypot(cam.x, cam.z);                           // (self-corrects if zoomToFit reframes)
@@ -800,14 +804,14 @@ try {
 } catch(e){}
 document.addEventListener('keydown', resetIdle);
 setInterval(() => {
-  if (!drifting && !touring && nodes.length && !document.hidden
+  if (!drifting && !touring && !mapMode && nodes.length && !document.hidden
       && performance.now() - lastInteract > IDLE_MS) startDrift();
 }, 1000);
 
 // Auto-play once when a scan completes and an attack path to Domain Admin exists - unless the
 // operator already grabbed the graph (their intent wins over the show).
 function maybeAutoTour(){
-  if (tourPlayed || userInteracted || touring) return;
+  if (tourPlayed || userInteracted || touring || mapMode) return;
   if (!links.some(l => l.attack) || !nodes.some(n => GOAL_TYPES.has(n.type))) return;
   setTimeout(() => { if (!tourPlayed && !userInteracted && !touring) cinematicTour(true); }, 1600);
 }
@@ -884,6 +888,100 @@ async function spreadWave(){
 setInterval(() => {
   if (!touring && !spreading && nodes.some(n => n.type === 'owned')) spreadWave();
 }, 4200);
+
+// ---- Risk-style world-map view ----
+// A second layout: instead of the force-directed cloud, nodes land in fixed TERRITORIES by type
+// (continents), each freshly discovered node WOBBLES into its spot, and attack edges arc high over
+// the board. Toggle with the "Map view" button. The force sim is suspended (fixed positions);
+// toggling off releases the nodes and resumes the organic graph.
+let mapMode = false;
+const _discs = [];
+const CONTINENTS = [
+  { name:'Directory', cx:-240, cz:-30, color:0x2b3a67,
+    types:['domain','host','user','share','template','ca','adcs','secret','group','ou','gpo','container'] },
+  { name:'Compromise', cx:40, cz:-210, color:0x6a1b1b,
+    types:['owned','goal','relay'] },
+  { name:'OT / ICS', cx:250, cz:80, color:0x6b4410,
+    types:['plc','rtu','gateway','controller','field-device','process'] },
+];
+const _DEFAULT_CONT = { name:'Other', cx:-30, cz:200, color:0x333a4e, types:[] };
+const _contFor = {}; CONTINENTS.forEach(c => c.types.forEach(t => _contFor[t] = c));
+const _slotCounter = new Map();
+
+function _continentOf(n){ return _contFor[n.type] || _DEFAULT_CONT; }
+
+function _slot(cont){                                 // golden-angle phyllotaxis -> even spread
+  const i = _slotCounter.get(cont.name) || 0; _slotCounter.set(cont.name, i + 1);
+  const a = i * 2.399963, r = 17 * Math.sqrt(i + 0.5);
+  return { dx: Math.cos(a) * r, dz: Math.sin(a) * r };
+}
+function _target(n){
+  if (n.__mapTarget) return n.__mapTarget;
+  const c = _continentOf(n), s = _slot(c);
+  n.__mapTarget = { x: c.cx + s.dx, y: (n.type==='goal'||n.type==='process') ? 22 : 0, z: c.cz + s.dz };
+  return n.__mapTarget;
+}
+function _elasticOut(k){
+  if (k <= 0) return 0; if (k >= 1) return 1;
+  const p = 0.42; return Math.pow(2, -10*k) * Math.sin((k - p/4) * (2*Math.PI)/p) + 1;
+}
+function wobbleIn(n, t){
+  const start = performance.now(), DUR = 1050;
+  const sx = t.x + (Math.random()-0.5)*70, sy = t.y + 110, sz = t.z + (Math.random()-0.5)*70;
+  (function f(now){
+    if (!mapMode){ return; }
+    const k = Math.min(1, (now - start) / DUR), e = _elasticOut(k);
+    n.fx = n.x = sx + (t.x-sx)*e; n.fy = n.y = sy + (t.y-sy)*e; n.fz = n.z = sz + (t.z-sz)*e;
+    if (k < 1) requestAnimationFrame(f); else { n.fx = n.x = t.x; n.fy = n.y = t.y; n.fz = n.z = t.z; }
+  })(start);
+}
+function mapPlace(n, animate){
+  const t = _target(n);
+  if (animate) wobbleIn(n, t); else { n.fx = t.x; n.fy = t.y; n.fz = t.z; }
+}
+function _buildDiscs(){
+  _clearDiscs();
+  const any = nodes.find(x => x.__threeObj);
+  if (!any) return;
+  const Mesh = any.__threeObj.constructor, Geo = any.__threeObj.geometry.constructor,
+        Mat = any.__threeObj.material.constructor;
+  for (const c of CONTINENTS.concat([_DEFAULT_CONT])){
+    const count = nodes.filter(n => _continentOf(n) === c).length;
+    if (!count) continue;
+    const R = Math.max(70, 19 * Math.sqrt(count) + 44);
+    try {
+      const mat = new Mat({ transparent:true, opacity:0.16 });
+      if (mat.color && mat.color.setHex) mat.color.setHex(c.color);
+      if ('depthWrite' in mat) mat.depthWrite = false;
+      const disc = new Mesh(new Geo(R, 28, 24), mat);
+      disc.position.set(c.cx, -8, c.cz); disc.scale.set(1, 0.03, 1);   // flat sphere -> board disc
+      disc.__disc = true; Graph.scene().add(disc); _discs.push(disc);
+    } catch(e){}
+  }
+}
+function _clearDiscs(){
+  for (const d of _discs){ try { Graph.scene().remove(d); d.geometry.dispose(); d.material.dispose(); } catch(e){} }
+  _discs.length = 0;
+}
+function enterMap(){
+  mapMode = true; userInteracted = true; tourAbort = true; stopDrift();
+  _slotCounter.clear(); nodes.forEach(n => { n.__mapTarget = null; });
+  nodes.forEach(n => mapPlace(n, true));
+  Graph.linkCurvature(l => l.attack ? 0.5 : 0.3);     // arcs ride higher over the board
+  refreshLinks(); _buildDiscs();
+  try { Graph.d3ReheatSimulation(); } catch(e){}      // tick so the fixed positions take effect
+  setTimeout(() => { try { Graph.cameraPosition({ x:0, y:380, z:380 }, { x:0, y:-20, z:0 }, 1200); } catch(e){} }, 60);
+  const b = el('mapbtn'); if (b){ b.textContent = '# Graph view'; b.classList.add('on'); }
+}
+function exitMap(){
+  mapMode = false; _clearDiscs();
+  nodes.forEach(n => { n.fx = undefined; n.fy = undefined; n.fz = undefined; n.__mapTarget = null; });
+  Graph.linkCurvature(l => l.attack ? 0.28 : 0.16); refreshLinks();
+  try { Graph.d3ReheatSimulation && Graph.d3ReheatSimulation(); } catch(e){}
+  setTimeout(() => { if (nodes.length) Graph.zoomToFit(700, 55); }, 220);
+  const b = el('mapbtn'); if (b){ b.textContent = '# Map view'; b.classList.remove('on'); }
+}
+if (el('mapbtn')) el('mapbtn').onclick = () => { mapMode ? exitMap() : enterMap(); };
 
 // ---- About / Usage modals ----
 function showModal(id){ el(id).classList.add('show'); }

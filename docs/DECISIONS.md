@@ -822,3 +822,22 @@ types (ssh-rsa SHA-1 sig / ssh-dss). Read-only: never authenticates, just reads 
 KEXINIT every client receives. `ssh-server` (INFO banner) + `ssh-weak-crypto` (MEDIUM). Pure
 parsers (banner regex + KEXINIT name-list layout) unit-tested + real-socket smoke; in the default
 scan, port-gated to TCP/22. No schema change (reuses Category.CONFIG).
+
+## 2026-10-07 - World-map / Risk-style territory view (live GUI, experimental v1)
+A second layout mode for the live graph, toggled with "Map view" (default stays the organic force
+graph). Instead of a force-directed cloud, nodes land in fixed TERRITORIES by type - continents:
+Directory (AD node types), Compromise (owned/goal/relay), OT/ICS (plc/rtu/gateway/controller/
+process), and Other - arranged across a tilted board. A freshly discovered node WOBBLES into its
+slot (elastic-out spring on fx/fy/fz, with x/y/z set directly so a cooled sim still renders it);
+attack edges arc high over the board like Risk connection lines. Territory "discs" are flattened
+spheres (scale.y small) built from the node mesh constructors and added to Graph.scene(); the
+camera tilts to a board perspective.
+
+Implementation notes: entering map mode pins every node via fx/fy/fz and calls d3ReheatSimulation
+so the fixed positions take effect; the auto-tour and idle-drift are suppressed while in map mode;
+exiting clears fx/fy/fz, removes the discs, and reheats to resume the organic graph. Golden-angle
+phyllotaxis spreads nodes within a territory. Pure front-end (index.html); no contract/schema
+change. v1 verified in-browser (nodes spread to territories, arcs span the board, toggle back is
+clean, no console errors). Follow-ons: territory labels, OT/IoT/service node typing so those get
+their own territories, tuning the continent layout toward a true world-map silhouette, and porting
+the mode to the HTML report (static wobble-on-load).
