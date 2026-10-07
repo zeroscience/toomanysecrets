@@ -799,3 +799,17 @@ behind its own opt-in `--ics-enum` (implies --ics) with a loud stderr warning; r
 constructor. In `ics_engines(enum=True)` the single Modbus/DNP3 engines are swapped for the sweep
 variants. No schema change. Still deferred to a real-device verify pass: DNP3 Group 0 device
 attributes and the HART-IP field-device roster (application/session layer, scarce captures).
+
+## 2026-10-07 - Passive capture (tshark) + wireless (netsh/nmcli); no schema change
+Two passive-recon surfaces, orchestrating native tools (no reimplementation), reusing existing
+categories so no schema bump. `redness/capture.py` + `redness capture`: drives tshark over a pcap
+or a live interface and parses its own taps - `-z credentials` -> `cleartext-credentials`
+(CRITICAL, Category.PASSWORD) and `-z io,phs` -> `cleartext-protocols` (MEDIUM, Category.CONFIG).
+`redness/wireless.py` + `redness wifi`: drives `netsh wlan show networks` (Windows) / `nmcli dev
+wifi` (Linux) and flags open (`wireless-open` MEDIUM) and weak WEP/WPA1/TKIP
+(`wireless-weak-encryption` HIGH) networks + an inventory, all Category.CONFIG.
+
+Both read-only (analyze authorized traffic; list visible SSIDs - no transmit/deauth/crack). The
+tested core is the pure parsers over captured tshark/netsh/nmcli output; the tool argv is
+best-effort and flagged for a field-verify pass (same honest-leftover pattern as the nxc flags).
+Deferred: Stratoshark (syscall/log capture), pcad endpoint inventory, BSSID geolocation.

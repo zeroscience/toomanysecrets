@@ -38,6 +38,8 @@ redness/
   relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
   ot.py           # derive OT paths: exposed controller -> "Process Impact" + IT/OT segmentation
   mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
+  capture.py      # passive capture analysis via tshark (pcap/live); `capture` command
+  wireless.py     # Wi-Fi survey via netsh/nmcli (open/weak-encryption); `wifi` command
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
@@ -119,6 +121,8 @@ python -m redness.cli spray --target dc -p 'Spring2024!' --auth-user U --auth-pa
 python -m redness.cli trigger --host 10.10.0.5 --format html --out lure.html  # forced-auth lure
 python -m redness.cli coerce --target dc -u U -p P --listener 10.10.0.240  # RPC forced-auth coercion (run `poison` on the listener first; intrusive; gated)
 python -m redness.cli listen --duration 60 --live      # passive mDNS/LLMNR/NBT-NS/SSDP discovery on the segment
+python -m redness.cli capture --pcap traffic.pcap --out report.docx   # tshark: cleartext creds + plaintext protocols
+python -m redness.cli wifi --out wifi.docx                 # Wi-Fi survey: open / weak-encryption networks
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) -> written to `loot/`.
 GPP cpasswords are recovered automatically on a credentialed scan (GppEngine -> `nxc -M gpp_password`).
