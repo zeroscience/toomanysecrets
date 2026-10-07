@@ -13,8 +13,9 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from .engines import (
-    CertipyEngine, CoapEngine, DelegationEngine, FtpEngine, GppEngine, HttpEngine, LdapEngine,
-    MqttEngine, MssqlEngine, NetExecEngine, RdpEngine, SnmpEngine, TLSEngine, WinRMEngine,
+    CertipyEngine, CoapEngine, DelegationEngine, ElasticsearchEngine, FtpEngine, GppEngine,
+    HttpEngine, LdapEngine, MemcachedEngine, MongoEngine, MqttEngine, MssqlEngine, NetExecEngine,
+    PrinterEngine, RdpEngine, RedisEngine, SnmpEngine, TLSEngine, WinRMEngine,
 )
 from .engines.base import Engine, Target
 from .events import Event, EventBus, EventKind
@@ -33,7 +34,8 @@ def default_engines() -> list[Engine]:
     """
     return [NetExecEngine(), LdapEngine(), CertipyEngine(), DelegationEngine(), GppEngine(),
             RdpEngine(), WinRMEngine(), MssqlEngine(), FtpEngine(), HttpEngine(),
-            SnmpEngine(), TLSEngine(), MqttEngine(), CoapEngine()]
+            SnmpEngine(), TLSEngine(), MqttEngine(), CoapEngine(),
+            RedisEngine(), MongoEngine(), ElasticsearchEngine(), MemcachedEngine(), PrinterEngine()]
 
 
 def ics_engines() -> list[Engine]:

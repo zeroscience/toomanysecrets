@@ -5,6 +5,13 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **Exposed-service engines: Redis / MongoDB / Elasticsearch / Memcached / printers.**
+  The classic unauthenticated-service findings (`Category.SERVICE`), in the default scan, read-only,
+  port-gated: `redis-unauth` (CRITICAL), `mongodb-no-auth` (CRITICAL), `elasticsearch-unauth`
+  (HIGH), `memcached-exposed` (HIGH), `printer-exposed` (MEDIUM: leaks jobs + stored scan/LDAP
+  creds) - each distinguishing reachable from reachable-without-authentication. No data dumped,
+  nothing written (`redness/engines/netsvc.py`). 10 tests + a real-socket smoke. See
+  [docs/SERVICES.md](docs/SERVICES.md).
 - `2026-10-07` **IoT engines: MQTT + CoAP** (expansion past OT toward a general network-PT tool).
   **MQTT** (TCP 1883): a read-only anonymous CONNECT; `mqtt-anonymous` (HIGH) when the broker
   accepts a no-credential connect (anyone can subscribe to every topic), else `mqtt-exposed`

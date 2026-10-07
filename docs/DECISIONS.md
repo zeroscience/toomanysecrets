@@ -774,3 +774,16 @@ NOT subscribe/read topics (gated follow-on). `engines/coap.py`: read-only CoAP G
 port-gated (TCP 1883), CoAP un-gated (UDP 5683, one GET per host like SNMP/BACnet). Pure parsers
 unit-tested + real-socket smoke. These are standard network-service checks, so default (not opt-in
 like the fragile OT pack). See docs/IOT.md.
+
+## 2026-10-07 - Exposed-service engines (Category.SERVICE; no new schema bump)
+Redis / MongoDB / Elasticsearch / Memcached / printer(IPP) in `engines/netsvc.py` - the classic
+unauthenticated-service findings, making REDNESS a general network-PT tool. Reuses `Category.SERVICE`
+(added with 1.3.0), so no schema change. Each sends ONE read-only probe and reports reachable vs
+reachable-without-auth: Redis INFO (redis-unauth CRITICAL when INFO answers with no auth, else
+redis-exposed), Mongo listDatabases OP_QUERY (byte-scan the OP_REPLY for the `databases` marker ->
+mongodb-no-auth CRITICAL), Elasticsearch GET / (elasticsearch-unauth HIGH on a 200 cluster doc),
+Memcached stats (memcached-exposed HIGH; no auth by design), printer HTTP banner on 631
+(printer-exposed MEDIUM). All in the default scan, port-gated by discovery (6379/27017/9200/11211/
+631 added to ENGINE_PORTS). Read-only: no data is dumped and nothing is written - keyspace/collection
+sampling and full IPP Get-Printer-Attributes are deferred to a gated tier. Pure parsers over a raw
+HTTP helper + injected probes; unit-tested + real-socket smoke. See docs/SERVICES.md.

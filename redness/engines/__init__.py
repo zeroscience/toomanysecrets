@@ -17,9 +17,11 @@ from .dnp3 import Dnp3Engine
 from .hartip import HartIpEngine
 from .mqtt import MqttEngine
 from .coap import CoapEngine
+from .netsvc import (RedisEngine, MongoEngine, ElasticsearchEngine, MemcachedEngine, PrinterEngine)
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
            "MssqlEngine", "FtpEngine", "HttpEngine", "SnmpEngine",
            "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine",
-           "MqttEngine", "CoapEngine"]
+           "MqttEngine", "CoapEngine",
+           "RedisEngine", "MongoEngine", "ElasticsearchEngine", "MemcachedEngine", "PrinterEngine"]
