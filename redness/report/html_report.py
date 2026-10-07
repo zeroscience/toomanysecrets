@@ -160,6 +160,15 @@ _TEMPLATE = """<!doctype html>
     padding:7px 15px; font-size:11.5px; letter-spacing:.08em; color:#ffd7d0; cursor:pointer;
     opacity:0; transition:opacity .5s ease, transform .5s ease; box-shadow:0 4px 24px rgba(255,45,45,.25); }
   #rtour.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #rmapbtn { position:absolute; top:12px; right:12px; z-index:6; cursor:pointer;
+    background:#151a22; color:#c9d1d9; border:1px solid #232a36; border-radius:5px;
+    padding:5px 11px; font:11px ui-monospace,monospace; letter-spacing:.06em; }
+  #rmapbtn:hover { border-color:#ff5252; color:#fff; }
+  #rmapbtn.on { background:#ff5252; color:#0b0d12; border-color:#ff5252; font-weight:700; }
+  #rmaplabels { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  .rmaplabel { position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+    font:11px ui-monospace,monospace; letter-spacing:.22em; color:#cdd6e4;
+    text-shadow:0 0 8px #000,0 0 3px #000; opacity:.82; }
   #rtour .pip { display:inline-block; width:8px; height:8px; border-radius:50%; background:#ff3b3b;
     margin-right:9px; vertical-align:middle; animation:rpip 1s ease-in-out infinite; }
   #rtour .skip { color:#8a6b6b; }
@@ -219,6 +228,7 @@ _TEMPLATE = """<!doctype html>
 <div id="graphwrap">
   <div id="graph"></div>
   <div id="rtour"><span class="pip"></span>AUTO-TOUR &nbsp;|&nbsp; tracing path to Domain Admin &nbsp;<span class="skip">click / drag to skip</span></div>
+  <button id="rmapbtn" title="Toggle the world-map territory view"># Map</button>
   <div id="glegend"><b>ATTACK GRAPH</b> &nbsp; drag to orbit, scroll to zoom.
     <span class="dot" style="background:#7c6cf0"></span>domain
     <span class="dot" style="background:#22c1a4"></span>host
@@ -246,7 +256,8 @@ _TEMPLATE = """<!doctype html>
     gpo:'#64748b', container:'#64748b', secret:'#ec4899', owned:'#ff2d2d', goal:'#ffcf33',
     relay:'#ff884d',
     plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
-    'field-device':'#90be6d', process:'#ff006e' };          // OT controllers + Process Impact goal
+    'field-device':'#90be6d', process:'#ff006e',            // OT controllers + Process Impact goal
+    broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2' };   // IoT / services
   var GOAL_TYPES = { goal:1, process:1 };                   // Domain Admin + OT Process Impact
   var SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c', low:'#6fcf97',
     info:'#8a93a2' };
@@ -463,6 +474,51 @@ _TEMPLATE = """<!doctype html>
   setInterval(function(){ var gd=G.graphData();
     if(!touring && !spreading && (gd.nodes||[]).some(function(n){return n.type==='owned';})) spreadWave();
   }, 4200);
+
+  // ---- world-map territory view (toggle; mirrors the live GUI) ----
+  var mapMode=false, _discs=[], _mlabels=[], _sc={};
+  var CONTINENTS=[
+    {name:'DIRECTORY',cx:-300,cz:-70,color:0x2b3a67,types:['domain','host','user','share','template','ca','adcs','secret','group','ou','gpo','container']},
+    {name:'COMPROMISE',cx:70,cz:-240,color:0x6a1b1b,types:['owned','goal','relay']},
+    {name:'OT / ICS',cx:320,cz:40,color:0x6b4410,types:['plc','rtu','gateway','controller','field-device','process']},
+    {name:'IoT / SERVICES',cx:-50,cz:240,color:0x0f4a52,types:['broker','database','printer','iot']}
+  ];
+  var _DEF={name:'OTHER',cx:230,cz:270,color:0x333a4e,types:[]};
+  var _cf={}; CONTINENTS.forEach(function(c){c.types.forEach(function(t){_cf[t]=c;});});
+  var _PH={goal:40,process:40,owned:26,relay:18,plc:12,rtu:12,gateway:12,controller:12,'field-device':10,broker:12,database:12,printer:10,iot:10,domain:16};
+  function _conOf(n){return _cf[n.type]||_DEF;}
+  function _slot(c){var i=_sc[c.name]||0;_sc[c.name]=i+1;var a=i*2.399963,r=17*Math.sqrt(i+0.5);return{dx:Math.cos(a)*r,dz:Math.sin(a)*r};}
+  function _tgt(n){if(n.__mt)return n.__mt;var c=_conOf(n),s=_slot(c);n.__mt={x:c.cx+s.dx,y:(_PH[n.type]||2),z:c.cz+s.dz};return n.__mt;}
+  function _elas(k){if(k<=0)return 0;if(k>=1)return 1;var p=0.42;return Math.pow(2,-10*k)*Math.sin((k-p/4)*(2*Math.PI)/p)+1;}
+  function _wob(n,t){var st=performance.now(),D=1050,sx=t.x+(Math.random()-0.5)*70,sy=t.y+110,sz=t.z+(Math.random()-0.5)*70;
+    (function f(now){if(!mapMode)return;var k=Math.min(1,(now-st)/D),e=_elas(k);
+      n.fx=n.x=sx+(t.x-sx)*e;n.fy=n.y=sy+(t.y-sy)*e;n.fz=n.z=sz+(t.z-sz)*e;
+      if(k<1)requestAnimationFrame(f);else{n.fx=n.x=t.x;n.fy=n.y=t.y;n.fz=n.z=t.z;}})(st);}
+  function _flat(Me,Ge,Ma,R,col,op,y,cx,cz,wire){var m=new Ma({transparent:true,opacity:op,wireframe:!!wire});
+    if(m.color&&m.color.setHex)m.color.setHex(col);if('depthWrite' in m)m.depthWrite=false;
+    var d=new Me(new Ge(R,wire?32:28,wire?2:24),m);d.position.set(cx,y,cz);d.scale.set(1,0.02,1);G.scene().add(d);_discs.push(d);}
+  function _mkDiscs(){_rmDiscs();var gd=G.graphData();var any=(gd.nodes||[]).find(function(x){return x.__threeObj;});if(!any)return;
+    var Me=any.__threeObj.constructor,Ge=any.__threeObj.geometry.constructor,Ma=any.__threeObj.material.constructor;
+    try{_flat(Me,Ge,Ma,620,0x0a1324,0.5,-16,-10,20);_flat(Me,Ge,Ma,300,0x24436b,0.08,-14,-10,20,true);_flat(Me,Ge,Ma,520,0x24436b,0.06,-14,-10,20,true);}catch(e){}
+    CONTINENTS.concat([_DEF]).forEach(function(c){var cnt=(gd.nodes||[]).filter(function(n){return _conOf(n)===c;}).length;if(!cnt)return;
+      var R=Math.max(70,19*Math.sqrt(cnt)+44);try{_flat(Me,Ge,Ma,R,c.color,0.22,-10,c.cx,c.cz);}catch(e){}});}
+  function _rmDiscs(){_discs.forEach(function(d){try{G.scene().remove(d);d.geometry.dispose();d.material.dispose();}catch(e){}});_discs=[];}
+  function _mkLabels(){_rmLabels();var h=document.getElementById('rmaplabels');if(!h){h=document.createElement('div');h.id='rmaplabels';document.getElementById('graphwrap').appendChild(h);}
+    var gd=G.graphData();CONTINENTS.forEach(function(c){if(!(gd.nodes||[]).some(function(n){return _conOf(n)===c;}))return;
+      var d=document.createElement('div');d.className='rmaplabel';d.textContent=c.name;h.appendChild(d);_mlabels.push({el:d,c:c});});
+    (function tick(){if(!mapMode)return;_mlabels.forEach(function(L){try{var p=G.graph2ScreenCoords(L.c.cx,2,L.c.cz);if(p){L.el.style.left=p.x+'px';L.el.style.top=p.y+'px';L.el.style.display='block';}}catch(e){L.el.style.display='none';}});requestAnimationFrame(tick);})();}
+  function _rmLabels(){_mlabels.forEach(function(L){try{L.el.remove();}catch(e){}});_mlabels=[];}
+  function enterMapR(){mapMode=true;tourAbort=true;interacted=true;_sc={};(G.graphData().nodes||[]).forEach(function(n){n.__mt=null;_wob(n,_tgt(n));});
+    G.linkCurvature(function(l){return l.attack?0.5:0.3;});refresh();_mkDiscs();_mkLabels();
+    try{G.d3ReheatSimulation&&G.d3ReheatSimulation();}catch(e){}
+    setTimeout(function(){try{G.cameraPosition({x:0,y:600,z:560},{x:0,y:-20,z:20},1200);}catch(e){}},60);
+    var b=document.getElementById('rmapbtn');if(b){b.textContent='# Graph';b.classList.add('on');}}
+  function exitMapR(){mapMode=false;_rmDiscs();_rmLabels();(G.graphData().nodes||[]).forEach(function(n){n.fx=undefined;n.fy=undefined;n.fz=undefined;n.__mt=null;});
+    G.linkCurvature(function(l){return l.attack?0.28:0.16;});refresh();
+    try{G.d3ReheatSimulation&&G.d3ReheatSimulation();}catch(e){}
+    setTimeout(function(){try{G.zoomToFit(700,55);}catch(e){}},220);
+    var b=document.getElementById('rmapbtn');if(b){b.textContent='# Map';b.classList.remove('on');}}
+  var _mb=document.getElementById('rmapbtn');if(_mb)_mb.onclick=function(){mapMode?exitMapR():enterMapR();};
 })();
 </script>
 </body></html>

@@ -196,6 +196,9 @@ def run_scan(
     # OT: exposed controllers -> Process Impact, and IT/OT segmentation failure (no-op without ICS).
     from .ot import emit_ot_paths
     emit_ot_paths(bus, report, domain=domain_label)
+    # Re-type IoT/service hosts (broker/database/printer/iot) for the graph.
+    from .graphtypes import emit_service_nodes
+    emit_service_nodes(bus, report)
 
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
     _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")
