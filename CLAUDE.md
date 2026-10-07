@@ -59,6 +59,7 @@ redness/
     ftp.py        #   nxc ftp: anonymous login + exposure/banner
     http_ad.py    #   AD web surfaces (stdlib): /certsrv = ESC8, OWA/EWS, server banner
     snmp.py       #   default SNMP communities via snmpwalk (public=HIGH, private=CRITICAL)
+    ssh_audit.py  #   SSH banner + weak kex/cipher/MAC/host-key audit (TCP 22)  [Category.CONFIG]
     ics_common.py #   OT/ICS shared: read-only socket probes + exposure/inventory finding builder
     enip.py       #   EtherNet/IP (CIP) List Identity (TCP 44818)  [Category.ICS; opt-in scan --ics]
     modbus.py     #   Modbus/TCP Read Device Identification (TCP 502)  [Category.ICS; opt-in]
