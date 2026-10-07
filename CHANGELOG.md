@@ -5,6 +5,13 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-07` **OT enumeration tier (`scan --ics-enum`):** the gated, louder OT sweep.
+  `ModbusSweepEngine` maps the serial RTUs behind a Modbus/TCP gateway (unit-id sweep ->
+  `modbus-gateway-units`) and `Dnp3ScanEngine` enumerates a DNP3 segment (outstation-address scan
+  -> `dnp3-segment`). Still read-only (identity / link-status only, never writes a point), but a
+  broad sweep can upset fragile kit, so it is behind its own opt-in (`--ics-enum`, implies `--ics`)
+  with a loud warning. Reuses the tested parsers; 6 tests. DNP3 Group 0 attributes + HART roster
+  stay deferred to a real-device verify pass. See [docs/ICS.md](docs/ICS.md).
 - `2026-10-07` **Exposed-service engines: Redis / MongoDB / Elasticsearch / Memcached / printers.**
   The classic unauthenticated-service findings (`Category.SERVICE`), in the default scan, read-only,
   port-gated: `redis-unauth` (CRITICAL), `mongodb-no-auth` (CRITICAL), `elasticsearch-unauth`

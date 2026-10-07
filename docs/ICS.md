@@ -66,8 +66,9 @@ the first three protocols:
 
 - **Device attributes** - DNP3 Group 0 (vendor/firmware/model) and the HART-IP field-device roster
   (HART Command 0); gated enumeration tiers with a real-device verify pass.
-- **Enumeration tiers** - Modbus unit-id sweep (serial RTUs behind a gateway) and the DNP3
-  outstation-address scan, each behind its own explicit opt-in.
+- **Enumeration tiers (BUILT: `scan --ics-enum`)** - Modbus unit-id sweep (serial RTUs behind a
+  gateway -> `modbus-gateway-units`) and the DNP3 outstation-address scan (-> `dnp3-segment`),
+  read-only but louder, behind the explicit `--ics-enum` opt-in.
 - **Graph (BUILT):** OT-specific node types (`plc` / `rtu` / `gateway` / `controller`) and a
   **`Process Impact`** goal node (the OT analog of Domain Admin). Each exposed controller draws a
   dashed `controller -> Process Impact` lead, and when one scan reaches both IT and OT - a Purdue
