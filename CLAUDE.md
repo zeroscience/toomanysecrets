@@ -70,7 +70,7 @@ redness/
     mqtt.py       #   MQTT anonymous-access check (TCP 1883)  [Category.IOT; default scan]
     coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
     netsvc.py     #   exposed services: Redis/Mongo/Elasticsearch/Memcached/printer(IPP)  [Category.SERVICE]
-  report/         # List[Finding] -> .docx + self-contained .html (html_report.py)  (Person B)
+  report/         # List[Finding] -> .docx + self-contained .html + .csv (one row per affected asset)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
     demo.py, web/index.html, web/logo.svg, web/vendor/3d-force-graph.min.js
@@ -112,7 +112,7 @@ python -m redness.cli live                               # same UI in a browser
 python -m redness.cli live --demo                        # streaming simulated data
 python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.docx
 python -m redness.cli scan --targets examples/scope.txt --live
-python -m redness.cli scan --targets examples/scope.txt --json out.json --html report.html  # docx/json/html outputs
+python -m redness.cli scan --targets examples/scope.txt --json out.json --html report.html --csv out.csv  # docx/json/html/csv (-v verbose, -q quiet); docs/REPORTING.md
 python -m redness.cli scan --target 10.20.0.0/24 --ics --live   # read-only OT probes (EtherNet/IP, Modbus, BACnet)
 python -m redness.cli diff baseline.json retest.json     # retest diff (new/fixed/unchanged/changed; exit 2 on regression)
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt

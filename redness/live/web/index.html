@@ -925,10 +925,17 @@ const CONTINENTS = [
 const _DEFAULT_CONT = { name:'OTHER', cx:230, cz:270, color:0x333a4e, types:[] };
 const _contFor = {}; CONTINENTS.forEach(c => c.types.forEach(t => _contFor[t] = c));
 const _slotCounter = new Map();
-// How tall a piece "stands" on the board, by role (Risk-army feel: important = taller).
-const _PIECE_H = { goal:40, process:40, owned:26, relay:18,
-  plc:12, rtu:12, gateway:12, controller:12, 'field-device':10, broker:12, database:12,
-  printer:10, iot:10, domain:16 };
+// A piece's silhouette by role (Risk-army feel): {h: stand height, base: pedestal radius,
+// col: column thickness}. Objectives are tall thin SPIRES, compromise pieces tall PAWNS,
+// the domain a broad MONUMENT, OT/IoT kit mid standing units, everything else a wide low CHIP.
+function _pieceSpec(t){
+  if (t === 'goal' || t === 'process')                 return { h:46, base:6.5, col:1.8 }; // spire
+  if (t === 'owned' || t === 'relay')                  return { h:24, base:9,   col:3.2 }; // pawn
+  if (t === 'domain')                                  return { h:20, base:12,  col:3.8 }; // monument
+  if (t==='plc'||t==='rtu'||t==='gateway'||t==='controller'||t==='field-device'||
+      t==='broker'||t==='database'||t==='printer'||t==='iot') return { h:13, base:8, col:2.8 }; // unit
+  return { h:6.5, base:10.5, col:5.0 };                                                    // chip
+}
 
 function _continentOf(n){ return _contFor[n.type] || _DEFAULT_CONT; }
 
@@ -940,7 +947,7 @@ function _slot(cont){                                 // golden-angle phyllotaxi
 function _target(n){
   if (n.__mapTarget) return n.__mapTarget;
   const c = _continentOf(n), s = _slot(c);
-  n.__mapTarget = { x: c.cx + s.dx, y: (_PIECE_H[n.type] || 2), z: c.cz + s.dz };
+  n.__mapTarget = { x: c.cx + s.dx, y: _pieceSpec(n.type).h, z: c.cz + s.dz };
   return n.__mapTarget;
 }
 function _elasticOut(k){
@@ -1019,22 +1026,23 @@ function _buildPieces(){
         Mat = any.__threeObj.material.constructor;
   for (const n of nodes){
     const t = n.__mapTarget; if (!t) continue;
+    const sp = _pieceSpec(n.type);
     let hex = 0x8aa0b8;
     try { hex = n.__threeObj.material.color.getHex(); } catch(e){}
     try {                                                   // pedestal the piece stands on
       const pm = new Mat({ transparent:true, opacity:0.92 }); pm.color.setHex(hex);
       if ('depthWrite' in pm) pm.depthWrite = false;
-      const ped = new Mesh(new Geo(9, 20, 10), pm);
+      const ped = new Mesh(new Geo(sp.base, 20, 10), pm);
       ped.position.set(t.x, 1.0, t.z); ped.scale.set(1, 0.06, 1);
       Graph.scene().add(ped); _pieces.push(ped);
     } catch(e){}
     const h = t.y;
-    if (h > 6){                                             // stem rising to the floating node
+    if (h > 3){                                             // body rising to the floating node
       try {
         const cm = new Mat({ transparent:true, opacity:0.4 }); cm.color.setHex(hex);
         if ('depthWrite' in cm) cm.depthWrite = false;
         const col = new Mesh(new Geo(1, 12, 8), cm);
-        col.position.set(t.x, h/2, t.z); col.scale.set(2.6, h/2, 2.6);
+        col.position.set(t.x, h/2, t.z); col.scale.set(sp.col, h/2, sp.col);
         Graph.scene().add(col); _pieces.push(col);
       } catch(e){}
     }
