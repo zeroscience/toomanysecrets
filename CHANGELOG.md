@@ -5,6 +5,15 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-08` **Brand + world-map polish.** The new orbital REDNESS logo is now the browser
+  **favicon** and the badge atop the **About** modal (and already the HUD/report header mark). The
+  world-map view gets a visual pass on both the live GUI and the HTML report: territories render as
+  **ragged landmasses** (a core disc + deterministic rim blobs over a lighter shallow-water shelf)
+  instead of plain circles, the ocean board gains a four-ring **graticule**, and every node stands
+  as a **Risk-style game piece** (a pedestal disc at board level + a thin column rising to the
+  floating node). Deterministic per-territory RNG keeps coastlines stable across rebuilds; live map
+  adds trigger a debounced board rebuild. Refreshed `docs/screenshots/live-graph.jpg`. Pure
+  front-end, no schema change.
 - `2026-10-07` **World-map / Risk-style territory view (live GUI + HTML report).** A second layout toggled with the "Map view" button: nodes land in labelled **territories by type** - **DIRECTORY / COMPROMISE / OT-ICS / IoT-SERVICES** - spread like continents over an ocean board with graticule rings; each freshly discovered node **wobbles** into its slot, important pieces **stand taller** (Risk-army style), and attack paths arc high across the board. IoT/service hosts get their own node types (broker/database/printer/iot via `redness/graphtypes.py`) so they form their own territory. Ported to the HTML report too. Pure front-end + graph-only node types; no schema change. See docs/DECISIONS.md.
 - `2026-10-07` **SSH crypto/version audit.** `engines/ssh_audit.py` reads the SSH banner and the
   server's KEXINIT algorithm offer and flags weak key-exchange (SHA-1/group1/14-sha1), ciphers (CBC

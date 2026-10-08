@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>REDNESS - live enumeration</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <!-- live 3D graph: domain -> hosts/users/shares/CA, colored by finding severity -->
 
 <meta name="csrf" content="__CSRF_TOKEN__">
@@ -101,6 +102,8 @@
     background:linear-gradient(180deg,#12161d,#0d1015); border:1px solid #2a3140;
     border-radius:12px; box-shadow:0 0 0 1px rgba(255,82,82,.15),0 20px 60px rgba(0,0,0,.6);
     padding:22px 24px; }
+  .modal .card .logo { display:block; height:64px; width:auto; margin:4px auto 10px;
+    filter:drop-shadow(0 0 14px rgba(255,82,82,.35)); }
   .modal h2 { margin:0; font-size:18px; letter-spacing:.16em; color:#ff5252; }
   .modal .card .brandline { color:#8a93a2; font-size:12px; margin:2px 0 14px; }
   .modal .card p, .modal .card li { color:#c9d1d9; font-size:12.5px; line-height:1.6; }
@@ -190,6 +193,7 @@
 <div id="about" class="modal" onclick="if(event.target===this)hideModal('about')">
   <div class="card">
     <span class="x" onclick="hideModal('about')">x</span>
+    <img class="logo" src="/logo.png" alt="REDNESS">
     <h2>REDNESS</h2>
     <div class="brandline">v1.36.0 | Zero Science Lab | powered by Silly Security Inc.</div>
     <p>Red-team orchestrator for Active Directory and Windows. It drives NetExec, Impacket and
@@ -478,7 +482,7 @@ function addNode(d){
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };
   nodeById.set(d.id, n); nodes.push(n); bump();
   // In map view, a freshly discovered node wobbles into its territory.
-  if (mapMode) setTimeout(() => mapPlace(n, true), 90);
+  if (mapMode){ setTimeout(() => mapPlace(n, true), 90); _mapRebuildSoon(); }
   // If this node appeared right after a right-click action, flash it so the operator
   // can see it's newly discovered (a new IP/host the action turned up).
   if (Date.now() < flashNewUntil) flashNewNode(n);
@@ -966,6 +970,21 @@ function _flatSphere(Mesh, Geo, Mat, R, color, opacity, y, cx, cz, wire){
   d.__disc = true; Graph.scene().add(d); _discs.push(d);
   return d;
 }
+// deterministic per-name RNG so a territory's coastline stays put across rebuilds
+function _seed(s){ let h = 2166136261; for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h>>>0; }
+function _rng(seed){ let s = seed>>>0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+// A territory as a ragged landmass: a main disc + rim blobs (coastline) over a lighter coast shelf.
+function _continent(Mesh, Geo, Mat, c, R){
+  const rnd = _rng(_seed(c.name));
+  _flatSphere(Mesh, Geo, Mat, R*1.30, 0x1b3b57, 0.11, -13, c.cx, c.cz);   // shallow-water shelf
+  _flatSphere(Mesh, Geo, Mat, R,      c.color, 0.26, -10, c.cx, c.cz);    // landmass core
+  const blobs = 7;
+  for (let i=0;i<blobs;i++){
+    const a = (i/blobs)*2*Math.PI + rnd()*0.7;
+    const rr = R*(0.60 + rnd()*0.5), br = R*(0.32 + rnd()*0.30);
+    _flatSphere(Mesh, Geo, Mat, br, c.color, 0.24, -10, c.cx + Math.cos(a)*rr, c.cz + Math.sin(a)*rr);
+  }
+}
 function _buildDiscs(){
   _clearDiscs();
   const any = nodes.find(x => x.__threeObj);
@@ -973,21 +992,63 @@ function _buildDiscs(){
   const Mesh = any.__threeObj.constructor, Geo = any.__threeObj.geometry.constructor,
         Mat = any.__threeObj.material.constructor;
   try {
-    // the ocean / world board under everything, plus two faint graticule rings for a map feel
+    // the ocean / world board under everything, plus faint graticule rings for a map feel
     _flatSphere(Mesh, Geo, Mat, 620, 0x0a1324, 0.5, -16, -10, 20);
-    _flatSphere(Mesh, Geo, Mat, 300, 0x24436b, 0.08, -14, -10, 20, true);
-    _flatSphere(Mesh, Geo, Mat, 520, 0x24436b, 0.06, -14, -10, 20, true);
+    for (const rg of [180, 320, 470, 600])
+      _flatSphere(Mesh, Geo, Mat, rg, 0x24436b, 0.06, -14, -10, 20, true);
   } catch(e){}
   for (const c of CONTINENTS.concat([_DEFAULT_CONT])){
     const count = nodes.filter(n => _continentOf(n) === c).length;
     if (!count) continue;
     const R = Math.max(70, 19 * Math.sqrt(count) + 44);
-    try { _flatSphere(Mesh, Geo, Mat, R, c.color, 0.22, -10, c.cx, c.cz); } catch(e){}
+    try { _continent(Mesh, Geo, Mat, c, R); } catch(e){}
   }
 }
 function _clearDiscs(){
   for (const d of _discs){ try { Graph.scene().remove(d); d.geometry.dispose(); d.material.dispose(); } catch(e){} }
   _discs.length = 0;
+}
+// Standing game pieces: a pedestal disc at board level + a thin column up to the floating node,
+// so each node reads as a Risk-style army piece planted on its territory.
+const _pieces = [];
+function _buildPieces(){
+  _clearPieces();
+  const any = nodes.find(x => x.__threeObj);
+  if (!any) return;
+  const Mesh = any.__threeObj.constructor, Geo = any.__threeObj.geometry.constructor,
+        Mat = any.__threeObj.material.constructor;
+  for (const n of nodes){
+    const t = n.__mapTarget; if (!t) continue;
+    let hex = 0x8aa0b8;
+    try { hex = n.__threeObj.material.color.getHex(); } catch(e){}
+    try {                                                   // pedestal the piece stands on
+      const pm = new Mat({ transparent:true, opacity:0.92 }); pm.color.setHex(hex);
+      if ('depthWrite' in pm) pm.depthWrite = false;
+      const ped = new Mesh(new Geo(9, 20, 10), pm);
+      ped.position.set(t.x, 1.0, t.z); ped.scale.set(1, 0.06, 1);
+      Graph.scene().add(ped); _pieces.push(ped);
+    } catch(e){}
+    const h = t.y;
+    if (h > 6){                                             // stem rising to the floating node
+      try {
+        const cm = new Mat({ transparent:true, opacity:0.4 }); cm.color.setHex(hex);
+        if ('depthWrite' in cm) cm.depthWrite = false;
+        const col = new Mesh(new Geo(1, 12, 8), cm);
+        col.position.set(t.x, h/2, t.z); col.scale.set(2.6, h/2, 2.6);
+        Graph.scene().add(col); _pieces.push(col);
+      } catch(e){}
+    }
+  }
+}
+function _clearPieces(){
+  for (const p of _pieces){ try { Graph.scene().remove(p); p.geometry.dispose(); p.material.dispose(); } catch(e){} }
+  _pieces.length = 0;
+}
+let _mapRebuildTimer = null;
+function _mapRebuildSoon(){                                 // debounced: live nodes keep the board current
+  if (!mapMode) return;
+  clearTimeout(_mapRebuildTimer);
+  _mapRebuildTimer = setTimeout(() => { if (mapMode){ _buildDiscs(); _buildPieces(); } }, 1200);
 }
 // HTML overlay labels floating over each territory (projected from 3D each frame).
 function _buildLabels(){
@@ -1016,13 +1077,13 @@ function enterMap(){
   _slotCounter.clear(); nodes.forEach(n => { n.__mapTarget = null; });
   nodes.forEach(n => mapPlace(n, true));
   Graph.linkCurvature(l => l.attack ? 0.5 : 0.3);     // arcs ride higher over the board
-  refreshLinks(); _buildDiscs(); _buildLabels();
+  refreshLinks(); _buildDiscs(); _buildLabels(); _buildPieces();
   try { Graph.d3ReheatSimulation(); } catch(e){}      // tick so the fixed positions take effect
   setTimeout(() => { try { Graph.cameraPosition({ x:0, y:600, z:560 }, { x:0, y:-20, z:20 }, 1200); } catch(e){} }, 60);
   const b = el('mapbtn'); if (b){ b.textContent = '# Graph view'; b.classList.add('on'); }
 }
 function exitMap(){
-  mapMode = false; _clearDiscs(); _clearLabels();
+  mapMode = false; _clearDiscs(); _clearLabels(); _clearPieces();
   nodes.forEach(n => { n.fx = undefined; n.fy = undefined; n.fz = undefined; n.__mapTarget = null; });
   Graph.linkCurvature(l => l.attack ? 0.28 : 0.16); refreshLinks();
   try { Graph.d3ReheatSimulation && Graph.d3ReheatSimulation(); } catch(e){}
