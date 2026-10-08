@@ -17,16 +17,54 @@ from .findings import Category, Evidence, Finding, Report, Severity
 from .report import docx_report
 
 
-def _print_summary(report: Report) -> None:
+def _print_summary(report: Report, args=None) -> None:
+    """Console summary. `-q/--quiet` prints severity counts only; `-v/--verbose` adds the
+    evidence + remediation under each finding. Both are read off `args` when present."""
+    quiet = bool(getattr(args, "quiet", False))
+    verbose = bool(getattr(args, "verbose", False))
     counts = {s: len(v) for s, v in report.by_severity().items()}
     total = len(report.findings)
     print(f"\n[=] {total} finding(s) across {report.target or 'targets'}")
     for s in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]:
         if counts[s]:
             print(f"    {s.value.upper():>8}: {counts[s]}")
+    if quiet:
+        return
     for f in report.sorted_findings():
-        if f.category != Category.ENUM:
-            print(f"    [{f.severity.value.upper()}] {f.title} -> {', '.join(f.affected) or '-'}")
+        if f.category == Category.ENUM:
+            continue
+        print(f"    [{f.severity.value.upper()}] {f.title} -> {', '.join(f.affected) or '-'}")
+        if verbose:
+            for e in f.evidence:
+                print(f"        evidence: {e.source}: {e.detail}")
+            if f.remediation:
+                print(f"        fix: {f.remediation}")
+
+
+def _emit_outputs(report: Report, args) -> None:
+    """Write whatever output files were requested: --out (.docx), --json, --html, --csv.
+
+    One place so every command offers the same export surface; a command simply omits the
+    flags it does not want (getattr -> None skips that format)."""
+    out = getattr(args, "out", None)
+    if out:
+        docx_report.build(report, out)
+        print(f"[+] Report -> {out}")
+    js = getattr(args, "json", None)
+    if js:
+        with open(js, "w", encoding="utf-8") as fh:
+            fh.write(report.to_json())
+        print(f"[+] Findings JSON -> {js}")
+    html = getattr(args, "html", None)
+    if html:
+        from .report import html_report
+        html_report.build(report, html)
+        print(f"[+] HTML report -> {html}")
+    csv_path = getattr(args, "csv", None)
+    if csv_path:
+        from .report import csv_report
+        n = csv_report.build(report, csv_path)
+        print(f"[+] Findings CSV ({n} row(s)) -> {csv_path}")
 
 
 def _report_crack(crackres, *, wordlist) -> None:
@@ -44,6 +82,22 @@ def _report_crack(crackres, *, wordlist) -> None:
         print(f"[*] {crackres.tool or 'cracker'} ran but cracked nothing with {which}.")
     elif wordlist:
         print("[!] --wordlist set but no hashcat/john on PATH (hashes saved to loot).")
+
+
+def _add_output_args(parser, *, html=False, out_default=None,
+                     out_help="write a .docx report to this path") -> None:
+    """Attach the common output/report flags so every command exposes the same surface:
+    --out (.docx), --json, --csv, optionally --html, plus -v/--verbose and -q/--quiet."""
+    parser.add_argument("--out", default=out_default, help=out_help)
+    parser.add_argument("--json", help="write findings JSON to this path")
+    parser.add_argument("--csv", help="write findings CSV (one row per affected asset; "
+                                      "sort by 'asset' for by-IP, by 'id' for by-finding)")
+    if html:
+        parser.add_argument("--html", help="write a self-contained HTML report (3D graph + findings)")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="console summary: also print evidence + fix under each finding")
+    parser.add_argument("-q", "--quiet", action="store_true",
+                        help="console summary: severity counts only (no per-finding list)")
 
 
 def _sample_report() -> Report:
@@ -137,21 +191,14 @@ def _sample_report() -> Report:
 
 def cmd_demo(args) -> int:
     report = _sample_report()
-    docx_report.build(report, args.out)
-    print(f"[+] Wrote sample report -> {args.out}")
+    _emit_outputs(report, args)
     return 0
 
 
 def cmd_report(args) -> int:
     with open(args.findings, encoding="utf-8") as fh:
         report = Report.from_json(fh.read())
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Wrote report -> {args.out}")
-    if args.html:
-        from .report import html_report
-        html_report.build(report, args.html)
-        print(f"[+] Wrote HTML report -> {args.html}")
+    _emit_outputs(report, args)
     return 0
 
 
@@ -402,19 +449,8 @@ def cmd_scan(args) -> int:
     crackres = run_cracking(report, loot_dir=args.loot_dir, wordlist=wl, builtin=not args.no_crack)
     _report_crack(crackres, wordlist=wl)
 
-    _print_summary(report)
-
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
-    if args.html:
-        from .report import html_report
-        html_report.build(report, args.html)
-        print(f"[+] HTML report -> {args.html}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
 
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
@@ -445,14 +481,8 @@ def cmd_capture(args) -> int:
     else:
         print(f"[*] Analyzing {args.pcap} via tshark...")
     report = run_capture(source, live=live, duration=args.duration, engagement=args.engagement)
-    _print_summary(report)
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
     return 0
 
 
@@ -466,14 +496,8 @@ def cmd_wireless(args) -> int:
         return 2
     print("[*] Surveying Wi-Fi networks in range (read-only; no transmit/deauth/crack)...")
     report = run_wireless(engagement=args.engagement)
-    _print_summary(report)
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
     return 0
 
 
@@ -583,14 +607,8 @@ def cmd_spray(args) -> int:
     else:
         print(f"[*] No valid credentials from {res.tested} account(s) with this password.")
 
-    _print_summary(report)
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
 
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
@@ -668,15 +686,8 @@ def cmd_poison(args) -> int:
     if not crackres.creds:
         print("[*] No NetNTLMv2 hashes captured in this window.")
 
-    _print_summary(report)
-
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
 
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
@@ -790,14 +801,8 @@ def cmd_coerce(args) -> int:
         else:
             print(f"[*] {args.target} did not authenticate to the listener via any method tried.")
 
-    _print_summary(report)
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
 
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
@@ -843,14 +848,8 @@ def cmd_listen(args) -> int:
         time.sleep(1.0)
 
     report, _announces = listen(args.duration, active=args.active, bus=bus)
-    _print_summary(report)
-    if args.out:
-        docx_report.build(report, args.out)
-        print(f"[+] Report -> {args.out}")
-    if args.json:
-        with open(args.json, "w", encoding="utf-8") as fh:
-            fh.write(report.to_json())
-        print(f"[+] Findings JSON -> {args.json}")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
     if server:
         print("[*] Live graph running. Ctrl+C to stop.")
         try:
@@ -930,14 +929,14 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    d = sub.add_parser("demo", help="render a sample .docx (no target needed)")
-    d.add_argument("--out", default="report.docx")
+    d = sub.add_parser("demo", help="render a sample report (no target needed; .docx/.html/.json/.csv)")
+    _add_output_args(d, html=True, out_default="report.docx")
     d.set_defaults(func=cmd_demo)
 
-    rp = sub.add_parser("report", help="render a .docx and/or self-contained .html from a findings.json")
+    rp = sub.add_parser("report", help="render .docx / .html / .json / .csv from a findings.json")
     rp.add_argument("findings")
-    rp.add_argument("--out", default="report.docx", help="output .docx path ('' to skip)")
-    rp.add_argument("--html", help="also write a self-contained HTML report (graph + findings)")
+    _add_output_args(rp, html=True, out_default="report.docx",
+                     out_help="output .docx path ('' to skip)")
     rp.set_defaults(func=cmd_report)
 
     df = sub.add_parser("diff", help="retest diff: compare a baseline findings.json to a current one")
@@ -996,9 +995,7 @@ def main(argv=None) -> int:
                     help="also run a passive link-local sweep for N seconds; its poisonable "
                          "LLMNR/NBT-NS findings feed the relay map (poison -> relay -> target)")
     sc.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
-    sc.add_argument("--out", help="write a .docx report to this path")
-    sc.add_argument("--json", help="write findings JSON to this path")
-    sc.add_argument("--html", help="write a self-contained HTML report (3D graph + findings)")
+    _add_output_args(sc, html=True)
     sc.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     sc.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     sc.add_argument("--port", type=int, default=8765, help="live graph port")
@@ -1017,8 +1014,7 @@ def main(argv=None) -> int:
     po.add_argument("--no-crack", action="store_true",
                     help="skip cracking entirely (just write loot); overrides --wordlist and the built-in list")
     po.add_argument("--loot-dir", default="loot", help="where to write captured hashes / cracked creds")
-    po.add_argument("--out", help="write a .docx report to this path")
-    po.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(po)
     po.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     po.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     po.add_argument("--port", type=int, default=8765, help="live graph port")
@@ -1043,8 +1039,7 @@ def main(argv=None) -> int:
                     help="skip the initial YES prompt (scripted use; does NOT skip FORCE)")
     sp.add_argument("--engagement", default="REDNESS password spray")
     sp.add_argument("--loot-dir", default="loot", help="where to write user list / recovered creds")
-    sp.add_argument("--out", help="write a .docx report to this path")
-    sp.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(sp)
     sp.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     sp.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     sp.add_argument("--port", type=int, default=8765, help="live graph port")
@@ -1073,8 +1068,7 @@ def main(argv=None) -> int:
                     help="skip the initial YES prompt (scripted use; does NOT skip FORCE)")
     co.add_argument("--engagement", default="REDNESS coercion")
     co.add_argument("--loot-dir", default="loot", help="where to write the coercion audit log")
-    co.add_argument("--out", help="write a .docx report to this path")
-    co.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(co)
     co.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     co.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     co.add_argument("--port", type=int, default=8765, help="live graph port")
@@ -1087,8 +1081,7 @@ def main(argv=None) -> int:
     li.add_argument("--active", action="store_true",
                     help="also send one SSDP M-SEARCH to solicit UPnP replies (still low-noise)")
     li.add_argument("--engagement", default="REDNESS link-local discovery")
-    li.add_argument("--out", help="write a .docx report to this path")
-    li.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(li)
     li.add_argument("--live", action="store_true", help="stream to the live 3D graph")
     li.add_argument("--host", default="127.0.0.1", help="live graph bind host")
     li.add_argument("--port", type=int, default=8765, help="live graph port")
@@ -1102,16 +1095,14 @@ def main(argv=None) -> int:
     cp.add_argument("--iface", help="capture live on this interface (authorized traffic only)")
     cp.add_argument("--duration", type=int, default=60, help="live capture seconds (default: 60)")
     cp.add_argument("--engagement", default="REDNESS capture")
-    cp.add_argument("--out", help="write a .docx report to this path")
-    cp.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(cp)
     cp.set_defaults(func=cmd_capture)
 
     wf = sub.add_parser("wifi",
                         help="Wi-Fi survey: flag open / weak-encryption networks in range "
                              "(read-only; netsh on Windows, nmcli on Linux)")
     wf.add_argument("--engagement", default="REDNESS wireless")
-    wf.add_argument("--out", help="write a .docx report to this path")
-    wf.add_argument("--json", help="write findings JSON to this path")
+    _add_output_args(wf)
     wf.set_defaults(func=cmd_wireless)
 
     tr = sub.add_parser("trigger",

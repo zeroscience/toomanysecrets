@@ -503,10 +503,15 @@ _TEMPLATE = """<!doctype html>
   ];
   var _DEF={name:'OTHER',cx:230,cz:270,color:0x333a4e,types:[]};
   var _cf={}; CONTINENTS.forEach(function(c){c.types.forEach(function(t){_cf[t]=c;});});
-  var _PH={goal:40,process:40,owned:26,relay:18,plc:12,rtu:12,gateway:12,controller:12,'field-device':10,broker:12,database:12,printer:10,iot:10,domain:16};
+  function _pspec(t){
+    if(t==='goal'||t==='process')return{h:46,base:6.5,col:1.8};
+    if(t==='owned'||t==='relay')return{h:24,base:9,col:3.2};
+    if(t==='domain')return{h:20,base:12,col:3.8};
+    if(t==='plc'||t==='rtu'||t==='gateway'||t==='controller'||t==='field-device'||t==='broker'||t==='database'||t==='printer'||t==='iot')return{h:13,base:8,col:2.8};
+    return{h:6.5,base:10.5,col:5.0};}
   function _conOf(n){return _cf[n.type]||_DEF;}
   function _slot(c){var i=_sc[c.name]||0;_sc[c.name]=i+1;var a=i*2.399963,r=17*Math.sqrt(i+0.5);return{dx:Math.cos(a)*r,dz:Math.sin(a)*r};}
-  function _tgt(n){if(n.__mt)return n.__mt;var c=_conOf(n),s=_slot(c);n.__mt={x:c.cx+s.dx,y:(_PH[n.type]||2),z:c.cz+s.dz};return n.__mt;}
+  function _tgt(n){if(n.__mt)return n.__mt;var c=_conOf(n),s=_slot(c);n.__mt={x:c.cx+s.dx,y:_pspec(n.type).h,z:c.cz+s.dz};return n.__mt;}
   function _elas(k){if(k<=0)return 0;if(k>=1)return 1;var p=0.42;return Math.pow(2,-10*k)*Math.sin((k-p/4)*(2*Math.PI)/p)+1;}
   function _wob(n,t){var st=performance.now(),D=1050,sx=t.x+(Math.random()-0.5)*70,sy=t.y+110,sz=t.z+(Math.random()-0.5)*70;
     (function f(now){if(!mapMode)return;var k=Math.min(1,(now-st)/D),e=_elas(k);
@@ -530,11 +535,11 @@ _TEMPLATE = """<!doctype html>
   function _rmDiscs(){_discs.forEach(function(d){try{G.scene().remove(d);d.geometry.dispose();d.material.dispose();}catch(e){}});_discs=[];}
   function _mkPieces(){_rmPieces();var gd=G.graphData();var any=(gd.nodes||[]).find(function(x){return x.__threeObj;});if(!any)return;
     var Me=any.__threeObj.constructor,Ge=any.__threeObj.geometry.constructor,Ma=any.__threeObj.material.constructor;
-    (gd.nodes||[]).forEach(function(n){var t=n.__mt;if(!t)return;var hex=0x8aa0b8;try{hex=n.__threeObj.material.color.getHex();}catch(e){}
+    (gd.nodes||[]).forEach(function(n){var t=n.__mt;if(!t)return;var sp=_pspec(n.type);var hex=0x8aa0b8;try{hex=n.__threeObj.material.color.getHex();}catch(e){}
       try{var pm=new Ma({transparent:true,opacity:0.92});pm.color.setHex(hex);if('depthWrite' in pm)pm.depthWrite=false;
-        var ped=new Me(new Ge(9,20,10),pm);ped.position.set(t.x,1.0,t.z);ped.scale.set(1,0.06,1);G.scene().add(ped);_pieces.push(ped);}catch(e){}
-      var h=t.y;if(h>6){try{var cm=new Ma({transparent:true,opacity:0.4});cm.color.setHex(hex);if('depthWrite' in cm)cm.depthWrite=false;
-        var col=new Me(new Ge(1,12,8),cm);col.position.set(t.x,h/2,t.z);col.scale.set(2.6,h/2,2.6);G.scene().add(col);_pieces.push(col);}catch(e){}}});}
+        var ped=new Me(new Ge(sp.base,20,10),pm);ped.position.set(t.x,1.0,t.z);ped.scale.set(1,0.06,1);G.scene().add(ped);_pieces.push(ped);}catch(e){}
+      var h=t.y;if(h>3){try{var cm=new Ma({transparent:true,opacity:0.4});cm.color.setHex(hex);if('depthWrite' in cm)cm.depthWrite=false;
+        var col=new Me(new Ge(1,12,8),cm);col.position.set(t.x,h/2,t.z);col.scale.set(sp.col,h/2,sp.col);G.scene().add(col);_pieces.push(col);}catch(e){}}});}
   function _rmPieces(){_pieces.forEach(function(p){try{G.scene().remove(p);p.geometry.dispose();p.material.dispose();}catch(e){}});_pieces=[];}
   function _mkLabels(){_rmLabels();var h=document.getElementById('rmaplabels');if(!h){h=document.createElement('div');h.id='rmaplabels';document.getElementById('graphwrap').appendChild(h);}
     var gd=G.graphData();CONTINENTS.forEach(function(c){if(!(gd.nodes||[]).some(function(n){return _conOf(n)===c;}))return;

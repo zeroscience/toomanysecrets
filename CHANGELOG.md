@@ -5,6 +5,20 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-08` **CSV export + console verbosity, on every reporting command.** A new `--csv`
+  output (`redness/report/csv_report.py`) writes one row per **(finding x affected asset)** - a
+  finding touching three hosts becomes three rows - so the same file reads **by IP** (sort the
+  `asset` column; `asset_kind` tags ip/host/account/share/object) or **by finding** (sort
+  `severity`/`id`). UTF-8 BOM so Excel opens it clean. Added alongside `--out`/`--json`/`--html`
+  to `demo / report / scan / capture / wifi / listen / poison / spray / coerce` via one shared
+  helper (the per-command output blocks were de-duplicated). New `-v/--verbose` (evidence + fix
+  under each finding) and `-q/--quiet` (counts only) control the console summary. 5 tests. See
+  [docs/REPORTING.md](docs/REPORTING.md).
+- `2026-10-08` **Role-differentiated map pieces.** In the world-map view each node now reads as a
+  distinct Risk piece by role: the objective (Domain Admin / Process Impact) stands as a tall thin
+  **spire**, compromise nodes as **pawns**, the domain as a broad **monument**, OT/IoT kit as mid
+  standing **units**, and everything else as a wide low **chip** (pedestal width + body height +
+  column thickness all vary). Live GUI + HTML report. Pure front-end, no schema change.
 - `2026-10-08` **Brand + world-map polish.** The new orbital REDNESS logo is now the browser
   **favicon** and the badge atop the **About** modal (and already the HUD/report header mark). The
   world-map view gets a visual pass on both the live GUI and the HTML report: territories render as
