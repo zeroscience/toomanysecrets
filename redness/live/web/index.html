@@ -478,7 +478,7 @@ function addNode(d){
   if(existing){
     // a node can be "upgraded" to a compromise/goal state (owned/goal win over its type)
     if((d.type==='owned'||d.type==='goal') && existing.type!==d.type){ existing.type=d.type; bump(); }
-    else if(OT_DEVICE.has(d.type) && (existing.type==='host'||existing.type==='node') && existing.type!==d.type){ existing.type=d.type; bump(); }  // re-type a host to its OT controller role
+    else if((OT_DEVICE.has(d.type)||d.type==='web') && (existing.type==='host'||existing.type==='node') && existing.type!==d.type){ existing.type=d.type; bump(); }  // re-type a host to its OT controller / web-service role
     return;
   }
   const n = { id:d.id, label:d.label||d.id, type:d.type||'node' };

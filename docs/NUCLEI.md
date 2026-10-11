@@ -57,8 +57,14 @@ Every REDNESS finding must carry a remediation; nuclei templates do not always p
 the fallback above guarantees it.
 
 ## Graph
-nuclei findings get the `web` node type (colour `#c77dff`) and land in the **IoT / SERVICES**
-territory on the world map; like other findings they recolour by severity.
+Each distinct web service (`host:port`) becomes its own **`web` node** (colour `#c77dff`) with an
+edge **from its host**, so the graph shows exactly which listener carries the finding - a host with
+several web ports gets one node per port. The port is always present (inferred from the scheme when
+nuclei omits it), so a service never collapses onto its host. Web nodes recolour by severity like
+any other finding and land in the **IoT / SERVICES** territory on the world map. This is derived by
+`redness/webgraph.py` (`emit_web_nodes`, mirrors `graphtypes.py`), the single owner of web nodes -
+`scan._node_type` returns None for `Category.WEB` so the live scan, the captured graph, and the
+report fallback all agree.
 
 Pure parser in `redness/engines/nuclei.py` (`parse_nuclei`), tested in `tests/test_nuclei.py`
 against captured JSONL - no nuclei and no network needed.

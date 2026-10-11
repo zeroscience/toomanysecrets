@@ -37,6 +37,7 @@ redness/
   paths.py        # derive attack-path edges from findings (owned/roastable/ADCS -> Domain Admin)
   relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
   ot.py           # derive OT paths: exposed controller -> "Process Impact" + IT/OT segmentation
+  webgraph.py     # nuclei web services (host:port) as their own `web` nodes under each host
   mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
   capture.py      # passive capture analysis via tshark (pcap/live); `capture` command
   wireless.py     # Wi-Fi survey via netsh/nmcli (open/weak-encryption); `wifi` command

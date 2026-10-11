@@ -93,6 +93,8 @@ def graph_from_report(report: Report) -> dict:
     emit_ot_paths(bus, rep, domain=domain_label)             # OT controllers -> Process Impact
     from .graphtypes import emit_service_nodes
     emit_service_nodes(bus, rep)                             # re-type IoT/service hosts
+    from .webgraph import emit_web_nodes
+    emit_web_nodes(bus, rep)                                 # nuclei web services as host:port nodes
     return gc.data()
 
 

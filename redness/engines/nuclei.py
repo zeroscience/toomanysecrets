@@ -43,13 +43,25 @@ EXCLUDE_TAGS = "intrusive,dos,fuzz,brute"
 
 
 def _asset(url_or_host: str) -> str:
-    """Scheme-stripped host[:port] from a nuclei host/matched-at value ('https://h:8443/x' -> 'h:8443')."""
+    """A stable `host:port` web-service id from a nuclei host/matched-at value.
+
+    Strips the scheme and path, and - so every web service is a distinct node under its host,
+    never collapsing onto the bare host - infers the port from the scheme when it is not explicit:
+    'https://h:8443/x' -> 'h:8443', 'https://h' -> 'h:443', 'http://h' -> 'h:80'.
+    """
     s = (url_or_host or "").strip()
-    for scheme in ("http://", "https://"):
-        if s.lower().startswith(scheme):
-            s = s[len(scheme):]
-            break
-    return s.split("/", 1)[0] or s
+    scheme = ""
+    low = s.lower()
+    if low.startswith("https://"):
+        scheme, s = "https", s[8:]
+    elif low.startswith("http://"):
+        scheme, s = "http", s[7:]
+    s = s.split("/", 1)[0]
+    if not s:
+        return ""
+    if ":" not in s:                                      # no explicit port -> infer from scheme
+        s += ":443" if scheme == "https" else ":80" if scheme == "http" else ""
+    return s
 
 
 def _as_list(v) -> list[str]:
