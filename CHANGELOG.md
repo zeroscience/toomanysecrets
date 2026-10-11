@@ -5,6 +5,17 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-11` **Real 3D chess pieces on the world map (live GUI + HTML report).** In the map
+  view every node now renders as an actual turned chess figure instead of a sphere-on-a-disc:
+  **king** = Domain Admin / Process Impact (goal), **queen** = domain, **rook** = compromised
+  (owned), **bishop** = OT / IoT units, **knight** = NTLM relay, **pawn** = the rank-and-file AD
+  assets (host/user/share/template/CA/secret/...). No new dependency and no three.js import: we
+  reach the vendored bundle's OWN `BufferGeometry` (prototype of a node's `SphereGeometry`) and
+  `Float32BufferAttribute`, then GENERATE the geometry by hand - each piece is a lathe (surface of
+  revolution of a 2D profile), except the knight, a horse-head silhouette extruded with a small
+  ear-clipping triangulator. Same three instance as the renderer, so no version mismatch. Wired
+  via `nodeThreeObject` only in map mode (graph view keeps the fast spheres); `CHESS_PIECES` flag
+  to fall back. Pure front-end, no schema change.
 - `2026-10-08` **CSV export + console verbosity, on every reporting command.** A new `--csv`
   output (`redness/report/csv_report.py`) writes one row per **(finding x affected asset)** - a
   finding touching three hosts becomes three rows - so the same file reads **by IP** (sort the

@@ -947,7 +947,7 @@ function _slot(cont){                                 // golden-angle phyllotaxi
 function _target(n){
   if (n.__mapTarget) return n.__mapTarget;
   const c = _continentOf(n), s = _slot(c);
-  n.__mapTarget = { x: c.cx + s.dx, y: _pieceSpec(n.type).h, z: c.cz + s.dz };
+  n.__mapTarget = { x: c.cx + s.dx, y: _isChessPiece(n) ? -9 : _pieceSpec(n.type).h, z: c.cz + s.dz };
   return n.__mapTarget;
 }
 function _elasticOut(k){
@@ -1026,6 +1026,7 @@ function _buildPieces(){
         Mat = any.__threeObj.material.constructor;
   for (const n of nodes){
     const t = n.__mapTarget; if (!t) continue;
+    if (_isChessPiece(n)) continue;                       // chess pieces carry their own base
     const sp = _pieceSpec(n.type);
     let hex = 0x8aa0b8;
     try { hex = n.__threeObj.material.color.getHex(); } catch(e){}
@@ -1051,6 +1052,139 @@ function _buildPieces(){
 function _clearPieces(){
   for (const p of _pieces){ try { Graph.scene().remove(p); p.geometry.dispose(); p.material.dispose(); } catch(e){} }
   _pieces.length = 0;
+}
+
+// ---- experimental: real 3D chess pieces for the map (pawn / rook / king) ----
+// Self-contained, no three.js import: we reach the vendored bundle's OWN BufferGeometry (the
+// prototype of a node's SphereGeometry) and Float32BufferAttribute (from a node's position
+// attribute), then GENERATE lathe geometry by hand - a chess piece is a surface of revolution of
+// a 2D [radius,height] profile. Same three instance as the renderer, so no version mismatch and
+// no new dependency. Only pawn/rook/king modelled for now; other roles keep the chip/pedestal
+// look. Set CHESS_PIECES=false to fall back to plain sphere nodes.
+const CHESS_PIECES = true;
+const _PIECE_SCALE = 0.9;
+const _PROFILE = {   // lathe: [radius, height], base (y=0) -> top
+  pawn:   [[8,0],[8,2],[4.5,4],[3.4,10],[5.2,12.5],[3.4,14.5],[2.8,21],[4.6,23.5],
+           [5.4,27],[4.8,30],[2.4,32],[0,34]],
+  rook:   [[9.5,0],[9.5,2.5],[6,5],[5,7],[5,24],[6,26],[8.6,28],[9,32],[6.6,33],[6.6,37]],
+  bishop: [[8,0],[8,2],[4.2,4],[3,10],[4.6,12],[3,14],[2.4,24],[4,26],[4.6,30],
+           [3.6,36],[2,40],[2.6,42],[1.6,44],[0.6,48],[0,50]],
+  queen:  [[10,0],[10,2.5],[6,5.5],[5,8],[5,32],[7,35],[6,37],[4.2,46],[6,49],[7,52],
+           [5,53.5],[3,55],[4.4,58],[2.2,59],[3.2,61],[0,64]],
+  king:   [[10,0],[10,2.5],[6,5.5],[5,8],[5,34],[7,37],[6,39],[4.4,50],[6.4,53],[6.6,56],
+           [4.6,57.5],[2,59],[3,61],[2,63],[1.2,70],[0,72]],
+};
+// Knight: the one piece that is not a surface of revolution - a flat horse-head silhouette
+// (facing -x) extruded along z, broadside to the default map camera. [x,y] outline, y up.
+const _KNIGHT_POLY = [
+  [6,0],[6,5],[3.5,9],[3.5,17],[6.5,27],[3.5,31],[5,39],[2,35],[0.5,40],[-4,33],
+  [-9,29],[-13,23],[-13.5,19],[-10,19],[-9,16],[-5,17],[-3.5,12],[-4.5,6],[-4.5,0],
+];
+const _EXTRUDE = { knight: { poly: _KNIGHT_POLY, depth: 7 } };
+const _PIECE_FOR = {                                     // node type -> chess piece
+  goal:'king', process:'king', domain:'queen',
+  owned:'rook', relay:'knight',
+  plc:'bishop', rtu:'bishop', gateway:'bishop', controller:'bishop', 'field-device':'bishop',
+  broker:'bishop', database:'bishop', printer:'bishop', iot:'bishop',
+  host:'pawn', user:'pawn', share:'pawn', template:'pawn', ca:'pawn', adcs:'pawn',
+  secret:'pawn', group:'pawn', ou:'pawn', gpo:'pawn', container:'pawn',
+};
+function _pieceKind(n){ return CHESS_PIECES ? (_PIECE_FOR[n.type] || null) : null; }
+function _isChessPiece(n){ return !!_pieceKind(n); }
+
+let _GEOBUF = null, _F32ATTR = null, _MESH = null, _MAT = null;
+const _latheCache = {};
+function _ensureThreeRefs(){
+  if (_GEOBUF && _F32ATTR && _MESH && _MAT) return true;
+  const any = nodes.find(x => x.__threeObj && x.__threeObj.geometry);
+  if (!any) return false;
+  try {
+    _GEOBUF = Object.getPrototypeOf(any.__threeObj.geometry.constructor);  // ...Geometry -> BufferGeometry
+    _F32ATTR = any.__threeObj.geometry.attributes.position.constructor;     // Float32BufferAttribute
+    _MESH = any.__threeObj.constructor;
+    _MAT = any.__threeObj.material.constructor;
+  } catch(e){ return false; }
+  return !!(_GEOBUF && _F32ATTR && _MESH && _MAT);
+}
+function _lathe(profile, seg){
+  const pos = [], idx = [], rows = profile.length;
+  for (let s = 0; s <= seg; s++){
+    const a = s / seg * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+    for (let i = 0; i < rows; i++) pos.push(profile[i][0]*ca, profile[i][1], profile[i][0]*sa);
+  }
+  for (let s = 0; s < seg; s++){
+    for (let i = 0; i < rows - 1; i++){
+      const a = s*rows+i, b = (s+1)*rows+i, c = (s+1)*rows+i+1, d = s*rows+i+1;
+      idx.push(a, b, d, b, c, d);
+    }
+  }
+  const g = new _GEOBUF();
+  g.setAttribute('position', new _F32ATTR(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+function _sign(p, a, b){ return (p[0]-b[0])*(a[1]-b[1]) - (a[0]-b[0])*(p[1]-b[1]); }
+function _inTri(p, a, b, c){
+  const d1 = _sign(p,a,b), d2 = _sign(p,b,c), d3 = _sign(p,c,a);
+  return !(((d1<0)||(d2<0)||(d3<0)) && ((d1>0)||(d2>0)||(d3>0)));
+}
+function _earClip(pts){                                   // simple ear-clipping triangulation
+  const n = pts.length; let idx = [...Array(n).keys()]; const tris = [];
+  let area = 0; for (let i=0;i<n;i++){ const a=pts[i], b=pts[(i+1)%n]; area += a[0]*b[1]-b[0]*a[1]; }
+  if (area < 0) idx.reverse();
+  let guard = 0;
+  while (idx.length > 3 && guard++ < 2000){
+    let clipped = false;
+    for (let i=0;i<idx.length;i++){
+      const i0=idx[(i-1+idx.length)%idx.length], i1=idx[i], i2=idx[(i+1)%idx.length];
+      const a=pts[i0], b=pts[i1], c=pts[i2];
+      if ((b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]) <= 0) continue;   // reflex
+      let ok = true;
+      for (const j of idx){ if (j===i0||j===i1||j===i2) continue; if (_inTri(pts[j],a,b,c)){ ok=false; break; } }
+      if (!ok) continue;
+      tris.push([i0,i1,i2]); idx.splice(i,1); clipped = true; break;
+    }
+    if (!clipped) break;
+  }
+  if (idx.length === 3) tris.push([idx[0],idx[1],idx[2]]);
+  return tris;
+}
+function _extrude(poly, depth){                           // flat silhouette -> prism geometry
+  const n = poly.length, hz = depth/2, pos = [], idx = [];
+  for (const p of poly) pos.push(p[0], p[1], hz);         // front ring 0..n-1
+  for (const p of poly) pos.push(p[0], p[1], -hz);        // back ring  n..2n-1
+  const tris = _earClip(poly);
+  for (const t of tris) idx.push(t[0], t[1], t[2]);        // front cap
+  for (const t of tris) idx.push(t[2]+n, t[1]+n, t[0]+n);  // back cap (reversed)
+  for (let i=0;i<n;i++){ const j=(i+1)%n; idx.push(i, j, j+n, i, j+n, i+n); }  // side walls
+  const g = new _GEOBUF();
+  g.setAttribute('position', new _F32ATTR(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+function _pieceGeom(kind){
+  if (_latheCache[kind]) return _latheCache[kind];
+  const g = _EXTRUDE[kind] ? _extrude(_EXTRUDE[kind].poly, _EXTRUDE[kind].depth)
+                           : _lathe(_PROFILE[kind], 24);
+  return (_latheCache[kind] = g);
+}
+function _nodeHex(n){
+  if (n.type === 'owned' || GOAL_TYPES.has(n.type)) return TYPE_COLOR[n.type] || '#9aa4b2';
+  if (worstSev.has(n.id)) return SEV_COLOR[worstSev.get(n.id)];
+  return TYPE_COLOR[n.type] || '#9aa4b2';
+}
+function _pieceObj(n){                                    // 3d-force-graph nodeThreeObject accessor
+  const kind = _pieceKind(n);
+  if (!kind || !_ensureThreeRefs()) return false;         // falsy -> default sphere node
+  try {
+    const mat = new _MAT({ color: _nodeHex(n) });
+    if ('side' in mat) mat.side = 2;                       // DoubleSide: winding-agnostic
+    if (mat.emissive && mat.emissive.set){ mat.emissive.set(_nodeHex(n)); mat.emissiveIntensity = 0.22; }
+    const m = new _MESH(_pieceGeom(kind), mat);
+    m.scale.setScalar(_PIECE_SCALE);
+    return m;
+  } catch(e){ return false; }
 }
 let _mapRebuildTimer = null;
 function _mapRebuildSoon(){                                 // debounced: live nodes keep the board current
@@ -1086,12 +1220,14 @@ function enterMap(){
   nodes.forEach(n => mapPlace(n, true));
   Graph.linkCurvature(l => l.attack ? 0.5 : 0.3);     // arcs ride higher over the board
   refreshLinks(); _buildDiscs(); _buildLabels(); _buildPieces();
+  try { _ensureThreeRefs(); Graph.nodeThreeObject(_pieceObj); } catch(e){}  // pawn/rook/king meshes
   try { Graph.d3ReheatSimulation(); } catch(e){}      // tick so the fixed positions take effect
   setTimeout(() => { try { Graph.cameraPosition({ x:0, y:600, z:560 }, { x:0, y:-20, z:20 }, 1200); } catch(e){} }, 60);
   const b = el('mapbtn'); if (b){ b.textContent = '# Graph view'; b.classList.add('on'); }
 }
 function exitMap(){
   mapMode = false; _clearDiscs(); _clearLabels(); _clearPieces();
+  try { Graph.nodeThreeObject(null); } catch(e){}     // restore plain sphere nodes for graph view
   nodes.forEach(n => { n.fx = undefined; n.fy = undefined; n.fz = undefined; n.__mapTarget = null; });
   Graph.linkCurvature(l => l.attack ? 0.28 : 0.16); refreshLinks();
   try { Graph.d3ReheatSimulation && Graph.d3ReheatSimulation(); } catch(e){}
