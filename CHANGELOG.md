@@ -25,7 +25,8 @@ Zero Science Lab | powered by Silly Security Inc.
   revolution of a 2D profile), except the knight, a horse-head silhouette extruded with a small
   ear-clipping triangulator. Same three instance as the renderer, so no version mismatch. Wired
   via `nodeThreeObject` only in map mode (graph view keeps the fast spheres); `CHESS_PIECES` flag
-  to fall back. Pure front-end, no schema change.
+  to fall back. Pure front-end, no schema change. (The knight was later refined to a cleaner,
+  less chunky horse-head profile - 24-point silhouette, thinner extrusion.)
 - `2026-10-08` **CSV export + console verbosity, on every reporting command.** A new `--csv`
   output (`redness/report/csv_report.py`) writes one row per **(finding x affected asset)** - a
   finding touching three hosts becomes three rows - so the same file reads **by IP** (sort the
