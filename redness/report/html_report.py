@@ -549,8 +549,8 @@ _TEMPLATE = """<!doctype html>
     bishop:[[8,0],[8,2],[4.2,4],[3,10],[4.6,12],[3,14],[2.4,24],[4,26],[4.6,30],[3.6,36],[2,40],[2.6,42],[1.6,44],[0.6,48],[0,50]],
     queen:[[10,0],[10,2.5],[6,5.5],[5,8],[5,32],[7,35],[6,37],[4.2,46],[6,49],[7,52],[5,53.5],[3,55],[4.4,58],[2.2,59],[3.2,61],[0,64]],
     king:[[10,0],[10,2.5],[6,5.5],[5,8],[5,34],[7,37],[6,39],[4.4,50],[6.4,53],[6.6,56],[4.6,57.5],[2,59],[3,61],[2,63],[1.2,70],[0,72]]};
-  var _KNIGHT_POLY=[[6,0],[6,5],[3.5,9],[3.5,17],[6.5,27],[3.5,31],[5,39],[2,35],[0.5,40],[-4,33],[-9,29],[-13,23],[-13.5,19],[-10,19],[-9,16],[-5,17],[-3.5,12],[-4.5,6],[-4.5,0]];
-  var _EXTRUDE={knight:{poly:_KNIGHT_POLY,depth:7}};
+  var _KNIGHT_POLY=[[9,0],[-9,0],[-9,3],[-6,4],[-5,9],[-5,14],[-7,15.5],[-9.5,16],[-9,18],[-12,18.5],[-13,20],[-10,25],[-7,30],[-4,35],[-2,39],[-1,43],[0.5,40],[2.5,43],[4,40],[6,34],[8,27],[9,19],[8.5,11],[9,4]];
+  var _EXTRUDE={knight:{poly:_KNIGHT_POLY,depth:5}};
   var _PIECE_FOR={goal:'king',process:'king',domain:'queen',owned:'rook',relay:'knight',
     plc:'bishop',rtu:'bishop',gateway:'bishop',controller:'bishop','field-device':'bishop',broker:'bishop',database:'bishop',printer:'bishop',iot:'bishop',
     host:'pawn',user:'pawn',share:'pawn',template:'pawn',ca:'pawn',adcs:'pawn',secret:'pawn',group:'pawn',ou:'pawn',gpo:'pawn',container:'pawn'};

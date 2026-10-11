@@ -1079,10 +1079,11 @@ const _PROFILE = {   // lathe: [radius, height], base (y=0) -> top
 // Knight: the one piece that is not a surface of revolution - a flat horse-head silhouette
 // (facing -x) extruded along z, broadside to the default map camera. [x,y] outline, y up.
 const _KNIGHT_POLY = [
-  [6,0],[6,5],[3.5,9],[3.5,17],[6.5,27],[3.5,31],[5,39],[2,35],[0.5,40],[-4,33],
-  [-9,29],[-13,23],[-13.5,19],[-10,19],[-9,16],[-5,17],[-3.5,12],[-4.5,6],[-4.5,0],
+  [9,0],[-9,0],[-9,3],[-6,4],[-5,9],[-5,14],[-7,15.5],[-9.5,16],[-9,18],[-12,18.5],
+  [-13,20],[-10,25],[-7,30],[-4,35],[-2,39],[-1,43],[0.5,40],[2.5,43],[4,40],[6,34],
+  [8,27],[9,19],[8.5,11],[9,4],
 ];
-const _EXTRUDE = { knight: { poly: _KNIGHT_POLY, depth: 7 } };
+const _EXTRUDE = { knight: { poly: _KNIGHT_POLY, depth: 5 } };
 const _PIECE_FOR = {                                     // node type -> chess piece
   goal:'king', process:'king', domain:'queen',
   owned:'rook', relay:'knight',
