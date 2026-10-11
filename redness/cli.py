@@ -427,6 +427,12 @@ def cmd_scan(args) -> int:
             print("[!] OT enumeration tier (--ics-enum): sweeping Modbus unit ids and DNP3 "
                   "outstation addresses. Read-only, but a broad sweep can upset fragile kit.",
                   file=sys.stderr)
+    if args.nuclei:                              # opt-in: ACTIVE web/network template scan
+        from .engines import NucleiEngine
+        engines.append(NucleiEngine(profile=args.nuclei_profile, templates=args.nuclei_templates))
+        print(f"[*] nuclei enabled (profile: {args.nuclei_profile}, web ports only). ACTIVE: "
+              "sends real requests - excludes intrusive/dos/fuzz/brute. Scope out fragile OT HMIs.",
+              file=sys.stderr)
 
     from . import audit
     audit.record("scan-start", loot_dir=args.loot_dir, engagement=args.engagement,
@@ -988,6 +994,14 @@ def main(argv=None) -> int:
     sc.add_argument("--ics-enum", action="store_true",
                     help="OT enumeration tier (implies --ics): sweep Modbus unit ids + DNP3 "
                          "outstation addresses behind a gateway/segment (read-only, louder)")
+    sc.add_argument("--nuclei", action="store_true",
+                    help="opt-in ACTIVE web/network scan via nuclei (CVEs/panels/misconfig; "
+                         "web ports only; excludes intrusive/dos/fuzz/brute). Needs nuclei on PATH")
+    sc.add_argument("--nuclei-profile", choices=["light", "full"], default="light",
+                    help="nuclei template set: 'light' = actionable severities (default), "
+                         "'full' = all severities incl. info")
+    sc.add_argument("--nuclei-templates", metavar="PATH",
+                    help="use a specific nuclei templates dir/file (-t); default: nuclei's store")
     sc.add_argument("--no-discovery", action="store_true",
                     help="run every available engine on every host (skip the TCP service "
                          "connect-scan that otherwise dispatches only relevant engines)")

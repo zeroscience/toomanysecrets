@@ -169,6 +169,7 @@
   <div class="row"><span class="dot" style="background:#ff9f1c"></span>OT controller (PLC / RTU / gateway)</div>
   <div class="row"><span class="dot" style="background:#ff006e"></span>Process Impact (OT goal)</div>
   <div class="row"><span class="dot" style="background:#48cae4"></span>IoT / service (broker / db / printer)</div>
+  <div class="row"><span class="dot" style="background:#c77dff"></span>web finding (nuclei)</div>
   <div class="row"><span class="dot" style="background:#ff3737"></span>attack / relay path</div>
   <button id="replaybtn" style="margin-top:9px;width:100%;font-size:11px;">> Replay path to DA</button>
 </div>
@@ -238,7 +239,8 @@ const TYPE_COLOR = { domain:'#7c6cf0', host:'#22c1a4', user:'#3aa0ff',
   plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
   'field-device':'#90be6d', process:'#ff006e',
   // IoT / exposed services
-  broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2' };
+  broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2',
+  web:'#c77dff' };                                       // nuclei web/network template findings
 const SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c',
   low:'#6fcf97', info:'#8a93a2' };
 // Goal node types (Domain Admin + OT Process Impact) and the specific roles a generic host can be
@@ -920,7 +922,7 @@ const CONTINENTS = [
   { name:'OT / ICS', cx:320, cz:40, color:0x6b4410,
     types:['plc','rtu','gateway','controller','field-device','process'] },
   { name:'IoT / SERVICES', cx:-50, cz:240, color:0x0f4a52,
-    types:['broker','database','printer','iot'] },
+    types:['broker','database','printer','iot','web'] },
 ];
 const _DEFAULT_CONT = { name:'OTHER', cx:230, cz:270, color:0x333a4e, types:[] };
 const _contFor = {}; CONTINENTS.forEach(c => c.types.forEach(t => _contFor[t] = c));
