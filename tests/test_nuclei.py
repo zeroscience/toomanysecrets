@@ -29,7 +29,7 @@ def test_groups_by_template_and_collects_affected():
     fs = parse_nuclei(SAMPLE)
     assert len(fs) == 2                                   # log4j (grouped) + git-config
     log4j = next(f for f in fs if f.id == "nuclei:log4j-rce")
-    assert sorted(log4j.affected) == ["10.0.0.5:8443", "10.0.0.9"]
+    assert sorted(log4j.affected) == ["10.0.0.5:8443", "10.0.0.9:80"]   # port inferred for :80
     assert len(log4j.evidence) == 2                       # one per match
 
 
@@ -61,9 +61,10 @@ def test_junk_and_blank_lines_skipped():
     assert parse_nuclei("") == []
 
 
-def test_asset_strips_scheme_and_path():
+def test_asset_strips_scheme_and_infers_port():
     assert _asset("https://h:8443/x/y") == "h:8443"
-    assert _asset("http://10.0.0.1") == "10.0.0.1"
+    assert _asset("http://10.0.0.1") == "10.0.0.1:80"       # port inferred from scheme
+    assert _asset("https://example.com") == "example.com:443"
     assert _asset("10.0.0.1:80") == "10.0.0.1:80"
 
 

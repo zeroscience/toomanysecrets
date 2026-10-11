@@ -79,7 +79,7 @@ def _node_type(f: Finding, affected: str, host: str) -> Optional[str]:
     if c == "secret":
         return "secret"
     if c == "web":
-        return "web"
+        return None            # web services are owned by webgraph.emit_web_nodes (host:port nodes)
     return "host"
 
 
@@ -201,6 +201,9 @@ def run_scan(
     # Re-type IoT/service hosts (broker/database/printer/iot) for the graph.
     from .graphtypes import emit_service_nodes
     emit_service_nodes(bus, report)
+    # Draw nuclei web services (host:port) as their own nodes under each host.
+    from .webgraph import emit_web_nodes
+    emit_web_nodes(bus, report)
 
     crit = sum(1 for f in report.findings if f.category != Category.ENUM)
     _emit(bus, EventKind.STATUS, message=f"Scan complete: {crit} finding(s)")

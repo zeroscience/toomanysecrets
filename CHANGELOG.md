@@ -5,6 +5,14 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-11` **Nuclei web services as graph nodes under each host.** Each distinct nuclei
+  `host:port` web service now draws as its own `web` node with an edge from its host (a host with
+  several web ports gets one node per port), instead of recolouring the whole host. New pure
+  derivation `redness/webgraph.py` (`emit_web_nodes`, mirrors `graphtypes.py`) owns these nodes;
+  `scan._node_type` returns None for `Category.WEB` so the live scan, the captured graph, and the
+  report fallback agree. nuclei's asset id always carries a port now (inferred from the scheme when
+  omitted), so a service never collapses onto its host, and the GUI re-types the node to `web` (it
+  lands in the IoT/SERVICES territory). 5 tests (incl. an end-to-end run_scan graph check).
 - `2026-10-11` **Nuclei engine (`scan --nuclei`): template-based web/network vuln scanning.**
   Wraps ProjectDiscovery's nuclei (CVEs, exposed panels, default logins, misconfig, tech-detect,
   takeovers). `redness/engines/nuclei.py` parses `-jsonl`, grouping matches by template into one
