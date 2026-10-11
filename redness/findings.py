@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Optional
 
-SCHEMA_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.4.0"
 
 
 class Severity(str, Enum):
@@ -44,6 +44,7 @@ class Category(str, Enum):
     ICS = "ics"            # industrial control systems / OT field protocols (Modbus/CIP/DNP3/...)
     IOT = "iot"            # IoT / messaging protocols (MQTT, CoAP)
     SERVICE = "service"    # exposed/unauthenticated network services (Redis/Mongo/printers/...)
+    WEB = "web"            # web/network template findings from nuclei (CVEs, panels, misconfig)
 
 
 @dataclass

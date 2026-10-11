@@ -30,6 +30,7 @@ INSTALL_HINTS = {
     "http": "built-in (Python stdlib) - AD web surfaces (/certsrv ESC8, OWA)",
     "snmp": "sudo apt install snmp     (net-snmp `snmpwalk`; default community strings)",
     "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
+    "nuclei": "go install .../nuclei@latest  (or apt/brew; then `nuclei -update-templates`; for scan --nuclei)",
 }
 
 
@@ -63,6 +64,12 @@ def check_poison() -> list[Check]:
     return [Check("responder", responder_available(), INSTALL_HINTS["responder"])]
 
 
+def check_optional() -> list[Check]:
+    """Opt-in engines not in the default scan (active / needs a separate tool)."""
+    from .engines import NucleiEngine
+    return [Check("nuclei", NucleiEngine().is_available(), INSTALL_HINTS["nuclei"])]
+
+
 def report_text() -> str:
     lines = ["REDNESS environment check", "=" * 26, "", "Engines:"]
     engines = check_engines()
@@ -76,6 +83,11 @@ def report_text() -> str:
 
     lines += ["", "NetNTLMv2 capture (optional, for the intrusive `poison` command):"]
     for c in check_poison():
+        mark = "OK " if c.available else "-- "
+        lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
+
+    lines += ["", "Opt-in web scanning (optional, for the ACTIVE `scan --nuclei`):"]
+    for c in check_optional():
         mark = "OK " if c.available else "-- "
         lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
 

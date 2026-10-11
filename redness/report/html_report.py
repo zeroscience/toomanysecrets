@@ -275,7 +275,8 @@ _TEMPLATE = """<!doctype html>
     relay:'#ff884d',
     plc:'#ff9f1c', rtu:'#ffb703', gateway:'#fb8500', controller:'#8ecae6',
     'field-device':'#90be6d', process:'#ff006e',            // OT controllers + Process Impact goal
-    broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2' };   // IoT / services
+    broker:'#00b4d8', database:'#48cae4', printer:'#b5838d', iot:'#95d5b2',   // IoT / services
+    web:'#c77dff' };                                        // nuclei web/network findings
   var GOAL_TYPES = { goal:1, process:1 };                   // Domain Admin + OT Process Impact
   var SEV_COLOR = { critical:'#ff4d4d', high:'#ff7a45', medium:'#f2c94c', low:'#6fcf97',
     info:'#8a93a2' };
@@ -499,7 +500,7 @@ _TEMPLATE = """<!doctype html>
     {name:'DIRECTORY',cx:-300,cz:-70,color:0x2b3a67,types:['domain','host','user','share','template','ca','adcs','secret','group','ou','gpo','container']},
     {name:'COMPROMISE',cx:70,cz:-240,color:0x6a1b1b,types:['owned','goal','relay']},
     {name:'OT / ICS',cx:320,cz:40,color:0x6b4410,types:['plc','rtu','gateway','controller','field-device','process']},
-    {name:'IoT / SERVICES',cx:-50,cz:240,color:0x0f4a52,types:['broker','database','printer','iot']}
+    {name:'IoT / SERVICES',cx:-50,cz:240,color:0x0f4a52,types:['broker','database','printer','iot','web']}
   ];
   var _DEF={name:'OTHER',cx:230,cz:270,color:0x333a4e,types:[]};
   var _cf={}; CONTINENTS.forEach(function(c){c.types.forEach(function(t){_cf[t]=c;});});

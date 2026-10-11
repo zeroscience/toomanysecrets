@@ -13,7 +13,7 @@ def _tgt(host="10.0.0.9"):
 
 
 def test_schema_bumped_and_new_categories():
-    assert SCHEMA_VERSION == "1.3.0"
+    assert SCHEMA_VERSION >= "1.3.0"
     assert Category.IOT.value == "iot" and Category.SERVICE.value == "service"
 
 

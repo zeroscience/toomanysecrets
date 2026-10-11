@@ -26,7 +26,7 @@ in ROADMAP are essentially complete; next focus is GUI/animation polish (docs/GU
 ## Layout
 ```
 redness/
-  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.3.0)
+  findings.py     # normalized findings model  <-- THE CONTRACT (schema v1.4.0)
   events.py       # EventBus (status/finding/node/edge/probe/done) - live-graph seam
   scan.py         # run_scan(): engines x targets -> Report (+ stream to bus; captures meta["graph"])
   diff.py         # retest diff: baseline vs current findings.json -> new/fixed/unchanged/changed
@@ -70,6 +70,7 @@ redness/
     mqtt.py       #   MQTT anonymous-access check (TCP 1883)  [Category.IOT; default scan]
     coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
     netsvc.py     #   exposed services: Redis/Mongo/Elasticsearch/Memcached/printer(IPP)  [Category.SERVICE]
+    nuclei.py     #   nuclei template scan: CVEs/panels/misconfig  [Category.WEB; opt-in + ACTIVE: scan --nuclei]
   report/         # List[Finding] -> .docx + self-contained .html + .csv (one row per affected asset)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
@@ -114,6 +115,7 @@ python -m redness.cli scan --target 10.10.0.15 -u U -p P -d dom --out report.doc
 python -m redness.cli scan --targets examples/scope.txt --live
 python -m redness.cli scan --targets examples/scope.txt --json out.json --html report.html --csv out.csv  # docx/json/html/csv (-v verbose, -q quiet); docs/REPORTING.md
 python -m redness.cli scan --target 10.20.0.0/24 --ics --live   # read-only OT probes (EtherNet/IP, Modbus, BACnet)
+python -m redness.cli scan --target 10.0.0.0/24 --nuclei --out report.docx   # opt-in ACTIVE web scan (nuclei; web ports only); docs/NUCLEI.md
 python -m redness.cli diff baseline.json retest.json     # retest diff (new/fixed/unchanged/changed; exit 2 on regression)
 python -m redness.cli scan --target dc -u U -p P -d dom --wordlist rockyou.txt
 python -m redness.cli scan --target dc -u U -p P --hunt-secrets   # spider shares for secrets (--hunt-content = read file contents)

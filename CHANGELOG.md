@@ -5,6 +5,16 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-11` **Nuclei engine (`scan --nuclei`): template-based web/network vuln scanning.**
+  Wraps ProjectDiscovery's nuclei (CVEs, exposed panels, default logins, misconfig, tech-detect,
+  takeovers). `redness/engines/nuclei.py` parses `-jsonl`, grouping matches by template into one
+  `Finding` per template (N affected host:port, one evidence per match). New **`Category.WEB`**
+  (**SCHEMA_VERSION 1.3.0 -> 1.4.0**). The first ACTIVE engine, so it is handled carefully: opt-in
+  only (never in the default scan), port-gated to web ports (80/443/8080/8443) so it never touches
+  OT/ICS, always `-exclude-tags intrusive,dos,fuzz,brute` + rate-limited, and the binary/templates
+  are a separate install surfaced in `doctor`. `--nuclei-profile light|full`, `--nuclei-templates
+  PATH`. Remediation fallback guarantees every finding carries one. `web` graph node type
+  (IoT/SERVICES territory). 10 tests. See [docs/NUCLEI.md](docs/NUCLEI.md).
 - `2026-10-11` **Real 3D chess pieces on the world map (live GUI + HTML report).** In the map
   view every node now renders as an actual turned chess figure instead of a sphere-on-a-disc:
   **king** = Domain Admin / Process Impact (goal), **queen** = domain, **rook** = compromised

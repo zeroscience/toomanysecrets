@@ -859,3 +859,25 @@ verified in-browser (four labeled territories, ocean/graticule, standing pieces,
 board, clean toggle back, no console errors). 3 backend tests; node --check clean on index.html and
 the rendered report. Still experimental/tunable (continent geometry, a true coastline texture would
 need a reachable canvas texture).
+
+## 2026-10-11 - Nuclei engine (opt-in, ACTIVE web/network scan); schema 1.3.0 -> 1.4.0
+
+Added `redness/engines/nuclei.py` wrapping ProjectDiscovery's nuclei (template-based web/network
+scanning: CVEs, exposed panels, default logins, misconfig, tech-detect, takeovers). `parse_nuclei`
+is pure over `-jsonl`, grouping matches by template-id (one Finding, N affected host:port, one
+Evidence per match). New `Category.WEB` -> **SCHEMA_VERSION 1.3.0 -> 1.4.0**.
+
+Why it is handled differently from everything else: nuclei is the first ACTIVE engine (it sends
+real crafted requests, not a passive/read-only probe). So, deliberately: (1) OPT-IN only
+(`scan --nuclei`), never in default_engines(); (2) PORT-GATED to web ports (80/443/8080/8443) via
+discovery, so it never touches OT/ICS field ports; (3) always `-exclude-tags
+intrusive,dos,fuzz,brute` + rate-limited, keeping the default run detection-oriented; (4) the
+binary AND its template store are a separate install (not bundled), surfaced in `doctor`.
+
+Remediation fallback: every REDNESS finding must carry a remediation, but nuclei templates do not
+always include one - so we use `info.remediation` when present, else synthesize (CVE -> patch/
+upgrade; else restrict/patch + see references). Graph: `web` node type (colour #c77dff) in the
+IoT/SERVICES territory; recolours by severity like other findings. 10 tests (captured JSONL, no
+nuclei/network); end-to-end verified through docx/html/csv. NOT yet field-verified against a live
+nuclei run - that joins the real-gear/Kali verify pass (argv, template-store paths, large-output
+timeout tuning).

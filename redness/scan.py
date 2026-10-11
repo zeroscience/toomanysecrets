@@ -78,6 +78,8 @@ def _node_type(f: Finding, affected: str, host: str) -> Optional[str]:
         return "user"
     if c == "secret":
         return "secret"
+    if c == "web":
+        return "web"
     return "host"
 
 
