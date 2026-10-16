@@ -908,3 +908,28 @@ spiderfoot/kismet/wifite/aircrack/reaver) because tech detection + the advisor i
 every later tool hangs off. nmap -sV + the advisor were field-verified against real nmap XML
 (localhost scan: parsed msrpc/microsoft-ds/Microsoft-HTTPAPI 2.0, produced correct suggestions);
 searchsploit's `--json` shape across exploitdb versions still wants a live check on Kali.
+
+## 2026-10-16 - Wireless suite: Kismet ingest + offline handshake crack (read-only/offline only)
+
+Added two wireless surfaces alongside `redness wifi`: `kismet.py` (`redness kismet <file>` - ingest
+a Kismet passive capture) and `wifi_crack.py` (`redness handshake` - offline aircrack-ng crack).
+Both reuse existing categories (CONFIG / PASSWORD), so NO schema change.
+
+Design decision - REDNESS does the SAFE wireless parts and suggests the active ones. Kismet only
+listens, so ingesting its log is read-only (mirrors the BloodHound ingest); the offline handshake
+crack is just aircrack-ng over a file the operator already captured. The ACTIVE/disruptive steps -
+handshake capture (airodump), deauth (aireplay), WPS brute (reaver/wifite) - are deliberately kept
+OUT of REDNESS and left to the advisor's suggest tier + the operator's judgment, consistent with
+the OT-safe / consent-gated posture. Auto-deauthing clients would be a client-side DoS.
+
+Kismet ingest supports both the modern `.kismet` SQLite (stdlib sqlite3; device JSON extracted
+tolerantly since the keys drift across versions) and the legacy `.netxml` (clean XML), auto-
+detected by file magic. Reuses wireless.build_findings for open/weak/inventory and adds
+`wireless-client-pnl` (MEDIUM): clients probing for named SSIDs leak their preferred-network list =
+karma/evil-twin bait. aircrack output parsing keys on "KEY FOUND! [ ... ]"; a recovered PSK is a
+CRITICAL PASSWORD finding written to loot/wifi_keys.txt (mirrors the hash-crack loot pipeline).
+
+11 tests (pure parsers + a constructed SQLite in-test; no wireless tools needed); kismet ingest
+field-exercised end-to-end via a sample .netxml. NOT verified against a real `.kismet` from a live
+Kismet run or real aircrack-ng output yet - joins the real-gear/Kali verify pass (Kismet device-
+JSON key drift across versions, aircrack WEP vs WPA output variants).

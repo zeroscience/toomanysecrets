@@ -135,10 +135,10 @@ def suggest(report: Report) -> list[Suggestion]:
         if f.id == "wireless-weak-encryption":
             for net in f.affected:
                 out.append(Suggestion("aircrack-ng", net,
-                                      "WPA/WEP network - capture a handshake then crack offline",
-                                      f"airodump-ng --bssid <BSSID> -c <CH> -w cap wlan0  &&  "
-                                      f"aircrack-ng -w wordlist.txt cap-01.cap", "suggest",
-                                      binary="aircrack-ng", priority=70))
+                                      "WPA/WEP network - capture a handshake (active) then crack offline",
+                                      "airodump-ng --bssid <BSSID> -c <CH> -w cap wlan0   # then: "
+                                      "redness handshake --cap cap-01.cap --wordlist rockyou.txt",
+                                      "suggest", binary="aircrack-ng", priority=70))
 
     # dedup (tool+target+command), resolve availability, rank (tier, then priority)
     uniq: dict[tuple, Suggestion] = {}

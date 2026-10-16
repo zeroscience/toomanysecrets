@@ -33,6 +33,7 @@ INSTALL_HINTS = {
     "nuclei": "go install .../nuclei@latest  (or apt/brew; then `nuclei -update-templates`; for scan --nuclei)",
     "nmap": "sudo apt install nmap        (service/version detection for scan --nmap / --suggest)",
     "searchsploit": "sudo apt install exploitdb  (local Exploit-DB lookups for --suggest)",
+    "aircrack-ng": "sudo apt install aircrack-ng  (offline WPA/WEP handshake crack for `handshake`)",
 }
 
 
@@ -73,6 +74,7 @@ def check_optional() -> list[Check]:
         Check("nuclei", NucleiEngine().is_available(), INSTALL_HINTS["nuclei"]),
         Check("nmap", NmapEngine().is_available(), INSTALL_HINTS["nmap"]),
         Check("searchsploit", shutil.which("searchsploit") is not None, INSTALL_HINTS["searchsploit"]),
+        Check("aircrack-ng", shutil.which("aircrack-ng") is not None, INSTALL_HINTS["aircrack-ng"]),
     ]
 
 

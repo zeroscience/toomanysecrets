@@ -542,6 +542,43 @@ def cmd_wireless(args) -> int:
     return 0
 
 
+def cmd_kismet(args) -> int:
+    """Ingest a Kismet capture (.kismet SQLite or .netxml) into wireless findings (passive)."""
+    import os
+    from .kismet import ingest
+    if not os.path.exists(args.path):
+        print(f"[!] no such file: {args.path}", file=sys.stderr)
+        return 2
+    print(f"[*] Ingesting Kismet capture: {args.path} (passive; read-only)")
+    report = ingest(args.path, engagement=args.engagement)
+    _print_summary(report, args)
+    _emit_outputs(report, args)
+    return 0
+
+
+def cmd_handshake(args) -> int:
+    """Offline WPA/WEP handshake crack via aircrack-ng (.cap + wordlist). Offline; read-only."""
+    import os
+    from .wifi_crack import is_available, run_handshake
+    if not os.path.exists(args.cap):
+        print(f"[!] no such capture file: {args.cap}", file=sys.stderr)
+        return 2
+    if not is_available():
+        print("[!] aircrack-ng is not installed / not on PATH.", file=sys.stderr)
+        print("    Install on Kali/Linux:  sudo apt install aircrack-ng", file=sys.stderr)
+        return 2
+    print(f"[*] Cracking {args.cap} with {args.wordlist} via aircrack-ng (offline)...")
+    report, res = run_handshake(args.cap, args.wordlist, bssid=args.bssid or "",
+                                engagement=args.engagement, loot_dir=args.loot_dir)
+    if res.cracked:
+        print(f"[+] KEY FOUND: {res.ssid or res.bssid or args.cap} -> {res.key}")
+    else:
+        print("[*] No key recovered with this wordlist.")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
+    return 0
+
+
 _SPRAY_BANNER = (
     "\n=====================================================================\n"
     " REDNESS spray - password spraying (INTRUSIVE)\n"
@@ -1159,6 +1196,24 @@ def main(argv=None) -> int:
     wf.add_argument("--engagement", default="REDNESS wireless")
     _add_output_args(wf)
     wf.set_defaults(func=cmd_wireless)
+
+    km = sub.add_parser("kismet",
+                        help="ingest a Kismet capture (.kismet SQLite or .netxml): wireless "
+                             "findings (passive, read-only)")
+    km.add_argument("path", help="Kismet .kismet (SQLite) or legacy .netxml file")
+    km.add_argument("--engagement", default="REDNESS wireless (kismet)")
+    _add_output_args(km)
+    km.set_defaults(func=cmd_kismet)
+
+    hs = sub.add_parser("handshake",
+                        help="offline WPA/WEP handshake crack via aircrack-ng (.cap + wordlist)")
+    hs.add_argument("--cap", required=True, help="captured handshake (.cap / .pcap / .hccapx)")
+    hs.add_argument("--wordlist", required=True, help="wordlist for aircrack-ng")
+    hs.add_argument("--bssid", help="target BSSID (optional; narrows to one network)")
+    hs.add_argument("--loot-dir", default="loot", help="where to write the recovered key")
+    hs.add_argument("--engagement", default="REDNESS wifi")
+    _add_output_args(hs)
+    hs.set_defaults(func=cmd_handshake)
 
     tr = sub.add_parser("trigger",
                         help="generate a forced-authentication UNC trigger link (NetNTLMv2 capture; opt-in)")
