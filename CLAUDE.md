@@ -42,6 +42,8 @@ redness/
   mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
   capture.py      # passive capture analysis via tshark (pcap/live); `capture` command
   wireless.py     # Wi-Fi survey via netsh/nmcli (open/weak-encryption); `wifi` command
+  kismet.py       # ingest a Kismet passive capture (.kismet SQLite / .netxml) -> wireless findings; `kismet` command
+  wifi_crack.py   # offline WPA/WEP handshake crack via aircrack-ng -> loot; `handshake` command
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
   cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
@@ -130,6 +132,8 @@ python -m redness.cli coerce --target dc -u U -p P --listener 10.10.0.240  # RPC
 python -m redness.cli listen --duration 60 --live      # passive mDNS/LLMNR/NBT-NS/SSDP discovery on the segment
 python -m redness.cli capture --pcap traffic.pcap --out report.docx   # tshark: cleartext creds + plaintext protocols
 python -m redness.cli wifi --out wifi.docx                 # Wi-Fi survey: open / weak-encryption networks
+python -m redness.cli kismet capture.kismet --out wifi.docx # ingest a Kismet passive capture (.kismet/.netxml); docs/WIRELESS.md
+python -m redness.cli handshake --cap hs.cap --wordlist rockyou.txt  # offline WPA/WEP crack via aircrack-ng -> loot
 ```
 Hash capture is automatic (AS-REP/Kerberoast via LdapEngine) -> written to `loot/`.
 GPP cpasswords are recovered automatically on a credentialed scan (GppEngine -> `nxc -M gpp_password`).

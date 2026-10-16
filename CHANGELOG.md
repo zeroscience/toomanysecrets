@@ -5,6 +5,16 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-16` **Wireless suite: Kismet ingest + offline handshake crack.** Two read-only/offline
+  wireless additions alongside `redness wifi`. **`redness kismet <file>`** ingests a Kismet passive
+  capture - the modern `.kismet` SQLite database or a legacy `.netxml` (auto-detected) - into the
+  same open / weak-encryption / inventory findings as `wifi`, plus a **client preferred-network-
+  list** finding (devices probing for named SSIDs = karma/evil-twin bait). **`redness handshake
+  --cap <f> --wordlist <w>`** cracks a captured WPA/WEP handshake offline via aircrack-ng ->
+  CRITICAL finding + `loot/wifi_keys.txt`. The ACTIVE steps (handshake capture, deauth, WPS) stay
+  out of REDNESS - the advisor suggests them. `redness/kismet.py` + `redness/wifi_crack.py` (pure
+  parsers); `doctor` reports aircrack-ng readiness. 11 tests, no schema change. See
+  [docs/WIRELESS.md](docs/WIRELESS.md).
 - `2026-10-16` **Advisor: "run the right tool for what we found" (`scan --nmap --suggest`).** A new
   recommendations layer that turns detected services + findings into a ranked list of offensive
   next steps - each a tool, why it applies, and a ready-to-run command - in three tiers mirroring
