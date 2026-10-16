@@ -5,6 +5,16 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-16` **Advisor: "run the right tool for what we found" (`scan --nmap --suggest`).** A new
+  recommendations layer that turns detected services + findings into a ranked list of offensive
+  next steps - each a tool, why it applies, and a ready-to-run command - in three tiers mirroring
+  REDNESS's posture: **auto** (read-only `searchsploit` lookups REDNESS runs, added to the report),
+  **suggest** (prints the command - nuclei/sqlmap/metasploit/aircrack - you run it), **gated**
+  (hydra / `redness spray`, via the consent+FORCE+audit path). New `--nmap` runs `nmap -sV`
+  (service/version/CPE) as the tech detector; `--suggest` prints the "Suggested next steps" section.
+  OT-safe: hosts with any ICS finding are excluded from every suggestion. `redness/engines/nmap.py`
+  + `searchsploit.py` (pure parsers) and `redness/advisor.py` (pure rule engine); `doctor` reports
+  nmap/searchsploit/nuclei readiness. 15 tests. No schema change. See [docs/ADVISOR.md](docs/ADVISOR.md).
 - `2026-10-11` **Nuclei web services as graph nodes under each host.** Each distinct nuclei
   `host:port` web service now draws as its own `web` node with an edge from its host (a host with
   several web ports gets one node per port), instead of recolouring the whole host. New pure

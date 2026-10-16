@@ -41,6 +41,25 @@ def _print_summary(report: Report, args=None) -> None:
                 print(f"        fix: {f.remediation}")
 
 
+def _print_suggestions(suggestions) -> None:
+    """Print the advisor's ranked 'next steps' grouped by tier."""
+    if not suggestions:
+        print("\n[>] No tool suggestions for what was found (try --nmap for service/version detail).")
+        return
+    label = {"auto": "auto (read-only, REDNESS can run these)",
+             "suggest": "suggested (you run it)",
+             "gated": "gated (intrusive; consent + FORCE + audit)"}
+    print(f"\n[>] Suggested next steps ({len(suggestions)}):")
+    cur = None
+    for s in suggestions:
+        if s.tier != cur:
+            cur = s.tier
+            print(f"  -- {label.get(cur, cur)} --")
+        miss = "" if s.available else f"   [install {s.binary}]"
+        print(f"    [{s.tool}] {s.target} - {s.reason}{miss}")
+        print(f"        $ {s.command}")
+
+
 def _emit_outputs(report: Report, args) -> None:
     """Write whatever output files were requested: --out (.docx), --json, --html, --csv.
 
@@ -433,6 +452,10 @@ def cmd_scan(args) -> int:
         print(f"[*] nuclei enabled (profile: {args.nuclei_profile}, web ports only). ACTIVE: "
               "sends real requests - excludes intrusive/dos/fuzz/brute. Scope out fragile OT HMIs.",
               file=sys.stderr)
+    if args.nmap:                                # opt-in: nmap -sV service/version detection
+        from .engines import NmapEngine
+        engines.append(NmapEngine())
+        print("[*] nmap -sV enabled (service/version detection; feeds --suggest).", file=sys.stderr)
 
     from . import audit
     audit.record("scan-start", loot_dir=args.loot_dir, engagement=args.engagement,
@@ -455,7 +478,19 @@ def cmd_scan(args) -> int:
     crackres = run_cracking(report, loot_dir=args.loot_dir, wordlist=wl, builtin=not args.no_crack)
     _report_crack(crackres, wordlist=wl)
 
+    suggestions = []
+    if args.suggest:
+        from . import advisor
+        extra = advisor.run_autolookups(report)          # read-only searchsploit enrichment
+        if extra:
+            report.findings.extend(extra)
+            print(f"[+] searchsploit: public exploit candidates for {len(extra)} product(s) "
+                  "(added to the report).")
+        suggestions = advisor.suggest(report)
+
     _print_summary(report, args)
+    if args.suggest:
+        _print_suggestions(suggestions)
     _emit_outputs(report, args)
 
     if server:
@@ -1002,6 +1037,12 @@ def main(argv=None) -> int:
                          "'full' = all severities incl. info")
     sc.add_argument("--nuclei-templates", metavar="PATH",
                     help="use a specific nuclei templates dir/file (-t); default: nuclei's store")
+    sc.add_argument("--nmap", action="store_true",
+                    help="opt-in nmap -sV service/version detection (the advisor's tech detector). "
+                         "Needs nmap on PATH")
+    sc.add_argument("--suggest", action="store_true",
+                    help="after the scan, print tool suggestions for the detected stack and run "
+                         "read-only searchsploit lookups (best with --nmap)")
     sc.add_argument("--no-discovery", action="store_true",
                     help="run every available engine on every host (skip the TCP service "
                          "connect-scan that otherwise dispatches only relevant engines)")

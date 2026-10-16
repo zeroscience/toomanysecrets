@@ -881,3 +881,30 @@ IoT/SERVICES territory; recolours by severity like other findings. 10 tests (cap
 nuclei/network); end-to-end verified through docx/html/csv. NOT yet field-verified against a live
 nuclei run - that joins the real-gear/Kali verify pass (argv, template-store paths, large-output
 timeout tuning).
+
+## 2026-10-16 - Advisor: context-aware tool suggestions (nmap -sV + searchsploit); no schema change
+
+Added a recommendations layer so REDNESS can say "detected X -> run tool Y here". Three new pieces:
+`engines/nmap.py` (`nmap -sV` service/version/CPE detection -> one INFO inventory finding per host
+whose meta carries the structured service list), `engines/searchsploit.py` (read-only local
+Exploit-DB lookup: product+version -> public exploit candidates as INFO findings + EDB refs), and
+`advisor.py` (pure rule engine: detected services + findings -> ranked `Suggestion`s). Both new
+engines emit existing categories (ENUM / WEB), so NO contract/schema change.
+
+Design decision - three tiers matching REDNESS's passive->opt-in->gated posture, and crucially
+REDNESS does NOT auto-run intrusive tools: **auto** = read-only lookups REDNESS runs (searchsploit);
+**suggest** = print the exact command, operator runs it (nuclei/sqlmap/metasploit/aircrack); **gated**
+= online brute/spray via the existing consent+FORCE+audit path (hydra / redness spray). This keeps
+REDNESS an assessment/orchestration tool, not an auto-exploiter, while delivering the "right tool
+for the stack" prompt. OT-safe: hosts with any Category.ICS finding are excluded from all
+suggestions (advisor.ot_hosts). Why tiers over just running everything: hydra/sqlmap/msf are
+intrusive and client-disruptive; auto-running them would break the scope-careful contract.
+
+CLI: `scan --nmap` (opt-in active detection) + `scan --suggest` (print suggestions + run the
+read-only searchsploit auto-lookups, adding exploit-candidate findings to the report). doctor
+reports nmap/searchsploit/nuclei readiness. 15 tests (pure parsers + rule engine, no tools needed).
+Chosen as phase 1 of the broader tool-orchestration ask (nmap/sqlmap/hydra/medusa/msf/amass/
+spiderfoot/kismet/wifite/aircrack/reaver) because tech detection + the advisor is the foundation
+every later tool hangs off. nmap -sV + the advisor were field-verified against real nmap XML
+(localhost scan: parsed msrpc/microsoft-ds/Microsoft-HTTPAPI 2.0, produced correct suggestions);
+searchsploit's `--json` shape across exploitdb versions still wants a live check on Kali.

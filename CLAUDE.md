@@ -38,6 +38,7 @@ redness/
   relay.py        # derive NTLM relay chains (coerce + no-signing + ESC8) -> "NTLM Relay" node
   ot.py           # derive OT paths: exposed controller -> "Process Impact" + IT/OT segmentation
   webgraph.py     # nuclei web services (host:port) as their own `web` nodes under each host
+  advisor.py      # "run the right tool for what we found": detected stack -> ranked tool suggestions (auto/suggest/gated)
   mcast.py        # passive link-local discovery (mDNS/LLMNR/NBT-NS/SSDP); `listen` command
   capture.py      # passive capture analysis via tshark (pcap/live); `capture` command
   wireless.py     # Wi-Fi survey via netsh/nmcli (open/weak-encryption); `wifi` command
@@ -72,6 +73,8 @@ redness/
     coap.py       #   CoAP /.well-known/core discovery (UDP 5683)  [Category.IOT; default scan]
     netsvc.py     #   exposed services: Redis/Mongo/Elasticsearch/Memcached/printer(IPP)  [Category.SERVICE]
     nuclei.py     #   nuclei template scan: CVEs/panels/misconfig  [Category.WEB; opt-in + ACTIVE: scan --nuclei]
+    nmap.py       #   nmap -sV service/version/CPE detection (advisor's tech detector)  [opt-in: scan --nmap]
+    searchsploit.py #  Exploit-DB lookup: product+version -> public exploit candidates (read-only; --suggest)
   report/         # List[Finding] -> .docx + self-contained .html + .csv (one row per affected asset)  (Person B)
   live/           # 3D live GUI: SSE bridge + web UI + demo driver  (Person B)
     bridge.py     #   SSE stream + POST /scan (CSRF-token gated) + static serving
