@@ -31,6 +31,8 @@ INSTALL_HINTS = {
     "snmp": "sudo apt install snmp     (net-snmp `snmpwalk`; default community strings)",
     "responder": "sudo apt install responder   (Linux/Kali; for the intrusive `poison` command)",
     "nuclei": "go install .../nuclei@latest  (or apt/brew; then `nuclei -update-templates`; for scan --nuclei)",
+    "nmap": "sudo apt install nmap        (service/version detection for scan --nmap / --suggest)",
+    "searchsploit": "sudo apt install exploitdb  (local Exploit-DB lookups for --suggest)",
 }
 
 
@@ -65,9 +67,13 @@ def check_poison() -> list[Check]:
 
 
 def check_optional() -> list[Check]:
-    """Opt-in engines not in the default scan (active / needs a separate tool)."""
-    from .engines import NucleiEngine
-    return [Check("nuclei", NucleiEngine().is_available(), INSTALL_HINTS["nuclei"])]
+    """Opt-in engines / advisor tools not in the default scan (active / needs a separate tool)."""
+    from .engines import NmapEngine, NucleiEngine
+    return [
+        Check("nuclei", NucleiEngine().is_available(), INSTALL_HINTS["nuclei"]),
+        Check("nmap", NmapEngine().is_available(), INSTALL_HINTS["nmap"]),
+        Check("searchsploit", shutil.which("searchsploit") is not None, INSTALL_HINTS["searchsploit"]),
+    ]
 
 
 def report_text() -> str:
@@ -86,7 +92,7 @@ def report_text() -> str:
         mark = "OK " if c.available else "-- "
         lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")
 
-    lines += ["", "Opt-in web scanning (optional, for the ACTIVE `scan --nuclei`):"]
+    lines += ["", "Opt-in scanning + advisor (optional; `scan --nuclei` / `--nmap` / `--suggest`):"]
     for c in check_optional():
         mark = "OK " if c.available else "-- "
         lines.append(f"  [{mark}] {c.name:<14} {'' if c.available else '-> ' + c.hint}")

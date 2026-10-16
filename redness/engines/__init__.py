@@ -21,6 +21,7 @@ from .netsvc import (RedisEngine, MongoEngine, ElasticsearchEngine, MemcachedEng
 from .ics_enum import ModbusSweepEngine, Dnp3ScanEngine
 from .ssh_audit import SshEngine
 from .nuclei import NucleiEngine
+from .nmap import NmapEngine
 
 __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "LdapEngine",
            "SecretHuntEngine", "GppEngine", "DelegationEngine", "RdpEngine", "WinRMEngine",
@@ -28,4 +29,4 @@ __all__ = ["Engine", "Target", "NetExecEngine", "CertipyEngine", "TLSEngine", "L
            "EnipEngine", "ModbusEngine", "BacnetEngine", "Dnp3Engine", "HartIpEngine",
            "MqttEngine", "CoapEngine",
            "RedisEngine", "MongoEngine", "ElasticsearchEngine", "MemcachedEngine", "PrinterEngine",
-           "ModbusSweepEngine", "Dnp3ScanEngine", "SshEngine", "NucleiEngine"]
+           "ModbusSweepEngine", "Dnp3ScanEngine", "SshEngine", "NucleiEngine", "NmapEngine"]
