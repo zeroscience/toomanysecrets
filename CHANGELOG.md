@@ -4,6 +4,13 @@ All notable changes to REDNESS. Format loosely follows [Keep a Changelog](https:
 Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
+
+## [1.33.7] - 2026-10-20
+First public release. Red-team orchestrator + normalizer + reporter spanning AD/Windows, OT/ICS,
+IoT, exposed services, web and wireless; four report formats + a live 3D graph; passive-by-default
+with opt-in/gated intrusive commands. ~460 offline tests. Field validation against a live DC + Kali
+is in progress - see docs/VALIDATION.md.
+
 ### Added
 - `2026-10-20` **Tool-path config + GUI Options panel.** For the packaged `.exe` (or any box where
   the tools are not on PATH), the operator can point REDNESS at each external binary - nxc, certipy,

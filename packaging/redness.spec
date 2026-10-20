@@ -6,12 +6,16 @@
 # python-docx bundles a default template (docx/templates/default.docx) and other
 # package data; collect_all pulls those in so the frozen exe can render reports.
 import os
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 # Repo root (SPECPATH is the dir holding this spec, i.e. packaging/).
 _REPO = os.path.abspath(os.path.join(SPECPATH, ".."))
 
 _docx_datas, _docx_bins, _docx_hidden = collect_all("docx")
+
+# Many engines / derivations are imported lazily inside functions (e.g. from .engines import
+# NmapEngine, from . import config). Collect every redness submodule so the frozen exe has them all.
+_redness_hidden = collect_submodules("redness")
 
 # Bundle the live 3D graph web assets (index.html + vendored 3d-force-graph) so the
 # frozen exe can serve `redness live`. Dest mirrors the package layout, which is what
@@ -32,7 +36,7 @@ a = Analysis(
     pathex=[_REPO],            # so `import redness...` resolves during analysis
     binaries=_docx_bins,
     datas=_docx_datas + _web_datas,
-    hiddenimports=_docx_hidden + ["lxml._elementpath"],
+    hiddenimports=_docx_hidden + _redness_hidden + ["lxml._elementpath"],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
