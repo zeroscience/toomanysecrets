@@ -105,17 +105,17 @@ def suggest(report: Report) -> list[Suggestion]:
                                   f"sqlmap -u {url}/ --batch --crawl=2 --level=2 --risk=1",
                                   "suggest", binary="sqlmap", priority=30))
         if name == "ssh" or port == 22:
-            out.append(Suggestion("hydra", hp, "SSH - online password guessing (lockout/noise risk)",
-                                  f"hydra -L users.txt -P passwords.txt -t 4 ssh://{host}", "gated",
-                                  binary="hydra", priority=60))
+            out.append(Suggestion("redness brute", hp, "SSH - online password guessing (lockout/noise risk)",
+                                  f"redness brute --target {host} --service ssh -L users.txt -p 'Season2025!'",
+                                  "gated", binary="hydra", priority=60))
         if name in ("ftp",) or port == 21:
-            out.append(Suggestion("hydra", hp, "FTP - online password guessing",
-                                  f"hydra -L users.txt -P passwords.txt ftp://{host}", "gated",
-                                  binary="hydra", priority=61))
+            out.append(Suggestion("redness brute", hp, "FTP - online password guessing",
+                                  f"redness brute --target {host} --service ftp -L users.txt -p 'Season2025!'",
+                                  "gated", binary="hydra", priority=61))
         if name in ("ms-wbt-server", "rdp") or port == 3389:
-            out.append(Suggestion("hydra", hp, "RDP - online password guessing (lockout risk)",
-                                  f"hydra -L users.txt -P passwords.txt rdp://{host}", "gated",
-                                  binary="hydra", priority=62))
+            out.append(Suggestion("redness brute", hp, "RDP - online password guessing (lockout risk)",
+                                  f"redness brute --target {host} --service rdp -L users.txt -p 'Season2025!'",
+                                  "gated", binary="hydra", priority=62))
         if name in ("microsoft-ds", "netbios-ssn") or port == 445:
             out.append(Suggestion("redness spray", host, "SMB - lockout-aware password spray",
                                   f"redness spray --target {host} -p 'Season2025!' "
