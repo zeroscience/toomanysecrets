@@ -45,7 +45,8 @@ redness/
   kismet.py       # ingest a Kismet passive capture (.kismet SQLite / .netxml) -> wireless findings; `kismet` command
   wifi_crack.py   # offline WPA/WEP handshake crack via aircrack-ng -> loot; `handshake` command
   crack.py        # capture AS-REP/Kerberoast hashes -> loot files -> crack (hashcat/john)
-  cli.py          # entrypoint: demo / report / live / scan / poison / spray / trigger / coerce
+  config.py       # user config: external tool paths (GUI Options -> ~/.redness/config.json -> PATH)
+  cli.py          # entrypoint: demo / report / live / scan / poison / spray / brute / trigger / coerce
   spray.py        # gated `spray` command: lockout-aware nxc password spray (intrusive)
   coerce.py       # gated `coerce` command: RPC forced-auth (PetitPotam/PrinterBug/DFSCoerce) via nxc coerce_plus (intrusive)
   engines/        # tool wrappers -> List[Finding]  (Person A)

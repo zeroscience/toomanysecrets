@@ -213,6 +213,9 @@ def _make_handler(live: LiveServer):
                 if not live.offensive_enabled:      # hide offensive actions unless armed at launch
                     cat = [a for a in cat if not a.get("offensive")]
                 self._serve_json(cat)
+            elif path == "/config":                 # tool-path config for the Options panel
+                from .. import config
+                self._serve_json(config.status())
             else:
                 self._serve_static(path.lstrip("/"))   # vendor/, css, logo, etc.
 
@@ -304,6 +307,19 @@ def _make_handler(live: LiveServer):
             body = self._drain_body()
             if path in ("/action/arm", "/action/execute"):
                 self._handle_offensive(path, body)
+                return
+            if path == "/config":                           # save tool paths (token-gated)
+                if self.headers.get("X-REDNESS-Token", "") != live.token:
+                    self.send_error(403, "bad token")
+                    return
+                try:
+                    params = json.loads(body or b"{}")
+                except (ValueError, json.JSONDecodeError):
+                    self.send_error(400, "bad json")
+                    return
+                from .. import config
+                config.update_tool_paths(params.get("tool_paths") or {})
+                self._serve_json_code({"status": "saved", "tools": config.status()}, 200)
                 return
             handler = {"/scan": live.on_scan, "/action": live.on_action}.get(path)
             if path not in ("/scan", "/action"):

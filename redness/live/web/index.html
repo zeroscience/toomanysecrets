@@ -118,6 +118,14 @@
   #scanpanel .x { float:right; cursor:pointer; color:#8a93a2; font-size:15px; line-height:1; }
   #scanpanel .x:hover { color:#ff5252; }
   .modal .foot { margin-top:16px; color:#4b5563; font-size:10.5px; letter-spacing:.05em; }
+  /* Options (tool paths) */
+  .optrow { display:grid; grid-template-columns:1fr 1.5fr; gap:8px; align-items:center; margin:5px 0; }
+  .optrow label { color:#c9d1d9; font-size:11.5px; }
+  .optrow input { background:#0b0d12; border:1px solid #232a36; border-radius:4px; color:#c9d1d9;
+    padding:4px 7px; font:11px ui-monospace,monospace; width:100%; box-sizing:border-box; }
+  .optrow input:focus { border-color:#ff5252; outline:none; }
+  .optok { color:#6fcf97; } .optmiss { color:#ff7a45; }
+  #optstatus { color:#8a93a2; font-size:11px; margin-top:10px; min-height:14px; }
   /* right-click node action menu */
   #ctxmenu { position:fixed; z-index:60; display:none; min-width:210px;
     background:rgba(14,17,23,.97); border:1px solid #2a3140; border-radius:8px;
@@ -151,6 +159,7 @@
   <div id="hudbtns">
     <button class="hbtn" onclick="showModal('about')">About</button>
     <button class="hbtn" onclick="showModal('usage')">Usage</button>
+    <button class="hbtn" onclick="openOptions()" title="Set paths to the external tool binaries">Options</button>
     <button class="hbtn" id="mapbtn" title="Toggle the world-map territory view"># Map view</button>
   </div>
 </div>
@@ -227,6 +236,20 @@
     <div class="foot">In the graph: nodes are domain / hosts / users / shares / CAs, colored by
       finding severity. Right-click a node for enum actions; offensive actions (Kerberoast /
       secretsdump / DCSync) appear in red when launched with --enable-offensive.</div>
+  </div>
+</div>
+
+<div id="options" class="modal" onclick="if(event.target===this)hideModal('options')">
+  <div class="card">
+    <span class="x" onclick="hideModal('options')">x</span>
+    <h2>OPTIONS</h2>
+    <div class="brandline">external tool paths - leave blank to use PATH</div>
+    <p style="margin:0 0 12px;">Point REDNESS at each binary if it is not on your PATH (handy for the
+      packaged .exe). Paths are saved to <code>~/.redness/config.json</code> and their folders are
+      added to PATH for this session. <span class="optok">OK</span> = found, <span class="optmiss">--</span> = missing.</p>
+    <div id="optrows"></div>
+    <div id="optstatus"></div>
+    <button class="hbtn" style="margin-top:12px;" onclick="saveOptions()">Save</button>
   </div>
 </div>
 
@@ -1243,8 +1266,38 @@ if (el('mapbtn')) el('mapbtn').onclick = () => { mapMode ? exitMap() : enterMap(
 function showModal(id){ el(id).classList.add('show'); }
 function hideModal(id){ el(id).classList.remove('show'); }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { hideModal('about'); hideModal('usage'); }
+  if (e.key === 'Escape') { hideModal('about'); hideModal('usage'); hideModal('options'); }
 });
+
+// ---- Options: external tool paths ----
+function openOptions(){ showModal('options'); loadOptions(); }
+function loadOptions(){
+  el('optstatus').textContent = '';
+  fetch('/config').then(r => r.json()).then(tools => {
+    const host = el('optrows'); host.innerHTML = '';
+    (tools || []).forEach(t => {
+      const row = document.createElement('div'); row.className = 'optrow';
+      const lab = document.createElement('label'); lab.title = t.name;
+      lab.innerHTML = (t.available ? '<span class="optok">OK</span> ' : '<span class="optmiss">--</span> ') + t.label;
+      const inp = document.createElement('input'); inp.type = 'text'; inp.dataset.tool = t.name;
+      inp.value = t.configured || ''; inp.placeholder = t.resolved || 'not found on PATH';
+      row.appendChild(lab); row.appendChild(inp); host.appendChild(row);
+    });
+  }).catch(() => { el('optstatus').textContent = 'Could not load config.'; });
+}
+function saveOptions(){
+  const tp = {};
+  document.querySelectorAll('#optrows input').forEach(i => { tp[i.dataset.tool] = i.value.trim(); });
+  el('optstatus').textContent = 'Saving...';
+  fetch('/config', { method:'POST',
+    headers: { 'Content-Type':'application/json', 'X-REDNESS-Token': CSRF },
+    body: JSON.stringify({ tool_paths: tp }) })
+    .then(r => r.json()).then(res => {
+      const ok = (res.tools || []).filter(t => t.available).length;
+      el('optstatus').textContent = `Saved to ~/.redness/config.json - ${ok} tool(s) resolved.`;
+      loadOptions();
+    }).catch(() => { el('optstatus').textContent = 'Save failed.'; });
+}
 </script>
 </body>
 </html>

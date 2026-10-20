@@ -100,6 +100,31 @@ def test_logo_served():
         srv.stop()
 
 
+def test_config_endpoint_get_and_post(tmp_path, monkeypatch):
+    monkeypatch.setenv("REDNESS_CONFIG", str(tmp_path / "cfg.json"))
+    fake = tmp_path / "nxc.exe"
+    fake.write_text("x")
+    srv = LiveServer(EventBus(), port=0)
+    url = srv.start()
+    try:
+        got = json.loads(urllib.request.urlopen(url + "config", timeout=3).read())
+        assert any(t["name"] == "nxc" for t in got)        # status list
+        # POST without the token is rejected
+        try:
+            _post(url + "config", {"tool_paths": {"nxc": str(fake)}})
+            assert False, "should need the token"
+        except urllib.error.HTTPError as e:
+            assert e.code == 403
+        # POST with the token saves + resolves
+        resp = _post(url + "config", {"tool_paths": {"nxc": str(fake)}},
+                     {"Content-Type": "application/json", "X-REDNESS-Token": srv.token})
+        out = json.loads(resp.read())
+        assert out["status"] == "saved"
+        assert any(t["name"] == "nxc" and t["resolved"] == str(fake) for t in out["tools"])
+    finally:
+        srv.stop()
+
+
 def test_actions_endpoint_serves_catalog():
     cat = [{"id": "enum-smb", "label": "Enumerate SMB", "node_types": ["host"], "offensive": False}]
     srv = LiveServer(EventBus(), port=0, on_action=lambda p: None, action_catalog=cat)
