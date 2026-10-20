@@ -5,6 +5,18 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 ### Added
+- `2026-10-20` **Tool-path config + GUI Options panel.** For the packaged `.exe` (or any box where
+  the tools are not on PATH), the operator can point REDNESS at each external binary - nxc, certipy,
+  john, hashcat, nmap, nuclei, hydra, python, ... - from the GUI's new **Options** button. Paths are
+  saved to `~/.redness/config.json` (override with `$REDNESS_CONFIG`) and their folders are prepended
+  to PATH at startup, so every engine's `shutil.which` lookup finds them. New `redness/config.py`
+  (`load`/`save`/`apply`/`resolve`/`status`), token-gated `GET`/`POST /config` bridge endpoints, and
+  the Options modal. `redness doctor` picks up configured tools automatically. 7 tests, no schema change.
+- `2026-10-20` **Gated online brute via hydra/medusa (`redness brute`).** Extends the lockout-aware
+  spray posture to ssh/ftp/rdp/smb/http/telnet/mysql/...: a small password set needs YES consent, a
+  large per-user list is true brute-force (lockout DoS) and is refused unless `--force` + typed FORCE.
+  `redness/brute.py` (pure parsers + argv + run); the advisor's ssh/ftp/rdp suggestions now point at
+  it. 9 tests, no schema change.
 - `2026-10-16` **Wireless suite: Kismet ingest + offline handshake crack.** Two read-only/offline
   wireless additions alongside `redness wifi`. **`redness kismet <file>`** ingests a Kismet passive
   capture - the modern `.kismet` SQLite database or a legacy `.netxml` (auto-detected) - into the

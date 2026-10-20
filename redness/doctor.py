@@ -109,4 +109,12 @@ def report_text() -> str:
                   "  pip install -r requirements-engines.txt"]
     else:
         lines.append("All engines ready - real findings will flow.")
+    try:
+        from . import config
+        cfg = config.load()
+        overrides = cfg.get("tool_paths") or {}
+        lines += ["", f"Tool paths: {len(overrides)} override(s) in {config.config_path()} "
+                  "(set them in the GUI's Options panel, or edit the file)."]
+    except Exception:
+        pass
     return "\n".join(lines)

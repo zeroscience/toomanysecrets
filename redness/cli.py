@@ -1347,6 +1347,11 @@ def main(argv=None) -> int:
     bh.set_defaults(func=cmd_bloodhound)
 
     args = p.parse_args(argv)
+    try:                                                   # honor configured tool paths (GUI Options)
+        from . import config
+        config.apply()
+    except Exception:
+        pass
     return args.func(args)
 
 
