@@ -1090,7 +1090,12 @@ def cmd_bloodhound(args) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="redness", description="AD assessment orchestrator + reporter")
+    from . import __version__
+    p = argparse.ArgumentParser(
+        prog="redness",
+        description="REDNESS - red-team orchestrator + normalizer + reporter for network pentests "
+                    "(AD/Windows, OT/ICS, IoT, services, web, wireless).")
+    p.add_argument("--version", action="version", version=f"REDNESS {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     d = sub.add_parser("demo", help="render a sample report (no target needed; .docx/.html/.json/.csv)")

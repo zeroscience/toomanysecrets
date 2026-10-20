@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "redness"
-version = "0.1.0"
-description = "Red-team orchestrator + normalizer + reporter for AD/Windows assessments (codename REDNESS)."
+version = "1.33.7"
+description = "Red-team orchestrator + normalizer + reporter for network pentests: AD/Windows, OT/ICS, IoT, services, web and wireless (codename REDNESS)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
