@@ -67,9 +67,10 @@ def test_version_suggests_searchsploit_auto_and_metasploit():
 
 def test_ssh_and_smb_are_gated():
     sg = suggest(_report())
-    hydra = next(s for s in sg if s.tool == "hydra")
+    brute = next(s for s in sg if s.tool == "redness brute" and "ssh" in s.command)
     spray = next(s for s in sg if s.tool == "redness spray")
-    assert hydra.tier == "gated" and spray.tier == "gated"
+    assert brute.tier == "gated" and spray.tier == "gated"
+    assert brute.command.startswith("redness brute --target 10.0.0.5 --service ssh")
 
 
 def test_ranked_auto_before_suggest_before_gated():

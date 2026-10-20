@@ -34,6 +34,7 @@ INSTALL_HINTS = {
     "nmap": "sudo apt install nmap        (service/version detection for scan --nmap / --suggest)",
     "searchsploit": "sudo apt install exploitdb  (local Exploit-DB lookups for --suggest)",
     "aircrack-ng": "sudo apt install aircrack-ng  (offline WPA/WEP handshake crack for `handshake`)",
+    "hydra": "sudo apt install thc-hydra     (online password guessing for the gated `brute`)",
 }
 
 
@@ -75,6 +76,8 @@ def check_optional() -> list[Check]:
         Check("nmap", NmapEngine().is_available(), INSTALL_HINTS["nmap"]),
         Check("searchsploit", shutil.which("searchsploit") is not None, INSTALL_HINTS["searchsploit"]),
         Check("aircrack-ng", shutil.which("aircrack-ng") is not None, INSTALL_HINTS["aircrack-ng"]),
+        Check("hydra", shutil.which("hydra") is not None or shutil.which("medusa") is not None,
+              INSTALL_HINTS["hydra"]),
     ]
 
 

@@ -699,6 +699,92 @@ def cmd_spray(args) -> int:
     return 0
 
 
+_BRUTE_BANNER = (
+    "\n=====================================================================\n"
+    " REDNESS brute - online password guessing via hydra/medusa (INTRUSIVE)\n"
+    " Online guessing CAN LOCK OUT ACCOUNTS (a denial of service against the\n"
+    " client) and is loud to a SOC. REDNESS does not know the target lockout\n"
+    " policy - keep the password set small (spray), know the policy first.\n"
+    "=====================================================================\n"
+)
+
+
+def cmd_brute(args) -> int:
+    from . import audit
+    from .brute import count_passwords, is_available, lockout_risk, run_brute
+
+    print(_BRUTE_BANNER, file=sys.stderr)                 # always, even scripted
+
+    tool = args.tool
+    if tool == "auto":
+        import shutil as _sh
+        tool = "hydra" if _sh.which("hydra") else ("medusa" if _sh.which("medusa") else "hydra")
+    if not is_available(tool):
+        print(f"[!] {tool} is not installed / not on PATH.", file=sys.stderr)
+        print("    Install on Kali/Linux:  sudo apt install thc-hydra  (or medusa)", file=sys.stderr)
+        return 2
+    if not (args.user or args.user_file):
+        print("[!] need a user: -l USER or -L USERFILE.", file=sys.stderr)
+        return 2
+    if not (args.password or args.pass_file):
+        print("[!] need a password source: -p PASS or -P PASSFILE.", file=sys.stderr)
+        return 2
+
+    npw = count_passwords(args.password, args.pass_file)
+    risky = lockout_risk(npw, args.max_per_user)
+    print(f"[*] {tool}: {args.service} on {args.target}; {npw} password(s)/user "
+          f"(lockout gate at >{args.max_per_user}).")
+
+    # Large per-user password lists = true brute-force (lockout DoS): needs --force + typed FORCE.
+    if risky and not args.force:
+        print(f"[!!] {npw} passwords/user exceeds the safe spray budget ({args.max_per_user}). "
+              "This CAN LOCK OUT ACCOUNTS.", file=sys.stderr)
+        print("[*] Aborted: pass --force (and type FORCE) to run a full brute-force.", file=sys.stderr)
+        audit.record("brute-refused", loot_dir=args.loot_dir, engagement=args.engagement,
+                     target=args.target, service=args.service, passwords=npw, reason="lockout-risk")
+        return 2
+
+    if not args.yes:                                      # normal consent (skipped only by --yes)
+        try:
+            if input(f"    Type YES to run {tool} against {args.service}://{args.target}: "
+                     ).strip() != "YES":
+                print("[*] Aborted.")
+                return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\n[*] Aborted.")
+            return 1
+
+    if risky:                                             # second, distinct FORCE confirmation
+        try:
+            if input("    Type FORCE to run a full brute-force and risk account lockout: "
+                     ).strip() != "FORCE":
+                print("[*] Aborted.")
+                return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\n[*] Aborted.")
+            return 1
+
+    audit.record("brute-start", loot_dir=args.loot_dir, engagement=args.engagement,
+                 target=args.target, service=args.service, tool=tool, passwords=npw,
+                 force=bool(args.force))
+    report, res = run_brute(args.target, args.service, tool=tool, port=args.port or "",
+                            user=args.user or "", user_file=args.user_file or "",
+                            password=args.password or "", pass_file=args.pass_file or "",
+                            tasks=args.tasks, loot_dir=args.loot_dir, engagement=args.engagement)
+    audit.record("brute-done", loot_dir=args.loot_dir, engagement=args.engagement,
+                 target=args.target, service=args.service, hits=len(res.hits))
+
+    if res.hits:
+        print(f"[+] {len(res.hits)} valid credential(s):")
+        for h in res.hits:
+            print(f"    {h.service}://{h.host} - {h.username}:{h.password}")
+    else:
+        print("[*] No valid credentials recovered.")
+    _print_summary(report, args)
+    _emit_outputs(report, args)
+    return 0
+
+
 _POISON_BANNER = (
     "\n=====================================================================\n"
     " REDNESS poison - LLMNR/NBT-NS/mDNS poisoning (NetNTLMv2 capture)\n"
@@ -1137,6 +1223,32 @@ def main(argv=None) -> int:
     sp.add_argument("--port", type=int, default=8765, help="live graph port")
     sp.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
     sp.set_defaults(func=cmd_spray)
+
+    br = sub.add_parser("brute",
+                        help="online password guessing via hydra/medusa for ssh/ftp/rdp/http/... "
+                             "(intrusive; opt-in, gated - lockout DoS risk)")
+    br.add_argument("--target", required=True, help="host to guess against")
+    br.add_argument("--service", required=True,
+                    help="service: ssh / ftp / rdp / smb / http-get / telnet / mysql / ...")
+    br.add_argument("--tool", choices=["auto", "hydra", "medusa"], default="auto",
+                    help="which tool (default: auto - prefer hydra)")
+    br.add_argument("--port", help="non-default service port")
+    br.add_argument("-l", "--user", help="single username")
+    br.add_argument("-L", "--user-file", help="username list file")
+    br.add_argument("-p", "--password", help="single password (a spray)")
+    br.add_argument("-P", "--pass-file", help="password list file")
+    br.add_argument("--tasks", type=int, default=4, help="parallel tasks (default 4; keep low)")
+    br.add_argument("--max-per-user", type=int, default=5,
+                    help="lockout gate: more passwords/user than this is a full brute-force and "
+                         "needs --force + FORCE (default 5)")
+    br.add_argument("--force", action="store_true",
+                    help="allow a full brute-force past the lockout gate (ALSO needs typed FORCE)")
+    br.add_argument("--yes", action="store_true",
+                    help="skip the initial YES prompt (scripted use; does NOT skip FORCE)")
+    br.add_argument("--engagement", default="REDNESS brute")
+    br.add_argument("--loot-dir", default="loot", help="where to write recovered credentials")
+    _add_output_args(br)
+    br.set_defaults(func=cmd_brute)
 
     co = sub.add_parser("coerce",
                         help="active RPC forced-auth coercion (PetitPotam/PrinterBug/DFSCoerce; "
