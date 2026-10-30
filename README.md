@@ -12,6 +12,9 @@ exposed services, web and wireless.
 
 > Codename REDNESS. By [Zero Science Lab](https://www.zeroscience.mk) - Anja Ivanovska & Gjoko Krstic.
 > Authorized assessments only (see [Legal](#legal--ethics)).
+>
+> Built as a teaching project for the **Silly Security Academy** (see
+> [Education](#education--silly-security-academy)).
 
 <!-- SCREENSHOT: live 3D graph (docs/screenshots/live-graph.jpg) -->
 ![live 3D graph](docs/screenshots/live-graph.jpg)
@@ -37,6 +40,7 @@ exposed services, web and wireless.
 - [Tools REDNESS orchestrates](#tools-redness-orchestrates)
 - [Packaging (the .exe)](#packaging-the-exe)
 - [Tests](#tests)
+- [Education / Silly Security Academy](#education--silly-security-academy)
 - [Legal / ethics](#legal--ethics)
 
 ---
@@ -261,6 +265,24 @@ python -m pytest -q          # ~460 tests
 > **Field validation:** REDNESS is exhaustively tested offline but is still being validated against
 > a live DC + real tooling on Kali. If a parser misses a real-world output format, add a captured
 > sample to the matching `tests/` file. See `docs/VALIDATION.md`.
+
+---
+
+## Education / Silly Security Academy
+REDNESS was built as a hands-on teaching project for the **Silly Security Academy**, where it
+has been used to teach students how to:
+
+- work *with* AI to design, build and extend red-team tooling,
+- orchestrate real offensive tools (NetExec, Impacket, Certipy, nmap, nuclei, hydra, aircrack-ng
+  and friends) instead of memorizing one-off command lines,
+- read, normalize and interpret the results - turning scattered tool output into a single
+  findings model and a report that explains impact and remediation,
+- and reason about network and Active Directory attack paths, OT/ICS and wireless safety, and the
+  ethics of authorized testing.
+
+The codebase is deliberately readable and heavily unit-tested so it can be studied, modified and
+broken safely in a lab. If you are learning from it: run it only against systems you own or are
+explicitly authorized to test (see [Legal](#legal--ethics)).
 
 ---
 

@@ -5,6 +5,12 @@ Zero Science Lab | powered by Silly Security Inc.
 
 ## [Unreleased]
 
+### Added
+- `2026-10-30` **README: Silly Security Academy note.** Documented that REDNESS was built as a
+  hands-on teaching project for the Silly Security Academy - teaching students to build red-team
+  tooling with AI, orchestrate real offensive tools, and read/normalize/interpret results. New
+  `Education / Silly Security Academy` section plus a top-of-README callout and Contents entry.
+
 ## [1.33.7] - 2026-10-20
 First public release. Red-team orchestrator + normalizer + reporter spanning AD/Windows, OT/ICS,
 IoT, exposed services, web and wireless; four report formats + a live 3D graph; passive-by-default
