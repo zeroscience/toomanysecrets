@@ -1,5 +1,16 @@
-<!-- markdownlint-disable MD013 MD033 -->
-# REDNESS
+<!-- markdownlint-disable MD013 MD033 MD041 -->
+<p align="center">
+  <img src="docs/redness-logo.png" alt="REDNESS" width="620">
+</p>
+
+<p align="center">
+  <a href="https://github.com/zeroscience/toomanysecrets/releases"><img alt="release" src="https://img.shields.io/github/v/release/zeroscience/toomanysecrets?style=flat-square&color=e11d26&label=release"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-BSD--2--Clause-blue?style=flat-square"></a>
+  <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square&logo=python&logoColor=white">
+  <img alt="tests" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=flat-square">
+  <img alt="platform" src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey?style=flat-square">
+  <img alt="Silly Security Academy" src="https://img.shields.io/badge/Silly%20Security-Academy-e11d26?style=flat-square">
+</p>
 
 **Red-team orchestrator + normalizer + reporter for network penetration tests.**
 One tool that drives your existing arsenal - NetExec, Impacket, Certipy, nmap, nuclei, hydra,

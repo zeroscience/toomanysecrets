@@ -151,7 +151,8 @@ _TEMPLATE = """<!doctype html>
   a { color:#ff7a45; text-decoration:none; } a:hover { text-decoration:underline; }
   header { padding:22px 28px 14px; border-bottom:1px solid #1c2230; display:flex;
     align-items:center; gap:16px; }
-  header img.logo { height:46px; width:auto; flex:none; }
+  header img.logo { height:40px; width:auto; flex:none; background:#fafafa;
+    padding:5px 9px; border-radius:7px; }
   header h1 { margin:0; font-size:17px; letter-spacing:.14em; color:#ff5252; }
   header .sub { color:#8a93a2; font-size:12.5px; margin-top:4px; }
   /* Atmosphere: a sparse starfield over a centre-lit vignette, behind the transparent WebGL
