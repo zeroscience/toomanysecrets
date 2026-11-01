@@ -13,7 +13,8 @@ Zero Science Lab | powered by Silly Security Inc.
   a row of status badges (release / license / python / tests / platform / academy). The report
   header picks up the new logo automatically (embedded data-URI) and got the matching plate.
   Removed the now-redundant "REDNESS" text that sat directly under the logo in the HUD, the About
-  modal, and the README (the logo already says it).
+  modal, and the README (the logo already says it). Refreshed the README hero screenshot
+  (`docs/screenshots/live-graph.jpg`) to show the GUI with the new logo.
 - `2026-10-30` **README: Silly Security Academy note.** Documented that REDNESS was built as a
   hands-on teaching project for the Silly Security Academy - teaching students to build red-team
   tooling with AI, orchestrate real offensive tools, and read/normalize/interpret results. New
